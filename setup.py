@@ -14,9 +14,8 @@ setup(
     packages=['sco'
               'sco.anatomy',
               'sco.stimulus',
-              #'prf',
-              #'response'
-    ],
+              'sco.pRF',
+              'sco.normalization'],
     package_data={'': ['LICENSE.txt']},
     install_requires=['numpy>=1.2',
                       'scipy>=0.7',

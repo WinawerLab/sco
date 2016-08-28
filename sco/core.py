@@ -43,11 +43,11 @@ def _prep_argspec(argspec, data_pool):
     # look at the function's argument declaration:
     (argnames, vargs, vkwargs, defaults) = argspec
     if defaults is None: defaults = []
-    argnames = argnames[:-len(defaults)] if len(defaults) > 0 else argnames
     dfltargs = argnames[-len(defaults):]
+    argnames = argnames[:-len(defaults)] if len(defaults) > 0 else argnames
     args = [data_pool[arg] for arg in argnames] + \
-           [data_pool[arg] if arg in data_pool else val for (arg,val) in zip(dfltargs, defaults)]
-    return (args, {} if vkwargs is None else data)
+           [(data_pool[arg] if arg in data_pool else val) for (arg,val) in zip(dfltargs,defaults)]
+    return (args, {} if vkwargs is None else data_pool)
 def _argspec_add_defaults(argspec, data_pool):
     (argnames, vargs, kwargs, defaults) = argspec
     if defaults is None: defaults = []
@@ -109,8 +109,8 @@ def calculates(*names, **argtr):
         if hasattr(view, '_calc'):
             view.provision.update(names)
             return view
-        argspec = inspect.getargspec(view)
-        argspec[0] = [argtr[a] if a in argtr else a for a in argspec[0]]]
+        argspec = [a for a in inspect.getargspec(view)]
+        argspec[0] = [argtr[a] if a in argtr else a for a in argspec[0]]
         expc = _argspec_expects(argspec)
         prov = set(names) | set(argspec[0])
         def _calculates(*args, **kwargs):

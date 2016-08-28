@@ -18,7 +18,7 @@ import os, math, itertools, collections, abc
 
 from ..core import (calculates, calc_chain, iscalc)
 
-@calculates('polar_angle_mgh', 'eccentricity_mgh', 'v123_labels_mgh')
+@calculates('polar_angle_mgh', 'eccentricity_mgh', 'v123_labels_mgh', 'ribbon_mgh')
 def import_freesurfer_subject_benson14(subject):
     if isinstance(subject, basestring):
         subject = neuro.freesurfer_subject(subject)
@@ -35,27 +35,31 @@ def import_freesurfer_subject_benson14(subject):
     angle_mgz = fs.mghformat.load(ang)
     eccen_mgz = fs.mghformat.load(ecc)
     label_mgz = fs.mghformat.load(lab)
+    ribbon_mgz = subject.ribbon
     return {'subject':          subject,
             'polar_angle_mgh':  angle_mgz,
             'eccentricity_mgh': eccen_mgz,
-            'v123_labels_mgh':  label_mgz}
+            'v123_labels_mgh':  label_mgz,
+            'ribbon_mgh':       ribbon_mgz}
 
 @calculates('pRF_centers', 'pRF_voxel_indices',
             'pRF_polar_angle', 'pRF_eccentricity', 'pRF_v123_labels')
-def freesurfer_retinotopy_to_pRFs(polar_angle_mgh, eccentricity_mgh, v123_labels_mgh,
+def freesurfer_retinotopy_to_pRFs(polar_angle_mgh, eccentricity_mgh, v123_labels_mgh, ribbon_mgh,
                                   max_eccentricity=None):
     max_eccentricity = 90 if max_eccentricity is None else max_eccentricity
     # The variables are all mgz volumes, so we need to extract the values:
     label = np.round(np.abs(v123_labels_mgh.dataobj.get_unscaled()))
     angle = polar_angle_mgh.dataobj.get_unscaled()
     eccen = eccentricity_mgh.dataobj.get_unscaled()
+    ribbon = ribbon_mgh.dataobj.get_unscaled()
     # Find the voxel indices first:
     pRF_voxel_indices = np.asarray(np.where(label.astype(bool))).T
     # Pull out the angle/eccen data
+    hem   = np.asarray([-1 if ribbon[i,j,k] == 42 else 1 for (i,j,k) in pRF_voxel_indices])
     angs0 = np.asarray([angle[i,j,k] for (i,j,k) in pRF_voxel_indices])
-    angs = 180.0/np.pi * (90.0 - angs0)
-    eccs = np.asarray([eccen[i,j,k] for (i,j,k) in pRF_voxel_indices])
-    labs = np.asarray([label[i,j,k] for (i,j,k) in pRF_voxel_indices])
+    angs  = 180.0/np.pi * (90.0 - angs0*hem)
+    eccs  = np.asarray([eccen[i,j,k] for (i,j,k) in pRF_voxel_indices])
+    labs  = np.asarray([label[i,j,k] for (i,j,k) in pRF_voxel_indices])
     # and pull out the rest of the data based on these:
     return {'pRF_centers':       np.asarray([eccs * np.cos(angs), eccs * np.sin(angs)]).T,
             'pRF_voxel_indices': pRF_voxel_indices,

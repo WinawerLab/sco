@@ -14,4 +14,5 @@ and one may be obtained from the StimulusImage class or from a custom class that
 StimulusBase class.
 '''
 
-from .core import (StimulusBase, StimulusImage)
+from .core import (import_images, normalize_images, generate_gabor_filters, filter_images,
+                   stimulus_images_calc)

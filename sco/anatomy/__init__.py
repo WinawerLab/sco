@@ -16,12 +16,13 @@ AnatomyBase class.
 '''
 
 import sco
-from .core import (import_freesurfer_subject_benson14, freesurfer_retinotopy_to_pRFs,
-                   calculate_pRF_sizes_Kay2013,
-                   Kay2013_pRF_sigma_slope, Kay2013_pRF_output_nonlinearities)
+from ..core import calc_chain
+from .core  import (import_benson14_from_freesurfer, calc_pRFs_from_freesurfer_retinotopy,
+                    calc_Kay2013_pRF_sizes, export_predicted_responses)
 
 # Make a function that's ready to be used as a module
-import_freesurfer_pRF_chain = (import_freesurfer_subject_benson14,
-                               freesurfer_retinotopy_to_pRFs,
-                               calculate_pRF_sizes_Kay2013)
-import_freesurfer_pRFs = sco.calc_chain(import_freesurfer_pRF_chain)
+anatomy_chain = (('import',           import_benson14_from_freesurfer),
+                 ('calc_pRF_centers', calc_pRFs_from_freesurfer_retinotopy),
+                 ('calc_pRF_sizes',   calc_Kay2013_pRF_sizes))
+calc_anatomy  = calc_chain(anatomy_chain)
+

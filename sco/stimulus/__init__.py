@@ -14,5 +14,14 @@ and one may be obtained from the StimulusImage class or from a custom class that
 StimulusBase class.
 '''
 
-from .core import (import_images, normalize_images, generate_gabor_filters, filter_images,
-                   stimulus_images_calc)
+from ..core import calc_chain
+from .core  import (import_stimulus_images, calc_normalized_stimulus_images,
+                    calc_gabor_filters, calc_filtered_images)
+
+stimulus_chain = (('import_stimulus',          import_stimulus_images),
+                  ('calc_normalized_stimulus', calc_normalized_stimulus_images),
+                  ('calc_filters',             calc_gabor_filters),
+                  ('calc_filtered_images',     calc_filtered_images))
+
+calc_stimulus = calc_chain(stimulus_chain)
+

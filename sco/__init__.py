@@ -28,3 +28,20 @@ sco_chain = (('calc_anatomy',       calc_anatomy),
              ('calc_normalization', calc_normalization))
 
 calc_sco = calc_chain(sco_chain)
+
+def reload_sco():
+    '''
+    reload_sco() reloads the sco and all of its submodules.
+    '''
+    import sys
+    reload(sys.modules['sco.core'])
+    reload(sys.modules['sco.anatomy.core'])
+    reload(sys.modules['sco.stimulus.core'])
+    reload(sys.modules['sco.pRF.core'])
+    reload(sys.modules['sco.normalization.core'])
+    reload(sys.modules['sco.anatomy'])
+    reload(sys.modules['sco.stimulus'])
+    reload(sys.modules['sco.pRF'])
+    reload(sys.modules['sco.normalization'])
+    reload(sys.modules['sco'])
+    return None

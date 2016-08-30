@@ -89,6 +89,16 @@ def _calculator_call(f, argspec, names, expc, prov, args, kwargs):
     if len(missing) > 0:
         raise ValueError('Provided values missing: %s' % (missing,))
     return data_pool
+def _flatten_calc_chain_args(args):
+    llist = [
+        ([arg]                         if isinstance(arg, DictType)      else
+         [arg]                         if hasattr(arg, '__iter__') and
+                                          len(arg) == 2 and
+                                          isinstance(arg[0], basestring) else
+         _flatten_calc_chain_args(arg) if hasattr(arg, '__iter__')       else
+         [(arg.__name__, arg)])
+        for arg in args]
+    return [l for ll in llist for l in ll]
 
 
 
@@ -142,16 +152,6 @@ def iscalc(obj):
     False.
     '''
     return all(hasattr(obj, x) for x in ['_calc', 'provision', 'expectation'])
-def _flatten_calc_chain_args(args):
-    llist = [
-        ([arg]                         if isinstance(arg, DictType)      else
-         [arg]                         if hasattr(arg, '__iter__') and
-                                          len(arg) == 2 and
-                                          isinstance(arg[0], basestring) else
-         _flatten_calc_chain_args(arg) if hasattr(arg, '__iter__')       else
-         [(arg.__name__, arg)])
-        for arg in args]
-    return [l for ll in llist for l in ll]
 def calc_chain(*args, **kw):
     '''
     calc_chain(a, b, ...) yields a callable calculation module object that incorporates the given

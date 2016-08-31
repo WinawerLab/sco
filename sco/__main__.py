@@ -43,7 +43,7 @@ def _check_extract(arg, subq=False):
                     for ff in os.listdir(arg)
                     if ff[-4:].lower() in img_formats]
         else:
-            return [arg] if len(arg) > 4 and arg[-4:].lower() in img_formats
+            return [arg] if len(arg) > 4 and arg[-4:].lower() in img_formats else []
 
 def main(argv):
     (args, opts) = main_parser(argv)

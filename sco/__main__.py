@@ -27,7 +27,7 @@ def main(argv):
                 if ff[-4:] in ['.png', '.jpg', '.gif']:
                     imfiles.append(ff)
         else:
-            imfiles.append(ff)
+            imfiles.append(f)
     r = calc_sco(opts, subject=args[0], stimulus_image_filenames=imfiles)
     export_predicted_responses(r, export_path=opts['output_dir'])
     return 0

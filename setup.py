@@ -11,7 +11,7 @@ setup(
     author_email='nben@nyu.edu',
     url='https://github.com/noahbenson/sco/',
     license='GPLv3',
-    packages=['sco'
+    packages=['sco',
               'sco.anatomy',
               'sco.stimulus',
               'sco.pRF',

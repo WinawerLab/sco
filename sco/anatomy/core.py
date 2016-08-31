@@ -11,12 +11,13 @@ import neuropythy.freesurfer as     neurofs
 import nibabel.freesurfer    as     fs
 
 from   neuropythy.immutable  import Immutable
+from   neuropythy.commands   import benson14_retinotopy_command
 from   numbers               import Number
 from   pysistence            import make_dict
 
 import os, math, itertools, collections, abc
 
-from ..core import (calculates, calc_chain, iscalc)
+from ..core            import (calculates, calc_chain, iscalc)
 from sco.normalization import (Kay2013_pRF_sigma_slope, Kay2013_output_nonlinearity)
 
 @calculates('polar_angle_mgh', 'eccentricity_mgh', 'v123_labels_mgh', 'ribbon_mghs')
@@ -30,9 +31,11 @@ def import_benson14_from_freesurfer(subject):
     ang = os.path.join(subject.directory, 'mri', 'angle_benson14.mgz')
     ecc = os.path.join(subject.directory, 'mri', 'eccen_benson14.mgz')
     lab = os.path.join(subject.directory, 'mri', 'v123roi_benson14.mgz')
-    if not os.path.exists(ang): raise ValueError('No angle template found for subject: ' + ang)
-    if not os.path.exists(ecc): raise ValueError('No eccen template found for subject: ' + ecc)
-    if not os.path.exists(lab): raise ValueError('No areas template found for subject: ' + lab)
+    if not os.path.exists(ang) or not os.path.exists(ecc) or not os.path.exists(lab):
+        # Apply the template first...
+        benson14_retinotopy_command(subject.directory)
+    if not os.path.exists(ang) or not os.path.exists(ecc) or not os.path.exists(lab):        
+        raise ValueError('No areas template found/created for subject: ' + lab)
     angle_mgz = fs.mghformat.load(ang)
     eccen_mgz = fs.mghformat.load(ecc)
     label_mgz = fs.mghformat.load(lab)

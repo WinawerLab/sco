@@ -31,7 +31,7 @@ The following options may be given:
 
 def _check_extract(arg, subq=False):
     img_formats = ['.png', '.jpg', '.gif']
-    if len(arg) > 7 and arg[-7:] == '.tar.gz' or len(f) > 4 and f[-4:] == '.tgz':
+    if len(arg) > 7 and arg[-7:] == '.tar.gz' or len(arg) > 4 and arg[-4:] == '.tgz':
         tdir = tempfile.mkdtemp()
         tf = tarfile.TarFile(name=arg, mode='r')
         tf.extractall(path=tdir)
@@ -69,9 +69,8 @@ def main(argv):
     opts['pixels_per_degree'] = float(opts['pixels_per_degree'])
     opts['max_eccentricity']  = float(opts['max_eccentricity'])
     # Arg 0 is a subject; arg 1 is a directory of images
-    imfiles = []
-    sub = _check_extract(arg[0], True)
-    args = [a for arg in args[1:] for a in _check_extract(arg)]
+    sub = _check_extract(args[0], True)
+    imfiles = [a for arg in args[1:] for a in _check_extract(arg)]
     r = calc_sco(opts, subject=sub, stimulus_image_filenames=imfiles)
     export_predicted_responses(r, export_path=opts['output_dir'])
     return 0

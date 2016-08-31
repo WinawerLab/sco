@@ -20,7 +20,7 @@ def _check_extract(arg, subq=False):
         tdir = tempfile.mkdtemp()
         tf = tarfile.TarFile(name=arg, mode='r')
         tf.extractall(path=tdir)
-        l = [f for f in os.listdir(tdir) if f[0] != '.']
+        l = [os.path.join(tdir, f) for f in os.listdir(tdir) if f[0] != '.']
         if subq:
             # Return just the subject path
             if 'surf' in l and 'mri' in l: return tdir
@@ -32,13 +32,14 @@ def _check_extract(arg, subq=False):
             # Return a list of image paths
             return [fl
                     for fl0 in l
-                    for fl in ([l] if os.path.isfile(l) else os.listdir(l))
-                    if len(l) > 4 and fl[-4:].lower() in img_formats]
+                    for fl in ([fl0] if os.path.isfile(fl0) else
+                               [os.path.join(fl0, fff) for fff in os.listdir(fl0)])
+                    if len(fl) > 4 and fl[-4:].lower() in img_formats]
     elif subq:
         return arg
     else:
         if os.path.isdir(arg):
-            return [ff
+            return [os.path.join(arg, ff)
                     for ff in os.listdir(arg)
                     if ff[-4:].lower() in img_formats]
         else:

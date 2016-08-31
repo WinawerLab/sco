@@ -21,7 +21,7 @@ def main(argv):
     opts['max_eccentricity']  = float(opts['max_eccentricity'])
     # Arg 0 is a subject; arg 1 is a directory of images
     imfiles = []
-    for f in argv[1:]:
+    for f in args[1:]:
         if os.path.isdir(f):
             for ff in os.listdir(f):
                 if ff[-4:] in ['.png', '.jpg', '.gif']:

@@ -264,5 +264,5 @@ m images.
 
 - Kay, K. N., Winawer, J., Rokem, A., Mezer, A., & Wandell,
   B. A. (2013). A two-stage cascade model of BOLD responses in human
-  visual cortex. {PLoS} Comput Biol, 9(5),
-  1003079. http://dx.doi.org/10.1371/journal.pcbi.1003079
+  visual cortex. {PLoS} Comput Biol,
+  9(5), 1003079. http://dx.doi.org/10.1371/journal.pcbi.1003079

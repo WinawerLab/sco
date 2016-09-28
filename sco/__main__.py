@@ -1,10 +1,12 @@
-####################################################################################################
+##########################################################################
 # __main__.py
 # The main function, if sco is invoked directly as command.
 # By Noah C. Benson
 
-import os, sys, math, tempfile, tarfile
-import pysistence
+import os
+import sys
+import tempfile
+import tarfile
 
 from neuropythy.util import CommandLineParser
 from sco import (calc_sco, export_predicted_responses)
@@ -16,7 +18,7 @@ main_parser = CommandLineParser(
      ('o', 'output',    'output_dir',        '.')])
 
 sco_help = \
-'''
+    '''
 Usage: sco <subject> <image0000> <image0001>...
 Runs the Standard Cortical Observer prediction routine and exports a series of
 MGZ files: prediction_0000.mgz, prediction_0001.mgz, etc.
@@ -29,6 +31,7 @@ The following options may be given:
   * -o|--output=<directory> sets the output directory (default: .).
 '''
 
+
 def _check_extract(arg, subq=False):
     img_formats = ['.png', '.jpg', '.gif']
     if len(arg) > 7 and arg[-7:] == '.tar.gz' or len(arg) > 4 and arg[-4:] == '.tgz':
@@ -38,9 +41,11 @@ def _check_extract(arg, subq=False):
         l = [os.path.join(tdir, f) for f in os.listdir(tdir) if f[0] != '.']
         if subq:
             # Return just the subject path
-            if 'surf' in l and 'mri' in l: return tdir
+            if 'surf' in l and 'mri' in l:
+                return tdir
             elif len(l) == 0:
-                raise ValueError('Extracted tar-file but found no subject directory!')
+                raise ValueError(
+                    'Extracted tar-file but found no subject directory!')
             else:
                 return os.path.join(tdir, l[0])
         else:
@@ -60,14 +65,16 @@ def _check_extract(arg, subq=False):
         else:
             return [arg] if len(arg) > 4 and arg[-4:].lower() in img_formats else []
 
+
 def main(argv):
     (args, opts) = main_parser(argv)
     if opts['help']:
         print sco_help
         return 1
-    if len(args) < 2: raise ValueError('Syntax: sco <subject> <images...>')
+    if len(args) < 2:
+        raise ValueError('Syntax: sco <subject> <images...>')
     opts['pixels_per_degree'] = float(opts['pixels_per_degree'])
-    opts['max_eccentricity']  = float(opts['max_eccentricity'])
+    opts['max_eccentricity'] = float(opts['max_eccentricity'])
     # Arg 0 is a subject; arg 1 is a directory of images
     sub = _check_extract(args[0], True)
     imfiles = [a for arg in args[1:] for a in _check_extract(arg)]

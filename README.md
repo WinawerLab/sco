@@ -31,12 +31,79 @@ General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Outputs
+# Usage
 
-The model produces a large number of outputs (found in the `results`
-dictionary), which I describe below. For these descriptions, we assume
-your subject has n voxels and you're predicting the responses for
-m images.
+You can either run `sco` from the command line or within a python
+interpreter. Note that if the defaults are different depending on
+which you do!
+
+In either case, the chain runs one subject at a time on any number of
+stimulus images, with one set of parameter values.
+
+## Command line
+
+`sco <subject> <image0000> <image0001>...`
+
+Runs the Standard Cortical Observer prediction routine and exports a
+series of
+
+MGZ files: `prediction_0000.mgz`, `prediction_0001.mgz`, etc.
+
+The following options may be given:
+
+  * `-h`|`--help` prints this message.
+  
+  * `-p`|`--deg2px=<value>` sets the pixels per degree in the input
+    images (default: 24).
+	
+  * `-e`|`--max-eccen=<value>` sets the maximum eccentricity modeled
+    in the output (default: 20).
+	
+  * `-o`|`--output=<directory>` sets the output directory (default:
+    `.`).
+
+## From within Python
+
+It can also be run within Python (via an interpreter or Jupyter
+notebook), in which case you will have greater control over the inputs
+and which parts of the chain are run.
+
+To do this, run the following:
+
+```
+import sco
+results = sco.calc_sco(subject='...', stimulus_image_filenames=['...'])
+```
+
+`subject` and `stimulus_image_filenames` are the only parameters that
+**must** be set, but there are many parameters that can be tweaked
+(see [User-specified parameters](#user-specified-parameters)).
+
+Afterwards, `results` will be a dictionary containing the data pool of
+the calc chain, all of the inputs and outputs of the various
+functions. See [Data pool](#data-pool) for more details on their
+values. The key you will most likely be interested in is
+`predicted_responses`, which contains the predicted response of each
+voxel to each image.
+
+In order to get an mgh for viewing the predictions on a brain, call
+`results=sco.export_predicted_responses(results, export_path='...')`,
+after filling out `results` above and specifying where you want to
+export the image (this step can be added to the calc chain if you
+wish, but it is not by default if run through the interpreter). This
+will take the `predicted_responses` key from `results` and create a
+corresponding mgh image, which you can view using `freesurfer` or
+`nibabel`.
+
+
+# Data pool
+
+The model has a large data pool (found in the `results` dictionary),
+which I describe below. The data pool contains the inputs and outputs
+for every step of the model.
+
+For these descriptions, we assume your subject
+has n voxels and you're predicting the responses for m images.
 
 ## User-specified parameters
 

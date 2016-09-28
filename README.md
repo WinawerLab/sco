@@ -250,7 +250,7 @@ m images.
 
 * `SOC_normalized_responses`: m-length list of 1 dimensional numpy
   arrays with n entries. The responses of each voxel after being put
-  through the the second-order contrast calculation: `(x-c *
+  through the the second-order contrast calculation: `(x - c *
   x_bar)^2`, where `x_bar` is the average response across voxels to
   this image and `c` is the value of `Kay2013_SOC_constant` for this
   area. Each entry in the list is the predicted response of all voxels

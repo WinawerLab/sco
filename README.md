@@ -214,9 +214,9 @@ has n voxels and you're predicting the responses for m images.
   have already been calculated for the subject by the time the model
   is run.
 
-* `eccentricity_mgh`: freesurfer MGH image with entire brain. The
-  values are 0 everywhere but V1, V2, and V3, where the values
-  represent the preferred eccentricity. Loaded in from disk by
+* `eccentricity_mgh`: freesurfer MGH image of entire brain. The values
+  are 0 everywhere but V1, V2, and V3, where the values represent the
+  preferred eccentricity. Loaded in from disk by
   `anatomy.core.import_benson14_from_freesurfer`, this is assumed to
   have already been calculated for the subject by the time the model
   is run.
@@ -227,9 +227,9 @@ has n voxels and you're predicting the responses for m images.
   `v123_labels_mgh` in
   `anatomy.core.calc_pRFs_from_freesurfer_retinotopy`.
 
-* `pRF_polar_angle`: 1 dimensional numpy array with ? entries. Each
-  value represents the preferred polar angle of each voxel. Values are
-  pulled from `polar_angle_mgh` in
+* `pRF_polar_angle`: 1 dimensional numpy array with n entries. Each
+  value represents the preferred polar angle (in radians) of each
+  voxel. Values are pulled from `polar_angle_mgh` in
   `anatomy.core.calc_pRFs_from_freesurfer_retinotopy`.
 
 * `pRF_eccentricity`: 1 dimensional numpy array with n entries. Each
@@ -244,7 +244,7 @@ has n voxels and you're predicting the responses for m images.
 
 * `pRF_hemispheres`: 1 dimensional numpy array with length n
   specifying which hemisphere the corresponding voxel is in. 1
-  specifies the right hemisphere, -1 the left. Created in
+  specifies the left hemisphere, -1 the right. Created in
   `anatomy.core.calc_pRFs_from_freesurfer_retinotopy`.
 
 * `pRF_voxel_indices`: n x 3 numpy array. Contains the x, y, and z

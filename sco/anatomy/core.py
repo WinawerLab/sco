@@ -78,7 +78,7 @@ def calc_pRFs_from_freesurfer_retinotopy(polar_angle_mgh, eccentricity_mgh,
     # and pull out the rest of the data based on these:
     return {'pRF_centers':       np.asarray([eccs * np.cos(angs), eccs * np.sin(angs)]).T,
             'pRF_voxel_indices': pRF_voxel_indices,
-            'pRF_polar_angle':   angs0,
+            'pRF_polar_angle':   angs,
             'pRF_eccentricity':  eccs,
             'pRF_v123_labels':   labs,
             'pRF_hemispheres':   hem,

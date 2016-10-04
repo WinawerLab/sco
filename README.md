@@ -120,34 +120,44 @@ has n voxels and you're predicting the responses for m images.
   for the model. User-specified with no defaults. Used in
   `stimulus.core.import_stimulus_images`.
 
-* `min_cycles_per_degree`: integer. The lowest frequency (per degree)
-  of any of the wavelets. User-defined with a default value of 0. Used
-  in `stimulus.core.calc_gabor_filters`.
-  
-* `wavelet_octaves`: integer, specifies how many octaves (doublings of
-  frequency) the preferred spatial frequencies of the Gabor wavelets
-  should cover. User-specified, default value of 4. Used in
-  `stimulus.core.calc_gabor_filters`.
+* `stimulus_aperture_edge_width`: integer or list of m
+  integers. User-defined, can be set as a single integer (in which
+  case all images will have the same value) or a list of integers (in
+  which case image i will use `stimulus_aperture_edge_width[i]`);
+  default is for all to have the same value, which is equal to the
+  `normalized_pixels_per_degree`. This gives the number of pixels over
+  which the aperture should be smoothly extended; 0 gives a hard edge,
+  otherwise a half-cosine smoothing is used. Used in
+  `stimulus.core.image_apply_aperture`.
 
-* `wavelet_steps`: integer, specifies how many steps between doublings
-  the preferred spatial frequencies of the Gabor wavelets should
-  have. User-specified, default value of 2. Used in
-  `stimulus.core.calc_gabor_filters`.
-
-* `max_eccentricity`: `None` or integer. Specifies the max
+* `max_eccentricity`: integer or list of m integers. Specifies the max
   eccentricity (degree distance from center of visual field) of the
-  pRF for voxels to consider. User-specified, default value is
-  `None`. If `None`, value of 90 degrees is used. Used in
-  `stimulus.core.calc_gabor_filters`.
+  pRF for voxels to consider. User-specified, default value is 12 or
+  `normalized_stimulus_aperture / normalized_pixels_per_degree` if
+  both are set. Used in
+  `anatomy.core.calc_pRFs_from_freesurfer_retinotopy`. If an integer,
+  same value will be used for each image; if a list, each image will
+  use its corresponding value from the list.
   
-* `normalized_pixels_per_degree`: integer. The number of pixels per
-  degree in the normalized image. User-defined variable, default value
-  of 15. First used in
-  `stimulus.core.calc_normalized_stimulus_images`.
+* `normalized_pixels_per_degree`: integer or list of m integers. The
+  number of pixels per degree in the normalized image. User-defined
+  variable, default value of 15 or `max_eccentricity *
+  normalized_stimulus_aperture` if both of those are set. First used
+  in `stimulus.core.calc_normalized_stimulus_images`. If an integer,
+  same value will be used for each image; if a list, each image will
+  use its corresponding value from the list.
+  
+* `normalized_stimulus_aperture`: integer or list of m integers. The
+  radius (in pixels) of the aperture to apply after each image has
+  been normalized in order to get the reduced view corresponding to
+  the models input. User-defined, default value is `max_eccentricity *
+  normalized_pixels_per_degree`. If an integer, same value will be
+  used for each image; if a list, each image will use its
+  corresponding value from the list.
 
 * `gabor_orientations`: integer. The number of preferred orientations
   the Gabor filters should have. User-specified, with a default value
-  of 4. First used in `stimulus.core.calc_gabor_filters.`.
+  of 8. First used in `contrast.core.calc_stimulus_contrast_functions`.
 
 * `stimulus_edge_value`: float. The value outside the projected
   stimulus. Necessary to avoid edge effects with the convolution
@@ -268,48 +278,36 @@ has n voxels and you're predicting the responses for m images.
   each image to the same resolution and size; it zooms in on each
   image so that the pixels per degree is the right value and then is
   cropped so it's the correct size.
-
-* `orientations`: 1d numpy array with number of entries equal to the
-  integer specified in `gabor_orientations`. These are the actual
-  angle values (in radians) that the Gabor filters have for their
-  preferred orientations. Calculated (based on `gabor_orientations`)
-  in `stimulus.core.calc_gabor_filters`.
-
-* `wavelet_frequencies`: 1 dimensional numpy array whose number of
-  elements is specified by the user-specified number of octaves
-  (`wavelet_octaves`) and steps (`wavelet_steps`). Calculated in
-  `stimulus.core.calc_gabor_filters`, specifies the preferred spatial
-  frequencies (in pixels?) of the Gabor filters used in the first step
-  of the model. The frequencies run from `min_cycles_per_degree` to
-  `2^wavelet_octaves`, with `wavelet_steps` steps between each
-  doubling (there are therefore `wavelet_octaves`*`wavelet_steps`+1
-  total frequencies). They are then converted into pixels (from
-  degrees).
   
-* `filters`: numpy array with all the Gabor filters. The exact
-  dimensionality depends on the values of `orientations`,
-  `wavelet_frequencies`; the dimensionality will be
-  `len(orientations)` x `len(wavelet_frequencies)` (with default
-  values, 4 x 9). This way, the filters tile the specified
-  orientations and spatial frequencies. Calculated in
-  `stimulus.core.calc_gabor_filters`, these are the filters used in
-  the first step of the model. The Gabors themselves are created by a
-  call to `skimage.filters.gabor_kernel`.
-  
-* `filtered_images`: list of numpy arrays with length m. Each value is
-  the array for a filtered image. That is, it's an image from
-  `normalized_stimulus_images` that has had the `filters` convolved
-  with it. This is done by `stimulus.core.calc_filtered_images`.
+* `stimulus_contrast_functions`: list of m functions. Each function
+  corresponds to one image, takes in a frequency and returns an image
+  that has been transformed from the original
+  `normalized_stimulus_images` to a new image the same size in which
+  each pixel represents the contrast energy at that point and at the
+  given frequency. Equivalent to convoluting the image with a filter
+  bank with that spatial frequency preference. The function also
+  caches its results for a given frequency, to reduce calculation
+  time. Created in `contrast.core.calc_stimulus_contrast_functions`.
 
-* `pRF_pixel_centers`: n x 2 numpy array. Contains the x, y positions
+* `pRF_pixel_centers`: n x m x 2 numpy array. Contains the x, y positions
   of the centers of each voxel's pRF in the visual field. Calculated
-  in `pRF.core.calc_pRF_responses`.
+  in `pRF.core.calc_pRF_pixel_data`.
   
-* `pRF_pixel_sigmas`: list with length n, giving the sigmas (in
-  pixels) for the pRFs of each voxel. Calculated by
-  `pRF.core.calc_pRF_responses` based on `pRF_sizes`.
+* `pRF_pixel_sizes`: list with length n, giving the sizes (in pixels)
+  for the pRFs of each voxel. Each entry is a list of length m, giving
+  the pRF size for each image. Calculated by
+  `pRF.core.calc_pRF_pixel_data` based on `pRF_sizes`.
   
-* `pRF_responses`: m x n numpy array. Contains the predicted responses
+* `pRF_frequency_preference_function`: a function that takes the
+  eccentricity, pRF size, and visual label and returns a dictionary
+  whose keys are frequencies (in cycles per degree) and whose values
+  are the weights applied to that particular frequency at the given
+  eccentricity, pRF size, and visual area. Can be user defined, but
+  also has default value created in
+  `pRF.core.calc_pRF_defualt_options`. Used in
+  `pRF.core.calc_pRF_responses`.
+  
+* `pRF_responses`: n x m numpy array. Contains the predicted responses
   of each voxel's pRF to each image. This is the output of the
   "spatial summation" step from Kay et al, 2013 and is the input to
   the second order contrast step. It's calculated by

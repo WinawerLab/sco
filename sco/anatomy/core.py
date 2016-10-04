@@ -49,8 +49,7 @@ def import_benson14_from_freesurfer(subject):
             'pRF_polar_angle', 'pRF_eccentricity', 'pRF_v123_labels')
 def calc_pRFs_from_freesurfer_retinotopy(polar_angle_mgh, eccentricity_mgh,
                                          v123_labels_mgh, ribbon_mghs,
-                                         max_eccentricity=None):
-    max_eccentricity = 90 if max_eccentricity is None else max_eccentricity
+                                         max_eccentricity):
     # The variables are all mgz volumes, so we need to extract the values:
     label = np.round(np.abs(v123_labels_mgh.dataobj.get_unscaled()))
     angle = polar_angle_mgh.dataobj.get_unscaled()

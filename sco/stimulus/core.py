@@ -7,6 +7,7 @@ import numpy                 as     np
 import scipy                 as     sp
 from   scipy                 import ndimage    as ndi
 from   scipy.misc            import imresize
+from   scipy.interpolate     import RectBivariateSpline
 
 from   skimage               import data
 from   skimage.util          import img_as_float
@@ -34,87 +35,182 @@ def import_stimulus_images(filenames):
     ims = [np.mean(im, axis=2) if len(im.shape) > 2 else im for im in ims]
     return {'stimulus_images': ims}
 
-@calculates('normalized_stimulus_images', imgs='stimulus_images',
+def image_apply_aperture(im, radius, center=None, fill_value=0.5, edge_width=10, crop=True):
+    '''
+    image_apply_aperture(im, rad) yields an image that has been given a circular aperture centered
+    at the middle of the image im with the given radius rad in pixels. The following options may be
+    given:
+      * fill_value (default 0.5) gives the value filled in outside of the aperture
+      * crop (default True) indicates whether the image should be cropped after the aperture is
+        applied; possible values are a tuple (r,c) indicating the desired size of the resulting
+        image; an integer r, equivalent to (r,r); or True, in which case the image is cropped such
+        that it just holds the entire aperture (including any smoothed edge).
+      * edge_width (default 10) gives the number of pixels over which the aperture should be
+        smoothly extended; 0 gives a hard edge, otherwise a half-cosine smoothing is used.
+      * center (default None) gives the center of the aperture as a (row, column) value; None uses
+        the center of the image.
+    '''
+    im = np.asarray(im)
+    # First, figure out the final image size
+    crop = 2*(radius + edge_width) if crop is True else crop
+    final_sz = crop if isinstance(crop, (tuple, list)) else (crop, crop)
+    final_im = np.full(final_sz, fill_value)
+    # figure out the centers
+    center       = (0.5*im.shape[0],       0.5*im.shape[1])       if center is None else center
+    final_center = (0.5*final_im.shape[0], 0.5*final_im.shape[1])
+    # we may have to interpolate pixels, so setup the interpolation; (0,0) in the lower-left:
+    interp = RectBivariateSpline(range(im.shape[0]), range(im.shape[1]), im)
+    # prepare to interpolate: find the row/col values for the pixels into which we interpolate
+    rad2 = radius**2
+    erad2 = (radius + edge_width)**2
+    final_xy = [(x,y)
+                for x in range(final_im.shape[0]) for xx in [(x - final_center[0])**2]
+                for y in range(final_im.shape[1]) for yy in [(y - final_center[1])**2]
+                if xx + yy <= erad2]
+    image_xy = [(x,y)
+                for xy in final_xy
+                for (dx,dy) in [(xy[0] - final_center[0], xy[1] - final_center[1])]
+                for (x,y) in [(dx + center[0], dy + center[1])]]
+    final_xy = np.transpose(final_xy)
+    image_xy = np.transpose(image_xy)
+    # pull the interpolated values out of the interp structure:
+    z = interp(image_xy[0], image_xy[1], grid=False)
+    # and put these values into the final image
+    for ((x,y),z) in zip(final_xy.T, z): final_im[x,y] = z
+    # now, take care of the edge
+    if edge_width is 0: return final_im
+    for r in range(final_im.shape[0]):
+        for c in range(final_im.shape[1]):
+            r0 = float(r) - final_center[0]
+            c0 = float(c) - final_center[1]
+            d0 = r0*r0 + c0*c0
+            if d0 > rad2 and d0 <= erad2:
+                d0 = np.sqrt(d0) - radius
+                w = 0.5*(1.0 + np.cos(d0 * np.pi / edge_width))
+                final_im[r,c] = w*final_im[r,c] + (1.0 - w)*fill_value
+    # That's it!
+    return final_im
+
+@calculates()
+def calc_stimulus_default_parameters(stimulus_image_filenames,
+                                     stimulus_edge_value=0.5,
+                                     stimulus_aperture_edge_width=None,
+                                     stimulus_pixels_per_degree=24,
+                                     normalized_stimulus_aperture=None,
+                                     normalized_pixels_per_degree=None,
+                                     max_eccentricity=None):
+    '''
+    calc_stimulus_default_parameters() is a calculator that expects no particular options, but
+    fills in several options if not given. These fall into two categories; first, some options
+    are given default values if not provided:
+      * stimulus_edge_value is set to 0.5
+      * stimulus_pixels_per_degree is set to 24 if not provided
+      * stimulus_aperture_edge_width is set to normalized_pixels_per_degree
+    Other options are dependent on each other:
+      * normalized_stimulus_aperture
+      * normalized_pixels_per_degree
+      * max_eccentricity
+    If all three of these are provided (and not None) then they are left as is; if two are given
+    then the last is set to obey the equation
+     max_eccentricity * normalized_pixels_per_degree == normalized_stimulus_aperture.
+    If one or zero of them is given, then the minimum number of following defaults are used, with
+    the remaining value filled in as soon as two of the three values has been assigned:
+      * max_eccentricity = 12
+      * normalized_pixels_per_degree = 15
+    Finally, the parameter stimulus_images is required so that all values can be coerced to arrays
+    the appropriate size if necessary.
+    '''
+    mxe = max_eccentricity
+    d2p = normalized_pixels_per_degree
+    asz = normalized_stimulus_aperture
+    n = len(stimulus_image_filenames)
+    # First, fill out lengths:
+    if hasattr(mxe, '__iter__'):
+        if len(mxe) != n:
+            raise ValueError('len(max_eccentricity) != len(stimulus_images)')
+    else:
+        mxe = [mxe for i in stimulus_image_filenames]
+    if hasattr(d2p, '__iter__'):
+        if len(d2p) != n:
+            raise ValueError('len(normalized_pixels_per_degree) != len(stimulus_images)')
+    else:
+        d2p = [d2p for i in stimulus_image_filenames]
+    if hasattr(asz, '__iter__'):
+        if len(asz) != n:
+            raise ValueError('len(normalized_stimulus_aperture) != len(stimulus_images)')
+    else:
+        asz = [asz for i in stimulus_image_filenames]
+    if hasattr(stimulus_edge_value, '__iter__'):
+        if len(stimulus_edge_value) != n:
+            raise ValueError('len(stimulus_edge_value) != len(stimulus_images)')
+    else:
+        stimulus_edge_value = [stimulus_edge_value for i in stimulus_image_filenames]
+    if hasattr(stimulus_pixels_per_degree, '__iter__'):
+        if len(stimulus_pixels_per_degree) != n:
+            raise ValueError('len(stimulus_pixels_per_degree) != len(stimulus_images)')
+    else:
+        stimulus_pixels_per_degree = [stimulus_pixels_per_degree for i in stimulus_image_filenames]
+    if hasattr(stimulus_aperture_edge_width, '__iter__'):
+        if len(stimulus_aperture_edge_width) != n:
+            raise ValueError('len(stimulus_aperture_edge_width) != len(stimulus_images)')
+    else:
+        stimulus_aperture_edge_width = [stimulus_aperture_edge_width
+                                        for i in stimulus_image_filenames]
+    # Now fix the params that depend on each other:
+    (mxe, d2p, asz) = [[None if x == 0 else x for x in xx] for xx in [mxe, d2p, asz]]
+    mxe = [m     if m is not None           else \
+           12    if d is None or a is None  else \
+           a/d
+           for (m,d,a) in zip(mxe,d2p,asz)]
+    d2p = [d     if d is not None           else \
+           15    if a is None               else \
+           a/m
+           for (m,d,a) in zip(mxe,d2p,asz)]
+    asz = [a     if a is not None           else \
+           m*d
+           for (m,d,a) in zip(mxe,d2p,asz)]
+    # And fix the aperture edge if needed:
+    stimulus_aperture_edge_width = [d if ew is None else ew
+                                    for (ew,d) in zip(stimulus_aperture_edge_width,d2p)]
+    # And return all of them:
+    return {'stimulus_edge_value':          stimulus_edge_value,
+            'stimulus_pixels_per_degree':   stimulus_pixels_per_degree,
+            'stimulus_aperture_edge_width': stimulus_aperture_edge_width,
+            'normalized_stimulus_aperture': asz,
+            'normalized_pixels_per_degree': d2p,
+            'max_eccentricity':             mxe}
+
+@calculates('normalized_stimulus_images',
+            imgs='stimulus_images',
             edge_val='stimulus_edge_value',
             deg2px='stimulus_pixels_per_degree',
-            normsz='normalized_stimulus_size',
-            normdeg2px='normalized_pixels_per_degree')
-def calc_normalized_stimulus_images(imgs, edge_val=0.0, deg2px=24, normsz=(300,300), normdeg2px=15):
+            normsz='normalized_stimulus_aperture',
+            normdeg2px='normalized_pixels_per_degree',
+            edge_width='stimulus_aperture_edge_width')
+def calc_normalized_stimulus_images(imgs, edge_val, deg2px, normsz, normdeg2px, edge_width):
     '''
     calc_normalized_stimulus_images is a calculator that expects the 'stimulus_images' key from the
     calculation data pool and provides the value 'normalized_stimulus_images', which will be a set
     of images normalized to a particular size and resolution.
-    The following arguments may be provided to the resulting calculator:
+    The following arguments may be provided to the resulting calculator, and must be provided if the
+    calc_stimulus_default_parameters calculator does not appear prior to this calculator in a calc
+    chain:
       * stimulus_edge_value (0), the value outside the projected stimulus.
       * stimulus_pixels_per_degree (24), the pixels per degree for the stimulus (may be a list)
-      * normalized_stimulus_size ((300,300)), a tuple describing the width and depth in pixels
+      * normalized_stimulus_aperture (150), the radius (in pixels) of the aperture to apply after
+        each image has been normalized
       * normalized_pixels_per_degree (15), the number of pixels per degree in the normralized image
     '''
-    if not hasattr(edge_val,   '__iter__'): edge_val   = [edge_val   for i in imgs]
-    if not hasattr(deg2px,     '__iter__'): deg2px     = [deg2px     for i in imgs]
     # Zoom each image so that the pixels per degree is right:
-    imgs = [ndi.zoom(im, float(normdeg2px)/float(d2p), cval=ev)
-            for (im, d2p, ev) in zip(imgs, deg2px, edge_val)]
-    # Grab out the parts we need
-    for (k,im,ev) in zip(range(len(imgs)), imgs, edge_val):
-        newim = np.zeros(normsz) + ev
-        (h,w)     = [min(n, o) for (n,o) in zip(newim.shape, im.shape)]
-        (nh0,nw0) = [(s - d)/2 for (s,d) in zip(newim.shape, (h,w))]
-        (oh0,ow0) = [(s - d)/2 for (s,d) in zip(im.shape,    (h,w))]
-        newim[nh0:(nh0+h), nw0:(nw0+w)] = im[oh0:(oh0+h), ow0:(ow0+w)]
-        imgs[k] = newim
+    imgs = [ndi.zoom(im, round(float(d2p)/float(nd2p)), cval=ev)
+            for (im, d2p, nd2p, ev) in zip(imgs, deg2px, normdeg2px, edge_val)]
+    # Then apply the aperture
+    imgs = [image_apply_aperture(im, rad, fill_value=ev, edge_width=ew)
+            for (im, rad, ev, ew) in zip(imgs, normsz, edge_val, edge_width)]
     # That's it!
-    return {'normalized_stimulus_images':   imgs,
-            'stimulus_edge_value':          edge_val,
-            'stimulus_pixels_per_degree':   deg2px,
-            'normalized_stimulus_size':     normsz,
-            'normalized_pixels_per_degree': normdeg2px}
+    return {'normalized_stimulus_images': imgs}
 
-@calculates('filters', 'wavelet_frequencies',
-            octaves='wavelet_octaves', steps='wavelet_steps',
-            orientations='gabor_orientations',
-            minf='min_cycles_per_degree', d2p='normalized_pixels_per_degree')
-def calc_gabor_filters(d2p, octaves=4, steps=2, orientations=4, minf=1):
-    '''
-    calc_gabor_filters is a calculator that expects from its data pool the keys 'wavelet_octaves',
-    'wavelet_steps', 'normalized_pixels_per_degree', 'gabor_orientations', and
-    'min_cycles_per_degree'.
-    The octaves and steps determine how many gabors will exist in the pyramid; the orientations
-    may be a number for evenly spaced orientations or a list for specific orientations; the
-    min_cycles_per_degree is the lowest frequency (per degree) of any of the wavelets.
-    The calculator produces an output 'filters', and the format is a matrix of
-    (orientation x (octave steps)) shape.
-    '''
-    if not hasattr(orientations, '__iter__'):
-        orientations = np.asarray(range(orientations), dtype=np.float) * math.pi / orientations
-    wlt_freqs = np.asarray([2.0**(float(q) / float(steps)) for q in range(octaves * steps + 1)])
-    wlt_freqs *= float(minf) / float(d2p)
-    filters = np.asarray([[gabor_kernel(f, theta=o) for f in wlt_freqs]
-                          for o in orientations])
-    return {'filters': filters,
-            'orientations': orientations,
-            'wavelet_frequencies': wlt_freqs}
 
-def _filt_img(filt, im, cval):
-    # Normalize images for better comparison.
-    im = im - 0.5
-    filt = filt - np.mean(filt)
-    cval -= 0.5
-    return np.sqrt(ndi.convolve(im, np.real(filt), mode='constant', cval=cval)**2 + 
-                   ndi.convolve(im, np.imag(filt), mode='constant', cval=cval)**2)
 
-@calculates('filtered_images',
-            filts='filters', imgs='normalized_stimulus_images', cval='stimulus_edge_value')
-def calc_filtered_images(filts, imgs, cval=0.0):
-    '''
-    calc_filtered_images is a calculator that expects from its data pool the keys 'filters' and
-    'normalized_stimulus_images'. It provides the result filtered_images.
-    The result is a list of filtered images, whose pixel values are the mean wavelet power across
-    the wavelet pyramid provided in filters.
-    '''
-    cval = [cval for i in imgs] if isinstance(cval, Number) else cval
-    imgs = [np.sum([_filt_img(f, im, c) for ff in filts for f in ff], axis=0)
-            for (im,c) in zip(imgs,cval)]
-    return {'filtered_images': imgs, 'stimulus_edge_value': cval}
 
                                  

@@ -19,7 +19,7 @@ setup(
     package_data={'': ['LICENSE.txt']},
     install_requires=['numpy>=1.2',
                       'scipy>=0.7',
-                      'scikit-image>=0.12',
+                      #'scikit-image>=0.12',
                       'nibabel>=2.0',
                       'pysistence>=0.4',
                       'decorator>=4.0',

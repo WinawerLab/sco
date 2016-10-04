@@ -194,11 +194,18 @@ has n voxels and you're predicting the responses for m images.
 * `Kay2013_output_nonlinearity`: dictionary whose keys are 1, 2, and 3
   and whose values are the compressive nonlinearity constants `n` from
   Kay et al, 2013 for areas V1, V2, and V3. That is, the response is
-  raised to this power as the final step in the model.. User-defined,
+  raised to this power as the final step in the model. User-defined,
   with default value of `{1: 0.18, 2: 0.13, 3: 0.12}`. First used in
   `anatomy.core.calc_Kay2013_pRF_sizes`. Currently, one constant is
   defined per area, but this could be extended so each voxel has a
   separate value.
+  
+* `Kay2013_response_gain`: integer or dictionary whose keys are 1, 2,
+  and 3. If an integer, use the same value for every voxel and if a
+  dictionary, each key is a label for areas V1, V2, or V3 and the
+  value is the response gain for that voxel, paramter `g` from Kay et
+  al, 2013. User-defined, with default value of `1`. Used in
+  `normalization.core.calc_Kay2013_output_nonlinearity`.
 
 ## Created by model
 

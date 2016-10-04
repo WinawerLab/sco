@@ -18,7 +18,6 @@ from   pysistence            import make_dict
 import os, math, itertools, collections, abc
 
 from ..core            import (calculates, calc_chain, iscalc)
-from sco.normalization import (Kay2013_pRF_sigma_slope, Kay2013_output_nonlinearity)
 
 @calculates('polar_angle_mgh', 'eccentricity_mgh', 'v123_labels_mgh', 'ribbon_mghs')
 def import_benson14_from_freesurfer(subject):
@@ -86,7 +85,9 @@ def calc_pRFs_from_freesurfer_retinotopy(polar_angle_mgh, eccentricity_mgh,
             'max_eccentricity':  max_eccentricity}
 
 @calculates('pRF_sizes')
-def calc_Kay2013_pRF_sizes(pRF_eccentricity, pRF_v123_labels):
+def calc_Kay2013_pRF_sizes(pRF_eccentricity, pRF_v123_labels,
+                           Kay2013_pRF_sigma_slope={1: 0.1,  2: 0.15, 3: 0.27},
+                           Kay2013_output_nonlinearity={1: 0.18, 2: 0.13, 3: 0.12}):
     '''
     calculate_pRF_sizes_Kay2013(pRF_eccentricity, pRF_v123_labels) yeilds a list of pRF sizes for
     the given lists of eccentricity values and labels (which should all be 1, 2, or 3 for V1-V3,

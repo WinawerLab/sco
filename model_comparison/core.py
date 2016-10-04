@@ -13,7 +13,8 @@ import numpy as np
 MODEL_DF_KEYS = ['pRF_centers', 'pRF_pixel_sigmas', 'pRF_hemispheres', 'pRF_responses',
                  'pRF_voxel_indices', 'SOC_normalized_responses', 'predicted_responses',
                  'pRF_pixel_centers', 'pRF_eccentricity', 'pRF_v123_labels', 'pRF_sizes',
-                 'pRF_polar_angle']
+                 'pRF_polar_angle', 'Kay2013_output_nonlinearity', 'Kay2013_pRF_sigma_slope',
+                 'Kay2013_SOC_constant']
 
 # Keys from the results dict that correspond to model setup and so we want
 # to save them but not in the dataframe.
@@ -23,10 +24,11 @@ MODEL_SETUP_KEYS = ['filters', 'max_eccentricity', 'min_cycles_per_degree', 'wav
                     'stimulus_pixels_per_degree', 'wavelet_octaves', 'subject']
 
 # Keys that show the stimulus images in some form.
-IMAGES_KEYS = ['stimulus_images', 'normalized_stimulus_images', 'filtered_images']
+IMAGES_KEYS = ['stimulus_images', 'normalized_stimulus_images', 'filtered_images',
+               'stimulus_image_filenames']
 
 # Keys that show brain data in some form.
-BRAIN_DATA_KEYS = ['v123_labels_mgh', 'polar_angle_mgh', 'ribbons_mgh', 'eccentricity_mgh']
+BRAIN_DATA_KEYS = ['v123_labels_mgh', 'polar_angle_mgh', 'ribbon_mghs', 'eccentricity_mgh']
 
 # Need to go through Kendrick's socmodel.m file (in knkutils/imageprocessing) to figure out what
 # parameters he uses there. Actually, it looks like that isn't exactly what we want (shit.)
@@ -48,7 +50,10 @@ def create_setup_dataframe(results, keys=None):
     else:
         setup_keys = MODEL_SETUP_KEYS
     for k in setup_keys:
-        setup_dict[k] = results[k]
+        try:
+            setup_dict[k] = results[k]
+        except KeyError:
+            warnings.warn("Results dict does not contain key %s, skipping" % k)
     return setup_dict
 
 def create_images_dataframe(results, keys=None):
@@ -64,7 +69,10 @@ def create_images_dataframe(results, keys=None):
     else:
         images_keys = IMAGES_KEYS
     for k in images_keys:
-        images_dict[k] = results[k]
+        try:
+            images_dict[k] = results[k]
+        except KeyError:
+            warnings.warn("Results dict does not contain key %s, skipping" % k)
     return images_dict
 
 def create_brain_dataframe(results, keys=None):
@@ -80,7 +88,10 @@ def create_brain_dataframe(results, keys=None):
     else:
         brain_keys = BRAIN_DATA_KEYS
     for k in brain_keys:
-        brain_dict[k] = results[k]
+        try:
+            brain_dict[k] = results[k]
+        except KeyError:
+            warnings.warn("Results dict does not contain key %s, skipping" % k)
     return brain_dict
 
 def create_model_dataframe(results, model_df_path="./soc_model_params.csv", keys=None,

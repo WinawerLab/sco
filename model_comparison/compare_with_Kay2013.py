@@ -13,11 +13,9 @@ import os
 import glob
 import imghdr
 import scipy.io as sio
-import numpy as np
 
 
-def main(image_base_path,
-         subject_dir='/mnt/WinawerAcadia/Freesurfer_subjects',
+def main(image_base_path, subject_dir='/mnt/WinawerAcadia/Freesurfer_subjects',
          subject='test-sub'):
     """
     Run python SCO and Matlab SOC on the same batch of images

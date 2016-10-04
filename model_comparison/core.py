@@ -10,7 +10,7 @@ import numpy as np
 
 # Keys from the results dict that correspond to model parameters and so that we want to save in the
 # output dataframe
-MODEL_DF_KEYS = ['pRF_centers', 'pRF_pixel_sigmas', 'pRF_hemispheres', 'pRF_responses',
+MODEL_DF_KEYS = ['pRF_centers', 'pRF_pixel_sizes', 'pRF_hemispheres', 'pRF_responses',
                  'pRF_voxel_indices', 'SOC_normalized_responses', 'predicted_responses',
                  'pRF_pixel_centers', 'pRF_eccentricity', 'pRF_v123_labels', 'pRF_sizes',
                  'pRF_polar_angle', 'Kay2013_output_nonlinearity', 'Kay2013_pRF_sigma_slope',
@@ -18,14 +18,13 @@ MODEL_DF_KEYS = ['pRF_centers', 'pRF_pixel_sigmas', 'pRF_hemispheres', 'pRF_resp
 
 # Keys from the results dict that correspond to model setup and so we want
 # to save them but not in the dataframe.
-MODEL_SETUP_KEYS = ['filters', 'max_eccentricity', 'min_cycles_per_degree', 'wavelet_frequencies',
-                    'normalized_stimulus_size', 'normalized_pixels_per_degree', 'orientations',
-                    'stimulus_edge_value', 'gabor_orientations', 'wavelet_steps',
-                    'stimulus_pixels_per_degree', 'wavelet_octaves', 'subject']
+MODEL_SETUP_KEYS = ['max_eccentricity', 'normalized_pixels_per_degree', 'stimulus_edge_value',
+                    'gabor_orientations', 'stimulus_pixels_per_degree', 'subject',
+                    'stimulus_contrast_functions', 'normalized_stimulus_aperture',
+                    'pRF_frequency_preference_function', 'stimulus_aperture_edge_width']
 
 # Keys that show the stimulus images in some form.
-IMAGES_KEYS = ['stimulus_images', 'normalized_stimulus_images', 'filtered_images',
-               'stimulus_image_filenames']
+IMAGES_KEYS = ['stimulus_images', 'normalized_stimulus_images', 'stimulus_image_filenames']
 
 # Keys that show brain data in some form.
 BRAIN_DATA_KEYS = ['v123_labels_mgh', 'polar_angle_mgh', 'ribbon_mghs', 'eccentricity_mgh']
@@ -36,6 +35,14 @@ BRAIN_DATA_KEYS = ['v123_labels_mgh', 'polar_angle_mgh', 'ribbon_mghs', 'eccentr
 # fitting example to create the model? Just don't fit any of the parameters and skip to the
 # end. And run it a whole bunch of times for all the different voxels.
 
+def _check_default_keys(results):
+    default_keys = (MODEL_DF_KEYS + MODEL_SETUP_KEYS + IMAGES_KEYS + BRAIN_DATA_KEYS)
+    for k in results:
+        if k not in default_keys:
+            warnings.warn("Results key %s is not in any of our default key sets!" % k)
+    for k in default_keys:
+        if k not in results:
+            warnings.warn("Default key %s not in results!" % k)
 
 def create_setup_dataframe(results, keys=None):
     """Return a dictionary containing just the model setup-relevant keys

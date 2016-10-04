@@ -15,13 +15,12 @@ StimulusBase class.
 '''
 
 from ..core import calc_chain
-from .core  import (import_stimulus_images, calc_normalized_stimulus_images,
-                    calc_gabor_filters, calc_filtered_images)
+from .core  import (import_stimulus_images, calc_stimulus_default_parameters,
+                    calc_normalized_stimulus_images, image_apply_aperture)
 
-stimulus_chain = (('import_stimulus',          import_stimulus_images),
-                  ('calc_normalized_stimulus', calc_normalized_stimulus_images),
-                  ('calc_filters',             calc_gabor_filters),
-                  ('calc_filtered_images',     calc_filtered_images))
+stimulus_chain = (('calc_stimulus_default_parameters', calc_stimulus_default_parameters),
+                  ('import_stimulus',                  import_stimulus_images),
+                  ('calc_normalized_stimulus',         calc_normalized_stimulus_images))
 
 calc_stimulus = calc_chain(stimulus_chain)
 

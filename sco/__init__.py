@@ -8,8 +8,9 @@ visual stimuli.
 # Import relevant functions...
 from .core import (iscalc, calculates, calc_chain, calc_translate)
 
-from sco.anatomy       import (calc_anatomy,       anatomy_chain, export_predicted_responses)
+from sco.anatomy       import (calc_anatomy,       anatomy_chain,       export_predicted_responses)
 from sco.stimulus      import (calc_stimulus,      stimulus_chain)
+from sco.contrast      import (calc_contrast,      contrast_chain)
 from sco.pRF           import (calc_pRF,           pRF_chain)
 from sco.normalization import (calc_normalization, normalization_chain)
 
@@ -24,6 +25,7 @@ description = 'Predict the response of the cortex to visual stimuli'
 # The default calculation chain
 sco_chain = (('calc_anatomy',       calc_anatomy),
              ('calc_stimulus',      calc_stimulus),
+             ('calc_contrast',      calc_contrast),
              ('calc_pRF',           calc_pRF),
              ('calc_normalization', calc_normalization))
 
@@ -37,10 +39,12 @@ def reload_sco():
     reload(sys.modules['sco.core'])
     reload(sys.modules['sco.anatomy.core'])
     reload(sys.modules['sco.stimulus.core'])
+    reload(sys.modules['sco.contrast.core'])
     reload(sys.modules['sco.pRF.core'])
     reload(sys.modules['sco.normalization.core'])
     reload(sys.modules['sco.anatomy'])
     reload(sys.modules['sco.stimulus'])
+    reload(sys.modules['sco.contrast'])
     reload(sys.modules['sco.pRF'])
     reload(sys.modules['sco.normalization'])
     reload(sys.modules['sco'])

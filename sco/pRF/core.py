@@ -71,7 +71,7 @@ def calc_pRF_pixel_data(ims, x0s, sigs, d2ps):
         [[(im_center[0] - x0[1]*d2p, im_center[1] + x0[0]*d2p)
           for (im_center, d2p) in zip(im_centers, d2ps)]
          for x0 in x0s])
-    sigs_px = [[d2p*sig for d2p in d2ps] for sig in sigs]
+    sigs_px = np.asarray([[d2p*sig for d2p in d2ps] for sig in sigs])
     return {'pRF_pixel_centers': x0s_px,
             'pRF_pixel_sizes': sigs_px}
 

@@ -296,13 +296,18 @@ has n voxels and you're predicting the responses for m images.
   caches its results for a given frequency, to reduce calculation
   time. Created in `contrast.core.calc_stimulus_contrast_functions`.
 
-* `pRF_pixel_centers`: n x m x 2 numpy array. Contains the x, y positions
-  of the centers of each voxel's pRF in the visual field. Calculated
-  in `pRF.core.calc_pRF_pixel_data`.
+* `pRF_pixel_centers`: n x m x 2 numpy array. Contains the x, y
+  positions of the centers of each voxel's pRF in the visual
+  field. Differs from `pRF_centers` because different images may have
+  different pixels per degree, so we have a separate value for each
+  image. Calculated in `pRF.core.calc_pRF_pixel_data`, based on
+  `pRF_centers`.
   
-* `pRF_pixel_sizes`: list with length n, giving the sizes (in pixels)
-  for the pRFs of each voxel. Each entry is a list of length m, giving
-  the pRF size for each image. Calculated by
+* `pRF_pixel_sizes`: n x m numpy array, giving the sizes (in
+  pixels) for the pRFs of each voxel. Differs from `pRF_sizes` because
+  different images may have different pixels per degree, so we have a
+  separate value for each image. Each entry gives the pRF size for a
+  given image in a given voxel. Calculated by
   `pRF.core.calc_pRF_pixel_data` based on `pRF_sizes`.
   
 * `pRF_frequency_preference_function`: a function that takes the

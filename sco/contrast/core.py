@@ -33,8 +33,9 @@ def calc_default_contrast_options(gabor_orientations=8):
                               for k in range(gabor_orientations)]
     elif not hasattr(gabor_orientations, '__iter__'):
         raise ValueError('gabor_orientations must be a list or an integer')
-    # That's all this needs to do for now
-    return {'gabor_orientations': gabor_orientations}
+    # That's all this needs to do for now. We want gabor_orientations to be an array, because that
+    # makes things easier.
+    return {'gabor_orientations': np.asarray(gabor_orientations)}
 
 @calculates('stimulus_contrast_functions',
             d2p='normalized_pixels_per_degree',

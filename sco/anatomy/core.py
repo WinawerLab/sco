@@ -100,7 +100,7 @@ def calc_Kay2013_pRF_sizes(pRF_eccentricity, pRF_v123_labels,
     sig  = [0 if l not in Kay2013_output_nonlinearity else \
             (s0 - 0.23) / (0.16 / np.sqrt(Kay2013_output_nonlinearity[l]) - 0.05)
             for (e, l, s0) in zip(pRF_eccentricity, pRF_v123_labels, sig0)]
-    return {'pRF_sizes': sig}
+    return {'pRF_sizes': np.asarray(sig)}
 
 
 @calculates()

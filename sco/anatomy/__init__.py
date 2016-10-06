@@ -15,7 +15,6 @@ and one may be obtained from the StandardAnatomy class or from a custom class th
 AnatomyBase class.
 '''
 
-import sco
 from ..core import calc_chain
 from .core  import (import_benson14_from_freesurfer, calc_pRFs_from_freesurfer_retinotopy,
                     calc_Kay2013_pRF_sizes, export_predicted_responses)

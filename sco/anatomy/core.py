@@ -5,19 +5,15 @@
 
 
 import numpy                 as     np
-import scipy                 as     sp
 import neuropythy            as     neuro
 import neuropythy.freesurfer as     neurofs
 import nibabel.freesurfer    as     fs
 
-from   neuropythy.immutable  import Immutable
 from   neuropythy.commands   import benson14_retinotopy_command
-from   numbers               import Number
-from   pysistence            import make_dict
 
-import os, math, itertools, collections, abc
+import os
 
-from ..core            import (calculates, calc_chain, iscalc)
+from ..core            import calculates
 
 @calculates('polar_angle_mgh', 'eccentricity_mgh', 'v123_labels_mgh', 'ribbon_mghs')
 def import_benson14_from_freesurfer(subject):

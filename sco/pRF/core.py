@@ -4,13 +4,9 @@
 # By Noah C. Benson
 
 import numpy                 as     np
-import scipy                 as     sp
-from   numbers               import Number
-from   pysistence            import make_dict
 
-from   ..core                import (iscalc, calculates, calc_chain)
+from   ..core                import calculates
 
-import os, math, itertools, collections
 
 # This function extracts the entire (weighted) pRF region...
 def _extract_pRF(im, x0, sl, sig):

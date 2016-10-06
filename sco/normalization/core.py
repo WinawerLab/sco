@@ -3,15 +3,9 @@
 # Second-order-contrast normalization and nonlinearity application
 # By Noah C. Benson
 
-import numpy                 as     np
-import scipy                 as     sp
+import numpy as     np
+from ..core  import calculates
 
-from   numbers               import Number
-from   pysistence            import make_dict
-
-import os, math, itertools, collections, abc
-
-from ..core import (calculates, calc_chain, iscalc)
 
 
 @calculates('SOC_normalized_responses')

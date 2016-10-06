@@ -4,22 +4,13 @@
 # By Noah C. Benson
 
 import numpy                 as     np
-import scipy                 as     sp
 from   scipy                 import ndimage    as ndi
-from   scipy.misc            import imresize
 from   scipy.interpolate     import RectBivariateSpline
 
 from   skimage               import data
 from   skimage.util          import img_as_float
-from   skimage.filters       import gabor_kernel
 
-from   neuropythy.immutable  import Immutable
-from   numbers               import Number
-from   pysistence            import make_dict
-
-from   ..core                import (iscalc, calculates, calc_chain)
-
-import os, math, itertools, collections
+from   ..core                import calculates
 
 
 @calculates('stimulus_images', filenames='stimulus_image_filenames')

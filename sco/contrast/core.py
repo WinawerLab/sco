@@ -4,19 +4,13 @@
 # By Noah C. Benson
 
 import numpy                 as     np
-import scipy                 as     sp
 from   scipy                 import ndimage as ndi
 
-from   skimage               import data
 from   skimage.filters       import gabor_kernel
 
-from   numbers               import (Number, Integral)
 from   types                 import (IntType, LongType)
-from   pysistence            import make_dict
 
-from   ..core                import (iscalc, calculates, calc_chain)
-
-import os, math, itertools, collections
+from   ..core                import calculates
 
 @calculates()
 def calc_default_contrast_options(gabor_orientations=8):

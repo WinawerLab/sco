@@ -23,7 +23,7 @@ def _extract_pRF(im, x0, sl, sig):
     return np.sum(part * gaus, axis=None) / mag
 
 @calculates()
-def calc_pRF_default_options(pRF_frequency_preference_function=None):
+def calc_pRF_default_parameters(pRF_frequency_preference_function=None):
     '''
     calc_pRF_default_options is a calculator that chooses default values for the options accepted by
     the pRF calculation chain. Currently, there is exactly one of these:

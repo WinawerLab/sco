@@ -13,7 +13,7 @@ from   types                 import (IntType, LongType)
 from   ..core                import calculates
 
 @calculates()
-def calc_default_contrast_options(gabor_orientations=8):
+def calc_contrast_default_parameters(gabor_orientations=8):
     '''
     calc_default_contrast_options is a calculator that requires no arguments but sets the following
     to a default if they are not provided:

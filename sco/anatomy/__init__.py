@@ -17,11 +17,13 @@ AnatomyBase class.
 
 from ..core import calc_chain
 from .core  import (import_benson14_from_freesurfer, calc_pRFs_from_freesurfer_retinotopy,
-                    calc_Kay2013_pRF_sizes, export_predicted_responses)
+                    calc_anatomy_default_parameters, calc_Kay2013_pRF_sizes,
+                    export_predicted_responses)
 
 # Make a function that's ready to be used as a module
 anatomy_chain = (('import',           import_benson14_from_freesurfer),
                  ('calc_pRF_centers', calc_pRFs_from_freesurfer_retinotopy),
+                 ('calc_anatomy_defualt_parameters', calc_anatomy_default_parameters),
                  ('calc_pRF_sizes',   calc_Kay2013_pRF_sizes))
 calc_anatomy  = calc_chain(anatomy_chain)
 

@@ -195,7 +195,7 @@ def calc_normalized_stimulus_images(imgs, edge_val, deg2px, normsz, normdeg2px, 
     The following arguments may be provided to the resulting calculator, and must be provided if the
     calc_stimulus_default_parameters calculator does not appear prior to this calculator in a calc
     chain:
-      * stimulus_edge_value (0), the value outside the projected stimulus.
+      * stimulus_edge_value (0.5), the value outside the projected stimulus.
       * stimulus_pixels_per_degree (24), the pixels per degree for the stimulus (may be a list)
       * normalized_stimulus_aperture (150), the radius (in pixels) of the aperture to apply after
         each image has been normalized

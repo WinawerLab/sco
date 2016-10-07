@@ -81,6 +81,7 @@ def image_apply_aperture(im, radius, center=None, fill_value=0.5, edge_width=10,
     # First, figure out the final image size
     crop = 2*(radius + edge_width) if crop is True else crop
     final_sz = crop if isinstance(crop, (tuple, list)) else (crop, crop)
+    final_sz = [int(x) for x in final_sz]
     final_im = np.full(final_sz, fill_value)
     # figure out the centers
     center       = (0.5*im.shape[0],       0.5*im.shape[1])       if center is None else center

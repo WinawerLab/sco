@@ -83,5 +83,6 @@ def calc_stimulus_contrast_functions(imgs, d2p, orients, ev):
             filtered.setflags(write=False)
             cache[cpd] = filtered
             return filtered
-    return {'stimulus_contrast_functions': [(lambda f: _stimulus_contrast_function(k, f))
-                                            for k in range(len(imgs))]}
+    def _make_stim_contrast_fn(k):
+        return lambda f: _stimulus_contrast_function(k, f)
+    return {'stimulus_contrast_functions': [_make_stim_contrast_fn(k) for k in range(len(imgs))]}

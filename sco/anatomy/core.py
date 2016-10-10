@@ -118,11 +118,12 @@ def calc_Kay2013_pRF_sizes(pRF_eccentricity, Kay2013_pRF_sigma_slope, Kay2013_ou
     return {'pRF_sizes': np.asarray(sig)}
 
 
-@calculates()
+@calculates('exported_predictions_filename', 'exported_image_ordering_filename')
 def export_predicted_responses(export_path,
                                predicted_responses,
                                pRF_voxel_indices, subject,
-                               predicted_response_names='prediction_',
+                               predicted_response_name='prediction',
+                               image_order_name='images',
                                exported_predictions={}, overwrite_files=True,
                                voxel_fill_value=0):
     '''
@@ -141,21 +142,20 @@ def export_predicted_responses(export_path,
     fill = voxel_fill_value
     vol0 = subject.LH.ribbon
     vol0dims = vol0.get_data().shape
-    if isinstance(predicted_response_names, basestring):
-        predicted_response_names = ['%s%04d' % (predicted_response_names, i)
-                                    for i in range(len(predicted_responses))]
-    for (nm, result) in zip(predicted_response_names, predicted_responses):
-        flname = os.path.join(export_path, nm + '.mgz')
-        if os.path.isdir(flname): raise ValueError('Output filename %s is a directory!' % flname)
-        if os.path.exists(flname) and not overwrite_files: continue
-        if len(result) != len(pRF_voxel_indices):
-            raise ValueError('data (%s) is not the same length as pRF_voxel_indices!' % nm)
-        arr = fill * np.ones(vol0dims) if fill != 0 else np.zeros(vol0dims)
+    # new method: one volume plus an image ordering text file
+    preds = np.zeros(vol0dims + (len(predicted_responses),), dtype=np.float32)
+    for (n,result) in enumerate(predicted_responses):
         for ((i,j,k),val) in zip(pRF_voxel_indices, result):
-            arr[i,j,k] = val
-        hdr = vol0.header.copy()
-        hdr.set_data_dtype(np.float32)
-        mgh = fs.mghformat.MGHImage(arr, vol0.affine, hdr, vol0.extra, vol0.file_map)
-        mgh.to_filename(flname)
-        exported_predictions[nm] = flname
-    return {'exported_predictions': exported_predictions}
+            preds[i,j,k,n] = val
+    hdr = vol0.header.copy()
+    hdr.set_data_dtype(np.float32)
+    hdr.set_data_shape(preds.shape)
+    mgh = fs.mghformat.MGHImage(preds, vol0.affine, hdr, vol0.extra, vol0.file_map)
+    mgh_flnm = os.path.join(export_path, predicted_response_name + '.mgz')
+    mgh.to_filename(mgh_flnm)
+    ord_flnm = os.path.join(export_path, image_order_name + '.txt')
+    with open(ord_flnm, 'w') as f:
+        for im in stimulus_file_names:
+            f.write('%s\n' % im)
+    return {'exported_predictions_filename':    mgh_flnm,
+            'exported_image_ordering_filename': ord_flnm}

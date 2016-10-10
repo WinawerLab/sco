@@ -105,12 +105,11 @@ for every step of the model.
 For these descriptions, we assume your subject
 has n voxels and you're predicting the responses for m images.
 
-Any parameter (other than `stimulus_image_filenames`) that is
-specified is an array can also be specified as a list. However, the
-model will turn it into an array for ease of handling. For the
-parameters that can be set as a single value or an array, if a single
-value is specified by the user, the model will cast it as an array
-(with every entry the same) for ease of use.
+Any parameter that is specified as an array can also be specified as a
+list. However, the model will turn it into an array for ease of
+handling. For the parameters that can be set as a single value or an
+array, if a single value is specified by the user, the model will cast
+it as an array (with every entry the same) for ease of use.
 
 ## User-specified parameters
 

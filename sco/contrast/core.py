@@ -80,7 +80,7 @@ def calc_stimulus_contrast_functions(imgs, d2p, orients, ev):
             return filtered
     def _make_stim_contrast_fn(k):
         return lambda f: _stimulus_contrast_function(k, f)
-    return {'stimulus_contrast_functions': [_make_stim_contrast_fn(k) for k in range(len(imgs))]}
+    return {'stimulus_contrast_functions': np.asarray([_make_stim_contrast_fn(k) for k in range(len(imgs))])}
 
 
 @calculates()

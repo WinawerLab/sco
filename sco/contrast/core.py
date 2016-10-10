@@ -69,12 +69,20 @@ def calc_stimulus_contrast_functions(imgs, d2p, orients, ev):
             im = imgs[k]
             cpp = cpd / d2ps[k]
             c = evs[k]
-            filtered = np.sum(
-                np.abs([ndi.convolve(im, gabor_kernel(cpp, theta=th), mode='constant', cval=c)
-                        for th in orients])**2,
-                axis=0)
+            kerns = [(kn.real, kn.imag)
+                     for th in orients
+                     for kn in [gabor_kernel(cpp, theta=th)]]
+            # The filtered orientations
+            filtered_orientations = {
+                th: np.sum([ndi.convolve(im, kern_part, mode='constant', cval=c)**2
+                            for kern_part in re_im_kern],
+                           axis=0)
+                for (th, re_im_kern) in zip(orients, kerns)}
+            # now, collapse them down to a single filtered image
+            filtered = np.sum(filtered_orientations.values(), axis=0)
             filtered.setflags(write=False)
             cache[cpd] = filtered
             return filtered
-    return {'stimulus_contrast_functions': [(lambda f: _stimulus_contrast_function(k, f))
-                                            for k in range(len(imgs))]}
+    def _make_stim_contrast_fn(k):
+        return lambda f: _stimulus_contrast_function(k, f)
+    return {'stimulus_contrast_functions': [_make_stim_contrast_fn(k) for k in range(len(imgs))]}

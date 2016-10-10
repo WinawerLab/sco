@@ -7,7 +7,7 @@ import numpy                 as     np
 import scipy                 as     sp
 from   scipy                 import ndimage    as ndi
 from   scipy.misc            import imresize
-from   scipy.interpolate     import RectBivariateSpline
+from   scipy.interpolate     import (RectBivariateSpline, interp1d)
 
 from   skimage               import data
 from   skimage.util          import img_as_float
@@ -23,17 +23,44 @@ import os, math, itertools, collections
 
 
 @calculates('stimulus_images', filenames='stimulus_image_filenames')
-def import_stimulus_images(filenames):
+def import_stimulus_images(filenames, stimulus_gamma=None):
     '''
     import_stimulus_images is a calculator that expects the 'stimulus_image_filenames' value and 
     converts this, which it expects to be a list of image filenames (potentially containing 
     pre-loaded image matrices), into a list of images loaded from those filenames. It provides
     this list as 'stimulus_images'.
+    The optional argument stimulus_gamma may also be passed to this function; if stimulus_gamma
+    is given, then it must be one of:
+      * an (n x 2) or (2 x n) matrix such that is equivalent to (potentially after transposition)
+        a matrix of (x,y) values where x is the input gamma and y is the corrected gamma.
+      * a vector of corrected gamma values; if the vector u is of length n, then this is equivalent
+        to passing a matrix in which the y-values are the elements of u and the x-values are evenly
+        spaced values that cover the interval [0,1]; accordingly there must be at least 2 elements.
+      * a function that accepts a number between 0 and 1 and returns the corrected gamma.
+    This function supples the stimulus_gamma back as a function that interpolates the numbers if
+    numbers are given instead of a function.
     '''
+    # First, setup the stimulus_gamma correction:
+    if stimulus_gamma is None:
+        stimulus_gamma = lambda x: x
+    elif hasattr(stimulus_gamma, '__iter__'):
+        vals = np.array(stimulus_gamma)
+        if len(vals.shape) > 2:
+            raise ValueError('stimulus_gamma must be 1D or 2D array')
+        if len(vals.shape) == 1:
+            n = float(vals.shape[0] - 1)
+            vals = np.asarray([[float(i)/n for i in range(vals.shape[0])], vals])
+        # Okay, assume here that vals is nx2 or 2xn
+        if vals.shape[1] != 2: vals = vals.T
+        # and interpolate these
+        stimulus_gamma = interp1d(vals[:,0], vals[:,1], kind='cubic')
+    elif not hasattr(stimulus_gamma, '__call__'):
+        raise ValueError('Given stimulus_gamma argument has neither iter nor call attribute')
+    # Now load the images...
     ims = filenames if hasattr(filenames, '__iter__') else [filenames]
-    ims = [img_as_float(data.load(im) if isinstance(im, basestring) else im) for im in ims]
-    ims = [np.mean(im, axis=2) if len(im.shape) > 2 else im for im in ims]
-    return {'stimulus_images': ims}
+    ims = [(img_as_float(data.load(im)) if isinstance(im, basestring) else im) for im in ims]
+    ims = [stimulus_gamma(np.mean(im, axis=2) if len(im.shape) > 2 else im)    for im in ims]
+    return {'stimulus_images': ims, 'stimulus_gamma':  stimulus_gamma}
 
 def image_apply_aperture(im, radius, center=None, fill_value=0.5, edge_width=10, crop=True):
     '''
@@ -54,6 +81,7 @@ def image_apply_aperture(im, radius, center=None, fill_value=0.5, edge_width=10,
     # First, figure out the final image size
     crop = 2*(radius + edge_width) if crop is True else crop
     final_sz = crop if isinstance(crop, (tuple, list)) else (crop, crop)
+    final_sz = [int(x) for x in final_sz]
     final_im = np.full(final_sz, fill_value)
     # figure out the centers
     center       = (0.5*im.shape[0],       0.5*im.shape[1])       if center is None else center
@@ -195,7 +223,7 @@ def calc_normalized_stimulus_images(imgs, edge_val, deg2px, normsz, normdeg2px, 
     The following arguments may be provided to the resulting calculator, and must be provided if the
     calc_stimulus_default_parameters calculator does not appear prior to this calculator in a calc
     chain:
-      * stimulus_edge_value (0), the value outside the projected stimulus.
+      * stimulus_edge_value (0.5), the value outside the projected stimulus.
       * stimulus_pixels_per_degree (24), the pixels per degree for the stimulus (may be a list)
       * normalized_stimulus_aperture (150), the radius (in pixels) of the aperture to apply after
         each image has been normalized

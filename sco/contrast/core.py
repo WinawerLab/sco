@@ -64,12 +64,46 @@ def calc_stimulus_contrast_functions(imgs, d2p, orients, ev):
             im = imgs[k]
             cpp = cpd / d2ps[k]
             c = evs[k]
-            filtered = np.sum(
+            energy = np.sum(
                 np.abs([ndi.convolve(im, gabor_kernel(cpp, theta=th), mode='constant', cval=c)
                         for th in orients])**2,
                 axis=0)
-            filtered.setflags(write=False)
-            cache[cpd] = filtered
-            return filtered
-    return {'stimulus_contrast_functions': [(lambda f: _stimulus_contrast_function(k, f))
-                                            for k in range(len(imgs))]}
+            # energy = np.abs([ndi.convolve(im, gabor_kernel(cpp, theta=th), mode='constant', cval=c)
+            #                  for th in orients])
+            energy.setflags(write=False)
+            cache[cpd] = energy
+            return energy
+    return {'stimulus_contrast_functions': np.asarray([(lambda f: _stimulus_contrast_function(k, f))
+                                                       for k in range(len(imgs))])}
+
+@calculates()
+def calc_divisive_normalization_functions(stimulus_contrast_functions, Kay2013_normalization_r=1,
+                                          Kay2013_normalization_s=.5):
+    """
+    """
+    _divisive_normalization_cache = [{} for i in stimulus_contrast_functions]
+    def _divisive_normalization_function(func, cpd):
+        cache = _divisive_normalization_cache
+        if isinstance(cpd, set):
+            return {x: _divisive_normalization_function(k, x) for x in cpd}
+        elif hasattr(cpd, '__iter__'):
+            return [_divisive_normalization_function(k, x) for x in cpd]
+        elif cpd in cache:
+            return cache[cpd]
+        else:
+            contrast_img = func(cpd)
+            # need to talk with Noah about this. I think if I'm understanding this correctly, I
+            # would need to just recreate that function, replacing it. Because it sums over all
+            # orientations and I need to normalize instead (so instead of np.sum, do something else
+            # there. So is the summation across orientations happening there or in pRF?)
+            
+            # So, change the stimulus_contrast_function to get the energy (as is now, DON'T sum
+            # across orientations). So each function will return a list of values, one for each
+            # orientation. This will take those in and normalize them (still returning a list of
+            # values). Then we'll sum across orientations in pRF or in a separate spatial summation
+            # step? Probably in pRF, but double check. And make pRF take
+            # normalized_contrast_functions (output from here) as its input instead of stimulus
+            # contrast functions (don't want to overwrite). In order to enable modularity,
+            # calc_chain has ability to rename variables. Will need to play around with that and
+            # add something to README.
+    return {'stimulus_contrast_functions'}

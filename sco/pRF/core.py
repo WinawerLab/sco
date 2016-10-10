@@ -25,7 +25,7 @@ def _extract_pRF(im, x0, sl, sig):
 @calculates()
 def calc_pRF_default_parameters(pRF_frequency_preference_function=None):
     '''
-    calc_pRF_default_options is a calculator that chooses default values for the options accepted by
+    calc_pRF_default_parameters is a calculator that chooses default values for the options accepted by
     the pRF calculation chain. Currently, there is exactly one of these:
     pRF_frequency_preference_function. This must be, if provided, a function that accepts three
     arguments: (e, s, l) where e is an eccentricity, s is a pRF size (sigma), and l is a visual area

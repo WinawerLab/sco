@@ -15,7 +15,7 @@ from   ..core                import calculates
 @calculates()
 def calc_contrast_default_parameters(gabor_orientations=8):
     '''
-    calc_default_contrast_options is a calculator that requires no arguments but sets the following
+    calc_contrast_default_parameters is a calculator that requires no arguments but sets the following
     to a default if they are not provided:
       * gabor_orientations (set to 8 by default)
     If gabor_orientations is a list, then it is taken to be a list of the orientations (in radians),

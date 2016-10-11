@@ -18,7 +18,7 @@ def calc_normalization_default_parameters(pRF_v123_labels, Kay2013_response_gain
       * Kay2013_output_nonlinearity
       * Kay2013_SOC_constant
       
-    For both of these, they can be a single float, a list/array of float, or a dictionary with 1, 2
+    For all of these, they can be a single float, a list/array of float, or a dictionary with 1, 2
     and 3 as its keys and with floats as the values, specifying the values for these parameters for
     voxels in areas V1, V2, and V3. This function will take these values and form arrays that
     correspond to the other voxel-level arrays.
@@ -63,7 +63,7 @@ def _turn_param_into_array(param, pRF_v123_labels):
     """
     if not hasattr(param, '__iter__'):
         # then vals is a single value and the same for everything
-        vals = np.repeat(param, len(pRF_v123_labels))
+        vals = np.repeat(float(param), len(pRF_v123_labels))
     else:
         try:
             # if this succeeds, it's a dictionary

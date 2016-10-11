@@ -74,7 +74,7 @@ def calc_pRF_pixel_data(ims, x0s, sigs, d2ps):
 @calculates('pRF_responses')
 def calc_pRF_responses(pRF_pixel_centers, pRF_pixel_sizes, pRF_eccentricity, pRF_v123_labels,
                        normalized_stimulus_images,
-                       stimulus_contrast_functions,
+                       normalized_contrast_functions,
                        pRF_frequency_preference_function):
     '''
     calc_pRF_responses is a calculator that adds to the datapool the estimated responses of each pRF
@@ -83,25 +83,24 @@ def calc_pRF_responses(pRF_pixel_centers, pRF_pixel_sizes, pRF_eccentricity, pRF
     The following data are required:
       * pRF_pixel_centers, pRF_pixel_sizes, pRF_eccentricity, pRF_v123_labels
       * normalized_stimulus_images
-      * stimulus_contrast_functions
+      * normalized_contrast_functions
       * pRF_frequency_preference_function
     The resulting datum, pRF_responses, is a numpy matrix sized (n,m) where n is the number of pRFs
     and m is the number of stimulus images.
     '''
     responses = np.asarray(
         [[(0 if (x0[0] < 0 or x0[0] >= im.shape[0] or x0[1] < 0 or x0[1] >= im.shape[1]) else
-           np.sum([v*contrast[int(x0[0]), int(x0[1])]
-                   for (f,v) in fpref.iteritems()
-                   for contrast in [scf(f)]])
+           np.sum([v*ncf(f)[int(x0[0]), int(x0[1])]
+                   for (f, v) in fpref.iteritems()])
            / np.sum(fpref.values()))
-          for (im, scf, x0, sig) in zip(normalized_stimulus_images,
-                                        stimulus_contrast_functions,
+          for (im, ncf, x0, sig) in zip(normalized_stimulus_images,
+                                        ncfs,
                                         np.round(x0s),
                                         sigs)
           for fpref              in [pRF_frequency_preference_function(ecc, sig, lab)]]
-         for (x0s, sigs, ecc, lab) in zip(pRF_pixel_centers,
-                                          pRF_pixel_sizes,
-                                          pRF_eccentricity,
-                                          pRF_v123_labels)])
-    return {'pRF_responses': responses}
-
+         for (x0s, sigs, ecc, lab, ncfs) in zip(pRF_pixel_centers,
+                                                pRF_pixel_sizes,
+                                                pRF_eccentricity,
+                                                pRF_v123_labels,
+                                                normalized_contrast_functions)])
+    return {'pRF_responses': np.asarray(responses)}

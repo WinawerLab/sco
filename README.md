@@ -186,33 +186,51 @@ it as an array (with every entry the same) for ease of use.
   pixels.User-specified, with a default value of `(300,300)`. First
   used in `stimulus.core.calc_normalized_stimulus_images`
   
-* `Kay2013_pRF_sigma_slope`: dictionary whose keys are 1, 2, and 3 and
-  whose values are the ?. User-defined, with default value of `{1:
-  0.1, 2: 0.15, 3: 0.27}`. First used in
+All the Kay2013 parameters can be a single float (in which case the
+same value is used for each voxel), a list/array of floats (which must
+be length n, in which case each voxel will use the corresponding
+value), or a dictionary with 1, 2 and 3 as its keys and with floats as
+the values (specifying the values for these parameters for voxels in
+areas V1, V2, and V3).
+  
+* `Kay2013_pRF_sigma_slope`: float, array, or dictionary whose keys
+  are 1, 2, and 3 and whose values give the slope of the linear
+  relationship between the eccentricity of a pRF and its
+  size. User-defined, with default value of `{1: 0.1, 2: 0.15, 3:
+  0.27}`, values from Kay2013b. First used in
+  `anatomy.core.calc_Kay2013_pRF_sizes`.
+
+* `Kay2013_output_nonlinearity`: float, array, or dictionary whose
+  keys are 1, 2, and 3 and whose values are the compressive
+  nonlinearity constants `n` from Kay2013a for areas V1, V2, and
+  V3. That is, the response is raised to this power as the final step
+  in the model. User-defined, with default value of `{1: 0.18, 2:
+  0.13, 3: 0.12}`. First used in
   `anatomy.core.calc_Kay2013_pRF_sizes`.
   
-* `Kay2013_SOC_constant`: dictionary whose keys are 1, 2, and 3 and
-  whose values are the second-order contrast constant `c` from Kay et
-  al, 2013 for areas V1, V2, and V3. User-defined, with default value
-  of `{1: 0.93, 2: 0.99, 3: 0.99}`. First used in
-  `normalization.core.calc_Kay2013_SOC_normalization`. Currently, one
-  constant is defined per area, but this could be extended so each
-  voxel has a separate value.
+* `Kay2013_normalization_r`: float, array, or dictionary with keys 1,
+  2, and 3. Value is the the normalization parameter `r` from
+  Kay2013a, which (along with `Kay2013_normalization_s`) controls the
+  strength of the divisive normalization step. User-specified with
+  default value of `1`. Used in
+  `contrast.core.calc_divisive_normalization_functions`.
+
+* `Kay2013_normalization_s`: float, array, or dictionary with keys 1,
+  2, and 3. Value is the the normalization parameter `s` from
+  Kay2013a, which (along with `Kay2013_normalization_r`) controls the
+  strength of the divisive normalization step. User-specified with
+  default value of `.5`. Used in
+  `contrast.core.calc_divisive_normalization_functions`.
   
-* `Kay2013_output_nonlinearity`: dictionary whose keys are 1, 2, and 3
-  and whose values are the compressive nonlinearity constants `n` from
-  Kay et al, 2013 for areas V1, V2, and V3. That is, the response is
-  raised to this power as the final step in the model. User-defined,
-  with default value of `{1: 0.18, 2: 0.13, 3: 0.12}`. First used in
-  `anatomy.core.calc_Kay2013_pRF_sizes`. Currently, one constant is
-  defined per area, but this could be extended so each voxel has a
-  separate value.
+* `Kay2013_SOC_constant`: float, array, or dictionary whose keys are
+  1, 2, and 3 and whose values are the second-order contrast constant
+  `c` from Kay2013a for areas V1, V2, and V3. User-defined, with
+  default value of `{1: 0.93, 2: 0.99, 3: 0.99}`. First used in
+  `normalization.core.calc_Kay2013_SOC_normalization`.
   
-* `Kay2013_response_gain`: integer or dictionary whose keys are 1, 2,
-  and 3. If an integer, use the same value for every voxel and if a
-  dictionary, each key is a label for areas V1, V2, or V3 and the
-  value is the response gain for that voxel, paramter `g` from Kay et
-  al, 2013. User-defined, with default value of `1`. Used in
+* `Kay2013_response_gain`: float, array, or dictionary whose keys
+  are 1, 2, and 3. Value is the response gain for that voxel, paramter
+  `g` from Kay2013a. User-defined, with default value of `1`. Used in
   `normalization.core.calc_Kay2013_output_nonlinearity`.
 
 ## Created by model
@@ -308,6 +326,15 @@ it as an array (with every entry the same) for ease of use.
   filter bank with that spatial frequency preference. The function
   also caches its results for a given frequency, to reduce calculation
   time. Created in `contrast.core.calc_stimulus_contrast_functions`.
+  
+* `normalization_contrast_functions`: 2-dimensional array, n x m, with
+  a separate function for each voxel for each image. Each function
+  takes in a frequency, calls the `stimulus_contrast_function` for
+  that image and spatial frequency, and then divisively normalizes
+  that image with the corresponding `Kay2013_normalization_r` and
+  `Kay2013_normalization_s` for that voxel. The function also caches
+  its result for a given frequency, r, and s for speed. Created in
+  `contrast.core.calc_divisive_normalization_functions`.
 
 * `pRF_pixel_centers`: n x m x 2 numpy array. Contains the x, y
   positions of the centers of each voxel's pRF in the visual
@@ -334,8 +361,8 @@ it as an array (with every entry the same) for ease of use.
   
 * `pRF_responses`: n x m numpy array. Contains the predicted responses
   of each voxel's pRF to each image. This is the output of the
-  "spatial summation" step from Kay et al, 2013 and is the input to
-  the second order contrast step. It's calculated by
+  "spatial summation" step from Kay2013a and is the input to the
+  second order contrast step. It's calculated by
   `pRF.core.calc_pRF_responses`.
 
 * `SOC_normalized_responses`: n x m numpy array. The responses of
@@ -353,7 +380,12 @@ it as an array (with every entry the same) for ease of use.
 
 # References
 
-- Kay, K. N., Winawer, J., Rokem, A., Mezer, A., & Wandell,
+- Kay2013a: Kay, K. N., Winawer, J., Rokem, A., Mezer, A., & Wandell,
   B. A. (2013). A two-stage cascade model of BOLD responses in human
   visual cortex. {PLoS} Comput Biol,
   9(5), 1003079. http://dx.doi.org/10.1371/journal.pcbi.1003079
+
+- Kay2013b: Kay, K. N., Winawer, J., Mezer, A., & Wandell,
+  B. A. (2013). Compressive spatial summation in human visual
+  cortex. Journal of Neurophysiology, 110(2),
+  481–494. http://dx.doi.org/10.1152/jn.00105.2013

@@ -114,10 +114,15 @@ def calc_divisive_normalization_functions(stimulus_contrast_functions, Kay2013_n
     value), or a dictionary with 1, 2, and 3 as the keys (in which case each voxel uses the value
     corresponding to its area, V1, V2, or V3).
     """
-    
     _divisive_normalization_cache = [{} for i in stimulus_contrast_functions]
+
     def _divisive_normalization_function(func_idx, cpd, vox_id):
         cache = _divisive_normalization_cache[func_idx]
+        r = Kay2013_normalization_r[vox_id]
+        s = Kay2013_normalization_s[vox_id]
+        if (r, s) not in cache:
+            cache[(r, s)] = dict()
+        cache = cache[(r, s)]
         if isinstance(cpd, set):
             return {x: _divisive_normalization_function(func_idx, x) for x in cpd}
         elif hasattr(cpd, '__iter__'):
@@ -126,8 +131,6 @@ def calc_divisive_normalization_functions(stimulus_contrast_functions, Kay2013_n
             return cache[cpd]
         else:
             func = stimulus_contrast_functions[func_idx]
-            r = Kay2013_normalization_r[vox_id]
-            s = Kay2013_normalization_s[vox_id]
             filtered = func(cpd)
             normalized = dict((k, (v**r)/(s**r + (np.sum(v, axis=0)/len(v)**r)))
                               for k, v in filtered.iteritems())

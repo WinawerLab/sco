@@ -4,22 +4,13 @@
 # By Noah C. Benson
 
 import numpy                 as     np
-import scipy                 as     sp
 from   scipy                 import ndimage    as ndi
-from   scipy.misc            import imresize
 from   scipy.interpolate     import (RectBivariateSpline, interp1d)
 
 from   skimage               import data
 from   skimage.util          import img_as_float
-from   skimage.filters       import gabor_kernel
 
-from   neuropythy.immutable  import Immutable
-from   numbers               import Number
-from   pysistence            import make_dict
-
-from   ..core                import (iscalc, calculates, calc_chain)
-
-import os, math, itertools, collections
+from   ..core                import calculates
 
 
 @calculates('stimulus_images', filenames='stimulus_image_filenames')
@@ -60,7 +51,9 @@ def import_stimulus_images(filenames, stimulus_gamma=None):
     ims = filenames if hasattr(filenames, '__iter__') else [filenames]
     ims = [(img_as_float(data.load(im)) if isinstance(im, basestring) else im) for im in ims]
     ims = [stimulus_gamma(np.mean(im, axis=2) if len(im.shape) > 2 else im)    for im in ims]
-    return {'stimulus_images': ims, 'stimulus_gamma':  stimulus_gamma}
+    # If the stimulus images are different sizes, this will be an array with
+    # dtype=object. Otherwise it will be normal
+    return {'stimulus_images': np.asarray(ims), 'stimulus_gamma':  stimulus_gamma}
 
 def image_apply_aperture(im, radius, center=None, fill_value=0.5, edge_width=10, crop=True):
     '''
@@ -200,13 +193,13 @@ def calc_stimulus_default_parameters(stimulus_image_filenames,
     # And fix the aperture edge if needed:
     stimulus_aperture_edge_width = [d if ew is None else ew
                                     for (ew,d) in zip(stimulus_aperture_edge_width,d2p)]
-    # And return all of them:
-    return {'stimulus_edge_value':          stimulus_edge_value,
-            'stimulus_pixels_per_degree':   stimulus_pixels_per_degree,
-            'stimulus_aperture_edge_width': stimulus_aperture_edge_width,
-            'normalized_stimulus_aperture': asz,
-            'normalized_pixels_per_degree': d2p,
-            'max_eccentricity':             mxe}
+    # And return all of them as arrays:
+    return {'stimulus_edge_value':          np.asarray(stimulus_edge_value),
+            'stimulus_pixels_per_degree':   np.asarray(stimulus_pixels_per_degree),
+            'stimulus_aperture_edge_width': np.asarray(stimulus_aperture_edge_width),
+            'normalized_stimulus_aperture': np.asarray(asz),
+            'normalized_pixels_per_degree': np.asarray(d2p),
+            'max_eccentricity':             np.asarray(mxe)}
 
 @calculates('normalized_stimulus_images',
             imgs='stimulus_images',
@@ -235,10 +228,5 @@ def calc_normalized_stimulus_images(imgs, edge_val, deg2px, normsz, normdeg2px, 
     # Then apply the aperture
     imgs = [image_apply_aperture(im, rad, fill_value=ev, edge_width=ew)
             for (im, rad, ev, ew) in zip(imgs, normsz, edge_val, edge_width)]
-    # That's it!
-    return {'normalized_stimulus_images': imgs}
-
-
-
-
-                                 
+    # That's it! Make it an array because those are easier and we know every image will be the same size.
+    return {'normalized_stimulus_images': np.asarray(imgs)}

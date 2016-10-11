@@ -105,6 +105,12 @@ for every step of the model.
 For these descriptions, we assume your subject
 has n voxels and you're predicting the responses for m images.
 
+Any parameter that is specified as an array can also be specified as a
+list. However, the model will turn it into an array for ease of
+handling. For the parameters that can be set as a single value or an
+array, if a single value is specified by the user, the model will cast
+it as an array (with every entry the same) for ease of use.
+
 ## User-specified parameters
 
 * `subject`: `neuropythy.freesurfer.subject` or string. Specifies the
@@ -120,34 +126,46 @@ has n voxels and you're predicting the responses for m images.
   for the model. User-specified with no defaults. Used in
   `stimulus.core.import_stimulus_images`.
 
-* `min_cycles_per_degree`: integer. The lowest frequency (per degree)
-  of any of the wavelets. User-defined with a default value of 0. Used
-  in `stimulus.core.calc_gabor_filters`.
-  
-* `wavelet_octaves`: integer, specifies how many octaves (doublings of
-  frequency) the preferred spatial frequencies of the Gabor wavelets
-  should cover. User-specified, default value of 4. Used in
-  `stimulus.core.calc_gabor_filters`.
+* `stimulus_aperture_edge_width`: integer or 1-dimensional array of m
+  integers. User-defined, can be set as a single integer (in which
+  case all images will have the same value) or an array of integers
+  (in which case image i will use `stimulus_aperture_edge_width[i]`);
+  default is for all to have the same value, which is equal to the
+  `normalized_pixels_per_degree`. This gives the number of pixels over
+  which the aperture should be smoothly extended; 0 gives a hard edge,
+  otherwise a half-cosine smoothing is used. Used in
+  `stimulus.core.image_apply_aperture`.
 
-* `wavelet_steps`: integer, specifies how many steps between doublings
-  the preferred spatial frequencies of the Gabor wavelets should
-  have. User-specified, default value of 2. Used in
-  `stimulus.core.calc_gabor_filters`.
-
-* `max_eccentricity`: `None` or integer. Specifies the max
-  eccentricity (degree distance from center of visual field) of the
-  pRF for voxels to consider. User-specified, default value is
-  `None`. If `None`, value of 90 degrees is used. Used in
-  `stimulus.core.calc_gabor_filters`.
+* `max_eccentricity`: integer or 1-dimensional array of m
+  integers. Specifies the max eccentricity (degree distance from
+  center of visual field) of the pRF for voxels to
+  consider. User-specified, default value is 12 or
+  `normalized_stimulus_aperture / normalized_pixels_per_degree` if
+  both are set. Used in
+  `anatomy.core.calc_pRFs_from_freesurfer_retinotopy`. If an integer,
+  same value will be used for each image; if an array, each image will
+  use its corresponding value from the array.
   
-* `normalized_pixels_per_degree`: integer. The number of pixels per
-  degree in the normalized image. User-defined variable, default value
-  of 15. First used in
-  `stimulus.core.calc_normalized_stimulus_images`.
+* `normalized_pixels_per_degree`: integer or 1-dimensional array of m
+  integers. The number of pixels per degree in the normalized
+  image. User-defined variable, default value of 15 or
+  `max_eccentricity * normalized_stimulus_aperture` if both of those
+  are set. First used in
+  `stimulus.core.calc_normalized_stimulus_images`. If an integer, same
+  value will be used for each image; if an array, each image will use
+  its corresponding value from the array.
+  
+* `normalized_stimulus_aperture`: integer or 1-dimensional array of m
+  integers. The radius (in pixels) of the aperture to apply after each
+  image has been normalized in order to get the reduced view
+  corresponding to the models input. User-defined, default value is
+  `max_eccentricity * normalized_pixels_per_degree`. If an integer,
+  same value will be used for each image; if an array, each image will
+  use its corresponding value from the array.
 
 * `gabor_orientations`: integer. The number of preferred orientations
   the Gabor filters should have. User-specified, with a default value
-  of 4. First used in `stimulus.core.calc_gabor_filters.`.
+  of 8. First used in `contrast.core.calc_stimulus_contrast_functions`.
 
 * `stimulus_edge_value`: float. The value outside the projected
   stimulus. Necessary to avoid edge effects with the convolution
@@ -156,10 +174,10 @@ has n voxels and you're predicting the responses for m images.
   the central value, since the images will be 0-centered (running from
   -.5 to .5) before the convolution.
 
-* `stimulus_pixels_per_degree`: integer or list of integers. The
-  pixels per degree for the stimulus. User-specified, with a default
-  value of 24. First used in
-  `stimulus.core.calc_normalized_stimulus_images`. If it's a list,
+* `stimulus_pixels_per_degree`: integer or 1-dimensional array of
+  integers. The pixels per degree for the stimulus. User-specified,
+  with a default value of 24. First used in
+  `stimulus.core.calc_normalized_stimulus_images`. If it's an array,
   must have m values, one for each stimulus image (allowing the images
   to have differing pixels per degree).
 
@@ -168,27 +186,52 @@ has n voxels and you're predicting the responses for m images.
   pixels.User-specified, with a default value of `(300,300)`. First
   used in `stimulus.core.calc_normalized_stimulus_images`
   
-* `Kay2013_pRF_sigma_slope`: dictionary whose keys are 1, 2, and 3 and
-  whose values are the ?. User-defined, with default value of `{1:
-  0.1, 2: 0.15, 3: 0.27}`. First used in
+All the Kay2013 parameters can be a single float (in which case the
+same value is used for each voxel), a list/array of floats (which must
+be length n, in which case each voxel will use the corresponding
+value), or a dictionary with 1, 2 and 3 as its keys and with floats as
+the values (specifying the values for these parameters for voxels in
+areas V1, V2, and V3).
+  
+* `Kay2013_pRF_sigma_slope`: float, array, or dictionary whose keys
+  are 1, 2, and 3 and whose values give the slope of the linear
+  relationship between the eccentricity of a pRF and its
+  size. User-defined, with default value of `{1: 0.1, 2: 0.15, 3:
+  0.27}`, values from Kay2013b. First used in
+  `anatomy.core.calc_Kay2013_pRF_sizes`.
+
+* `Kay2013_output_nonlinearity`: float, array, or dictionary whose
+  keys are 1, 2, and 3 and whose values are the compressive
+  nonlinearity constants `n` from Kay2013a for areas V1, V2, and
+  V3. That is, the response is raised to this power as the final step
+  in the model. User-defined, with default value of `{1: 0.18, 2:
+  0.13, 3: 0.12}`. First used in
   `anatomy.core.calc_Kay2013_pRF_sizes`.
   
-* `Kay2013_SOC_constant`: dictionary whose keys are 1, 2, and 3 and
-  whose values are the second-order contrast constant `c` from Kay et
-  al, 2013 for areas V1, V2, and V3. User-defined, with default value
-  of `{1: 0.93, 2: 0.99, 3: 0.99}`. First used in
-  `normalization.core.calc_Kay2013_SOC_normalization`. Currently, one
-  constant is defined per area, but this could be extended so each
-  voxel has a separate value.
+* `Kay2013_normalization_r`: float, array, or dictionary with keys 1,
+  2, and 3. Value is the the normalization parameter `r` from
+  Kay2013a, which (along with `Kay2013_normalization_s`) controls the
+  strength of the divisive normalization step. User-specified with
+  default value of `1`. Used in
+  `contrast.core.calc_divisive_normalization_functions`.
+
+* `Kay2013_normalization_s`: float, array, or dictionary with keys 1,
+  2, and 3. Value is the the normalization parameter `s` from
+  Kay2013a, which (along with `Kay2013_normalization_r`) controls the
+  strength of the divisive normalization step. User-specified with
+  default value of `.5`. Used in
+  `contrast.core.calc_divisive_normalization_functions`.
   
-* `Kay2013_output_nonlinearity`: dictionary whose keys are 1, 2, and 3
-  and whose values are the compressive nonlinearity constants `n` from
-  Kay et al, 2013 for areas V1, V2, and V3. That is, the response is
-  raised to this power as the final step in the model.. User-defined,
-  with default value of `{1: 0.18, 2: 0.13, 3: 0.12}`. First used in
-  `anatomy.core.calc_Kay2013_pRF_sizes`. Currently, one constant is
-  defined per area, but this could be extended so each voxel has a
-  separate value.
+* `Kay2013_SOC_constant`: float, array, or dictionary whose keys are
+  1, 2, and 3 and whose values are the second-order contrast constant
+  `c` from Kay2013a for areas V1, V2, and V3. User-defined, with
+  default value of `{1: 0.93, 2: 0.99, 3: 0.99}`. First used in
+  `normalization.core.calc_Kay2013_SOC_normalization`.
+  
+* `Kay2013_response_gain`: float, array, or dictionary whose keys
+  are 1, 2, and 3. Value is the response gain for that voxel, paramter
+  `g` from Kay2013a. User-defined, with default value of `1`. Used in
+  `normalization.core.calc_Kay2013_output_nonlinearity`.
 
 ## Created by model
 
@@ -251,77 +294,83 @@ has n voxels and you're predicting the responses for m images.
   coordinates of each voxel in the brain. Calculated by
   `anatomy.core.calc_pRFs_from_freesurfer_retinotopy`.
 
-* `pRF_sizes`: list with length n, giving the sizes of the pRFs (in
-  degrees?) for each voxel. Calculated by
+* `pRF_sizes`: 1 dimensional numpy array with length n, giving the
+  sizes of the pRFs (in degrees?) for each voxel. Calculated by
   `anatomy.core.calc_Kay2013_pRF_sizes` based on the eccentricity and
   visual area of the voxel.
   
-* `stimulus_images`: list of numpy arrays with length m. Each value is
-  the array for one of the `stimulus_image_filenames`. Can be
-  visualized with `matplotlib.pyplot.imshow`, these are loaded in from
+* `stimulus_images`: array of numpy arrays with length m. If the
+  `stimulus_images` are different sizes, which is likely, this array
+  will have `dtype=object`, so it will act as a one-dimensional array
+  containing more arrays. If they're the same size, it will be a 3d
+  array with indices corresponding to image, pixel x, and pixel
+  y. Each value is the array for one of the
+  `stimulus_image_filenames`. Can be visualized with
+  `matplotlib.pyplot.imshow`, these are loaded in from
   `stimulus_image_filenames` in
   `stimulus.core.import_stimulus_images`.
 
-* `normalized_stimulus_images`: list of length m, with each entry
-  contained a normalized image. This is calculated by
+* `normalized_stimulus_images`: 1-dimensional array of length m, with
+  each entry contained a normalized image. This is calculated by
   `stimulus.core.calc_normalized_stimulus_image`, which normalizes
   each image to the same resolution and size; it zooms in on each
   image so that the pixels per degree is the right value and then is
   cropped so it's the correct size.
+  
+* `stimulus_contrast_functions`: 1-dimensional array of m
+  functions. Each function corresponds to one image, takes in a
+  frequency and returns an image that has been transformed from the
+  original `normalized_stimulus_images` to a new image the same size
+  in which each pixel represents the contrast energy at that point and
+  at the given frequency. Equivalent to convoluting the image with a
+  filter bank with that spatial frequency preference. The function
+  also caches its results for a given frequency, to reduce calculation
+  time. Created in `contrast.core.calc_stimulus_contrast_functions`.
+  
+* `normalization_contrast_functions`: 2-dimensional array, n x m, with
+  a separate function for each voxel for each image. Each function
+  takes in a frequency, calls the `stimulus_contrast_function` for
+  that image and spatial frequency, and then divisively normalizes
+  that image with the corresponding `Kay2013_normalization_r` and
+  `Kay2013_normalization_s` for that voxel. The function also caches
+  its result for a given frequency, r, and s for speed. Created in
+  `contrast.core.calc_divisive_normalization_functions`.
 
-* `orientations`: 1d numpy array with number of entries equal to the
-  integer specified in `gabor_orientations`. These are the actual
-  angle values (in radians) that the Gabor filters have for their
-  preferred orientations. Calculated (based on `gabor_orientations`)
-  in `stimulus.core.calc_gabor_filters`.
-
-* `wavelet_frequencies`: 1 dimensional numpy array whose number of
-  elements is specified by the user-specified number of octaves
-  (`wavelet_octaves`) and steps (`wavelet_steps`). Calculated in
-  `stimulus.core.calc_gabor_filters`, specifies the preferred spatial
-  frequencies (in pixels?) of the Gabor filters used in the first step
-  of the model. The frequencies run from `min_cycles_per_degree` to
-  `2^wavelet_octaves`, with `wavelet_steps` steps between each
-  doubling (there are therefore `wavelet_octaves`*`wavelet_steps`+1
-  total frequencies). They are then converted into pixels (from
-  degrees).
+* `pRF_pixel_centers`: n x m x 2 numpy array. Contains the x, y
+  positions of the centers of each voxel's pRF in the visual
+  field. Differs from `pRF_centers` because different images may have
+  different pixels per degree, so we have a separate value for each
+  image. Calculated in `pRF.core.calc_pRF_pixel_data`, based on
+  `pRF_centers`.
   
-* `filters`: numpy array with all the Gabor filters. The exact
-  dimensionality depends on the values of `orientations`,
-  `wavelet_frequencies`; the dimensionality will be
-  `len(orientations)` x `len(wavelet_frequencies)` (with default
-  values, 4 x 9). This way, the filters tile the specified
-  orientations and spatial frequencies. Calculated in
-  `stimulus.core.calc_gabor_filters`, these are the filters used in
-  the first step of the model. The Gabors themselves are created by a
-  call to `skimage.filters.gabor_kernel`.
+* `pRF_pixel_sizes`: n x m numpy array, giving the sizes (in
+  pixels) for the pRFs of each voxel. Differs from `pRF_sizes` because
+  different images may have different pixels per degree, so we have a
+  separate value for each image. Each entry gives the pRF size for a
+  given image in a given voxel. Calculated by
+  `pRF.core.calc_pRF_pixel_data` based on `pRF_sizes`.
   
-* `filtered_images`: list of numpy arrays with length m. Each value is
-  the array for a filtered image. That is, it's an image from
-  `normalized_stimulus_images` that has had the `filters` convolved
-  with it. This is done by `stimulus.core.calc_filtered_images`.
-
-* `pRF_pixel_centers`: n x 2 numpy array. Contains the x, y positions
-  of the centers of each voxel's pRF in the visual field. Calculated
-  in `pRF.core.calc_pRF_responses`.
+* `pRF_frequency_preference_function`: a function that takes the
+  eccentricity, pRF size, and visual label and returns a dictionary
+  whose keys are frequencies (in cycles per degree) and whose values
+  are the weights applied to that particular frequency at the given
+  eccentricity, pRF size, and visual area. Can be user defined, but
+  also has default value created in
+  `pRF.core.calc_pRF_defualt_options`. Used in
+  `pRF.core.calc_pRF_responses`.
   
-* `pRF_pixel_sigmas`: list with length n, giving the sigmas (in
-  pixels) for the pRFs of each voxel. Calculated by
-  `pRF.core.calc_pRF_responses` based on `pRF_sizes`.
-  
-* `pRF_responses`: m x n numpy array. Contains the predicted responses
+* `pRF_responses`: n x m numpy array. Contains the predicted responses
   of each voxel's pRF to each image. This is the output of the
-  "spatial summation" step from Kay et al, 2013 and is the input to
-  the second order contrast step. It's calculated by
+  "spatial summation" step from Kay2013a and is the input to the
+  second order contrast step. It's calculated by
   `pRF.core.calc_pRF_responses`.
 
-* `SOC_normalized_responses`: m-length list of 1 dimensional numpy
-  arrays with n entries. The responses of each voxel after being put
-  through the the second-order contrast calculation: `(x - c *
-  x_bar)^2`, where `x_bar` is the average response across voxels to
-  this image and `c` is the value of `Kay2013_SOC_constant` for this
-  area. Each entry in the list is the predicted response of all voxels
-  to one image. This is calculated in
+* `SOC_normalized_responses`: n x m numpy array. The responses of
+  each voxel after being put through the the second-order contrast
+  calculation: `(x - c * x_bar)^2`, where `x_bar` is the average
+  response across voxels to this image and `c` is the value of
+  `Kay2013_SOC_constant` for this area. Each entry in the list is the
+  predicted response of all voxels to one image. This is calculated in
   `normalization.core.calc_Kay2013_SOC_normalization`.
 
 * `predicted_responses`: m x n numpy array. Contains the final
@@ -331,7 +380,12 @@ has n voxels and you're predicting the responses for m images.
 
 # References
 
-- Kay, K. N., Winawer, J., Rokem, A., Mezer, A., & Wandell,
+- Kay2013a: Kay, K. N., Winawer, J., Rokem, A., Mezer, A., & Wandell,
   B. A. (2013). A two-stage cascade model of BOLD responses in human
   visual cortex. {PLoS} Comput Biol,
   9(5), 1003079. http://dx.doi.org/10.1371/journal.pcbi.1003079
+
+- Kay2013b: Kay, K. N., Winawer, J., Mezer, A., & Wandell,
+  B. A. (2013). Compressive spatial summation in human visual
+  cortex. Journal of Neurophysiology, 110(2),
+  481–494. http://dx.doi.org/10.1152/jn.00105.2013

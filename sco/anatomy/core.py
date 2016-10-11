@@ -5,19 +5,37 @@
 
 
 import numpy                 as     np
-import scipy                 as     sp
 import neuropythy            as     neuro
 import neuropythy.freesurfer as     neurofs
 import nibabel.freesurfer    as     fs
 
-from   neuropythy.immutable  import Immutable
 from   neuropythy.commands   import benson14_retinotopy_command
-from   numbers               import Number
-from   pysistence            import make_dict
 
-import os, math, itertools, collections, abc
+import os
 
-from ..core            import (calculates, calc_chain, iscalc)
+from ..core            import calculates
+from ..normalization   import _turn_param_into_array
+
+@calculates()
+def calc_anatomy_default_parameters(pRF_v123_labels,
+                                    Kay2013_pRF_sigma_slope={1: 0.1,  2: 0.15, 3: 0.27},
+                                    Kay2013_output_nonlinearity={1: 0.18, 2: 0.13, 3: 0.12}):
+    """
+    calc_anatomy_default_parameters() is a calculator that expects no particular options, but
+    fills in several options if not provided:
+    * Kay2013_pRF_sigma_slope
+    * Kay2013_output_nonlinearity
+      
+    For both of these, they can be a single float, a list/array of float, or a dictionary with 1, 2
+    and 3 as its keys and with floats as the values, specifying the values for these parameters for
+    voxels in areas V1, V2, and V3. This function will take these values and form arrays that
+    correspond to the other voxel-level arrays.
+
+    Different from most of the calc_default_parameters functions, this one must run after
+    calc_pRF_centers because it needs pRF_v123_labels
+    """
+    return {'Kay2013_pRF_sigma_slope': _turn_param_into_array(Kay2013_pRF_sigma_slope, pRF_v123_labels),
+            'Kay2013_output_nonlinearity': _turn_param_into_array(Kay2013_output_nonlinearity, pRF_v123_labels)}
 
 @calculates('polar_angle_mgh', 'eccentricity_mgh', 'v123_labels_mgh', 'ribbon_mghs')
 def import_benson14_from_freesurfer(subject):
@@ -49,8 +67,7 @@ def import_benson14_from_freesurfer(subject):
             'pRF_polar_angle', 'pRF_eccentricity', 'pRF_v123_labels')
 def calc_pRFs_from_freesurfer_retinotopy(polar_angle_mgh, eccentricity_mgh,
                                          v123_labels_mgh, ribbon_mghs,
-                                         max_eccentricity=None):
-    max_eccentricity = 90 if max_eccentricity is None else max_eccentricity
+                                         max_eccentricity):
     # The variables are all mgz volumes, so we need to extract the values:
     label = np.round(np.abs(v123_labels_mgh.dataobj.get_unscaled()))
     angle = polar_angle_mgh.dataobj.get_unscaled()
@@ -85,30 +102,28 @@ def calc_pRFs_from_freesurfer_retinotopy(polar_angle_mgh, eccentricity_mgh,
             'max_eccentricity':  max_eccentricity}
 
 @calculates('pRF_sizes')
-def calc_Kay2013_pRF_sizes(pRF_eccentricity, pRF_v123_labels,
-                           Kay2013_pRF_sigma_slope={1: 0.1,  2: 0.15, 3: 0.27},
-                           Kay2013_output_nonlinearity={1: 0.18, 2: 0.13, 3: 0.12}):
+def calc_Kay2013_pRF_sizes(pRF_eccentricity, Kay2013_pRF_sigma_slope, Kay2013_output_nonlinearity):
     '''
-    calculate_pRF_sizes_Kay2013(pRF_eccentricity, pRF_v123_labels) yeilds a list of pRF sizes for
-    the given lists of eccentricity values and labels (which should all be 1, 2, or 3 for V1-V3,
-    otherwise 0). For any label that isn't 1, 2, or 3, this function returns 0.
-    sigma0(p, a) = s0 + sa (p/90) where sa is a constant determined by the visual area and s0 is
-    1/2; the values for sa given in Kay et al. (2013) are {s1 = 0.1, s2 = 0.15, s3 = 0.27}.
-    sigma(p, a, n) = (sigma0(p, a) - 0.23) / (0.16 n^(1/2) + -0.05)
+    calculate_pRF_sizes_Kay2013(pRF_eccentricity, Kay2013_pRF_sigma_slope, Kay2013_output_nonlinearity) 
+    yields a list of pRF sizes for the given lists of eccentricity values and labels (which should
+    all be 1, 2, or 3 for V1-V3, otherwise 0). sigma0(p, a) = s0 + sa (p/90) where sa is a constant
+    determined by the visual area and s0 is 1/2; the values for sa given in Kay et al. (2013) are
+    {s1 = 0.1, s2 = 0.15, s3 = 0.27}.  sigma(p, a, n) = (sigma0(p, a) - 0.23) / (0.16 n^(1/2) +
+    -0.05)
     '''
-    sig0 = [(0.5 + Kay2013_pRF_sigma_slope[l] * e) if l in Kay2013_pRF_sigma_slope else 0
-            for (e, l) in zip(pRF_eccentricity, pRF_v123_labels)]
-    sig  = [0 if l not in Kay2013_output_nonlinearity else \
-            (s0 - 0.23) / (0.16 / np.sqrt(Kay2013_output_nonlinearity[l]) - 0.05)
-            for (e, l, s0) in zip(pRF_eccentricity, pRF_v123_labels, sig0)]
-    return {'pRF_sizes': sig}
+    sig0 = [(0.5 + sig_slope * e) for (e, sig_slope) in
+            zip(pRF_eccentricity, Kay2013_pRF_sigma_slope)]
+    sig = [(s0 - 0.23) / (0.16 / np.sqrt(nonlin) - 0.05) for (e, nonlin, s0) in
+           zip(pRF_eccentricity, Kay2013_output_nonlinearity, sig0)]
+    return {'pRF_sizes': np.asarray(sig)}
 
 
-@calculates()
+@calculates('exported_predictions_filename', 'exported_image_ordering_filename')
 def export_predicted_responses(export_path,
                                predicted_responses,
                                pRF_voxel_indices, subject,
-                               predicted_response_names='prediction_',
+                               predicted_response_name='prediction',
+                               image_order_name='images',
                                exported_predictions={}, overwrite_files=True,
                                voxel_fill_value=0):
     '''
@@ -127,21 +142,20 @@ def export_predicted_responses(export_path,
     fill = voxel_fill_value
     vol0 = subject.LH.ribbon
     vol0dims = vol0.get_data().shape
-    if isinstance(predicted_response_names, basestring):
-        predicted_response_names = ['%s%04d' % (predicted_response_names, i)
-                                    for i in range(len(predicted_responses))]
-    for (nm, result) in zip(predicted_response_names, predicted_responses):
-        flname = os.path.join(export_path, nm + '.mgz')
-        if os.path.isdir(flname): raise ValueError('Output filename %s is a directory!' % flname)
-        if os.path.exists(flname) and not overwrite_files: continue
-        if len(result) != len(pRF_voxel_indices):
-            raise ValueError('data (%s) is not the same length as pRF_voxel_indices!' % nm)
-        arr = fill * np.ones(vol0dims) if fill != 0 else np.zeros(vol0dims)
+    # new method: one volume plus an image ordering text file
+    preds = np.zeros(vol0dims + (len(predicted_responses),), dtype=np.float32)
+    for (n,result) in enumerate(predicted_responses):
         for ((i,j,k),val) in zip(pRF_voxel_indices, result):
-            arr[i,j,k] = val
-        hdr = vol0.header.copy()
-        hdr.set_data_dtype(np.float32)
-        mgh = fs.mghformat.MGHImage(arr, vol0.affine, hdr, vol0.extra, vol0.file_map)
-        mgh.to_filename(flname)
-        exported_predictions[nm] = flname
-    return {'exported_predictions': exported_predictions}
+            preds[i,j,k,n] = val
+    hdr = vol0.header.copy()
+    hdr.set_data_dtype(np.float32)
+    hdr.set_data_shape(preds.shape)
+    mgh = fs.mghformat.MGHImage(preds, vol0.affine, hdr, vol0.extra, vol0.file_map)
+    mgh_flnm = os.path.join(export_path, predicted_response_name + '.mgz')
+    mgh.to_filename(mgh_flnm)
+    ord_flnm = os.path.join(export_path, image_order_name + '.txt')
+    with open(ord_flnm, 'w') as f:
+        for im in stimulus_file_names:
+            f.write('%s\n' % im)
+    return {'exported_predictions_filename':    mgh_flnm,
+            'exported_image_ordering_filename': ord_flnm}

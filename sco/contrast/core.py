@@ -64,6 +64,8 @@ def calc_stimulus_contrast_functions(imgs, d2p, orients, ev):
     # Now, the function that is called:
     def _stimulus_contrast_function(k, cpd):
         cache = _stimulus_contrast_cache[k]
+        # want to make sure that cpd is a float
+        cpd = float(cpd)
         if isinstance(cpd, set):
             return {x: _stimulus_contrast_function(k, x) for x in cpd}
         elif hasattr(cpd, '__iter__'):

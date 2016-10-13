@@ -14,14 +14,16 @@ MODEL_DF_KEYS = ['pRF_centers', 'pRF_pixel_sizes', 'pRF_hemispheres', 'pRF_respo
                  'pRF_voxel_indices', 'SOC_normalized_responses', 'predicted_responses',
                  'pRF_pixel_centers', 'pRF_eccentricity', 'pRF_v123_labels', 'pRF_sizes',
                  'pRF_polar_angle', 'Kay2013_output_nonlinearity', 'Kay2013_pRF_sigma_slope',
-                 'Kay2013_SOC_constant']
+                 'Kay2013_SOC_constant', 'Kay2013_normalization_r', 'Kay2013_normalization_s',
+                 'Kay2013_response_gain']
 
 # Keys from the results dict that correspond to model setup and so we want
 # to save them but not in the dataframe.
 MODEL_SETUP_KEYS = ['max_eccentricity', 'normalized_pixels_per_degree', 'stimulus_edge_value',
                     'gabor_orientations', 'stimulus_pixels_per_degree', 'subject',
                     'stimulus_contrast_functions', 'normalized_stimulus_aperture',
-                    'pRF_frequency_preference_function', 'stimulus_aperture_edge_width']
+                    'pRF_frequency_preference_function', 'stimulus_aperture_edge_width',
+                    'normalized_contrast_functions']
 
 # Keys that show the stimulus images in some form.
 IMAGES_KEYS = ['stimulus_images', 'normalized_stimulus_images', 'stimulus_image_filenames']
@@ -145,7 +147,7 @@ def create_model_dataframe(results, model_df_path="./soc_model_params.csv", keys
     #
     # 2. Two-dimensional, voxels on the first dimension. For these, we just assume that each column
     # of the array should be a separate column in our dataframe (with its name taken from the name
-    # of the variable with a suffix of '_1', '_2' etc ). Example: pRF_centers, where each value
+    # of the variable with a suffix of '_0', '_1' etc ). Example: pRF_centers, where each value
     # gives the x and y coordinates of the center of the voxel's pRF.
     #
     # 3. Two-dimensional, voxels on the second dimension. For these, we assume that images are on
@@ -154,6 +156,14 @@ def create_model_dataframe(results, model_df_path="./soc_model_params.csv", keys
     # '_image_1', '_image_2', etc. These will correspond to the names in the image
     # dataframe. Example: predicted response, where each value gives the model's predicted response
     # of that voxel to the given image.
+    # 
+    # 4. Three-dimensional, with voxels on the first dimension, images on the second, and something
+    # else on the third; we give each of those third dimensions a separate column similar to case 2
+    # above and each of the second dimensions a separate column similar to case 3. So if the array
+    # is voxels x 2 x 2, each voxel will have four columns: _image_0_0, image_0_1, image_1_0, and
+    # _image_1_1. Example: pRF_pixel_centers, where each value gives the x and y coordinates of the
+    # center of each voxel's pRF in pixels for a given image (since images can have different
+    # pixels per degrees, this isn't the same for every image).
     #
     # As we loop through these variables, we split up any two dimensional arrays so that each value
     # in the dictionary is a one-dimensional array, all with length equal to the number of
@@ -165,7 +175,7 @@ def create_model_dataframe(results, model_df_path="./soc_model_params.csv", keys
         if len(v.shape) == 1:
             # This is case 1, and we grab the value as is
             tmp_dict[k] = v
-        if len(v.shape) == 2:
+        elif len(v.shape) == 2:
             if v.shape[0] == voxel_num:
                 # then this is case two above.
                 for i in range(v.shape[1]):
@@ -178,9 +188,19 @@ def create_model_dataframe(results, model_df_path="./soc_model_params.csv", keys
                 raise Exception("Result variable %s is two dimensional but neither dimension "
                                 "corresponds to the number of voxels (dimensions: %s)!" %
                                 (k, v.shape))
-        # Here, we have no idea what to do and must throw an error
-        elif len(v.shape) > 2:
-            raise Exception('Result variable %s is not a two dimensional array!' % k)
+        elif len(v.shape) == 3:
+            # Here, we assume it's voxels x images x something, like case four above.
+            if v.shape[0] == voxel_num:
+                for i in range(v.shape[1]):
+                    for j in range(v.shape[2]):
+                        tmp_dict["%s_image_%s_%s" % (k, i, j)] = v[:, i, j]
+            else:
+                raise Exception("Result variable %s is three dimensional but the first dimension "
+                                "doesn't correspond to the number of voxels (dimensions: %s)!" %
+                                (k, v.shape))
+        else:
+            raise Exception('Result variable %s is not a one, two, or three dimensional array'
+                            ' (shape %s)!' % (k, v.shape))
     model_df = pd.DataFrame(tmp_dict)
     # This isn't necessary, but I find it easier to examine if the columns are sorted
     # alphabetically

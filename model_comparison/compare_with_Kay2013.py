@@ -15,7 +15,7 @@ import imghdr
 import scipy.io as sio
 
 
-def main(image_base_path, subject_dir='/mnt/WinawerAcadia/Freesurfer_subjects',
+def main(image_base_path, subject_dir='/home/billbrod/Documents/SCO-test-data/Freesurfer_subjects',
          subject='test-sub'):
     """
     Run python SCO and Matlab SOC on the same batch of images
@@ -59,13 +59,13 @@ def main(image_base_path, subject_dir='/mnt/WinawerAcadia/Freesurfer_subjects',
         # We need to modify the stimulus chain that's part of sco_chain because we don't need the
         # import_stimulus_images step.
         stim_chain = (
-            ('calc_normalized_stimulus', sco.stimulus.core.calc_normalized_stimulus_images),
-            ('calc_filters', sco.stimulus.core.calc_gabor_filters),
-            ('calc_filtered_images', sco.stimulus.core.calc_filtered_images))
+            ('calc_stimulus_default_parameters', sco.stimulus.core.calc_stimulus_default_parameters),
+            ('calc_normalized_stimulus', sco.stimulus.core.calc_normalized_stimulus_images))
         # This is our modified chain.
         sco_chain = (('calc_anatomy', sco.anatomy.calc_anatomy),
                      # need to call calc_chain on this to make it ready to go.
                      ('calc_stimulus', sco.core.calc_chain(stim_chain)),
+                     ('calc_contrast', sco.contrast.calc_contrast),
                      ('calc_pRF', sco.pRF.calc_pRF),
                      ('calc_normalization', sco.normalization.calc_normalization))
     else:
@@ -73,6 +73,14 @@ def main(image_base_path, subject_dir='/mnt/WinawerAcadia/Freesurfer_subjects',
                         "file" % image_base_path)
     # This prepares the sco_chain, making it a callable object
     sco_chain = sco.core.calc_chain(sco_chain)
+
+    # in order to handle the fact that the Kay2013 matlab code only deals with spatial orientation
+    # of 3 cpd, we have to define a new pRF_frequency_preference_function to replace the default.
+    def freq_pref(e, s, l):
+        # This takes in the eccentricity, size, and area, but we don't use any of them, since we
+        # just want to use 3 cpd and ignore everything else. And this must be floats.
+        return {3: 1}
     # And this runs it
-    results = sco_chain(subject=subject, max_eccentricity=20, **kwargs)
+    results = sco_chain(subject=subject, max_eccentricity=20,
+                        pRF_frequency_preference_function=freq_pref, **kwargs)
     return results

@@ -10,10 +10,12 @@ in a lazy fashion, by returning a function that, when called, calculates and ret
 '''
 
 from ..core import calc_chain
-from .core  import (calc_default_contrast_options, calc_stimulus_contrast_functions)
+from .core  import (calc_contrast_default_parameters, calc_stimulus_contrast_functions,
+                    calc_divisive_normalization_functions)
 
-contrast_chain = (('calc_default_contrast_options',    calc_default_contrast_options),
-                  ('calc_stimulus_contrast_functions', calc_stimulus_contrast_functions))
+contrast_chain = (('calc_contrast_default_parameters', calc_contrast_default_parameters),
+                  ('calc_stimulus_contrast_functions', calc_stimulus_contrast_functions),
+                  ('calc_divisive_normalization_functions', calc_divisive_normalization_functions))
 
 calc_contrast = calc_chain(contrast_chain)
 

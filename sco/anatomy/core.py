@@ -124,6 +124,7 @@ def export_predicted_responses(export_path,
                                pRF_voxel_indices, subject,
                                predicted_response_name='prediction',
                                image_order_name='images',
+                               stimulus_file_names=None,
                                exported_predictions={}, overwrite_files=True,
                                voxel_fill_value=0):
     '''
@@ -155,7 +156,12 @@ def export_predicted_responses(export_path,
     mgh.to_filename(mgh_flnm)
     ord_flnm = os.path.join(export_path, image_order_name + '.txt')
     with open(ord_flnm, 'w') as f:
-        for im in stimulus_file_names:
-            f.write('%s\n' % im)
+        if stimulus_file_names is None:
+            f.write('# No filenames were given to export_predictions; this usually indicates\n')
+            f.write('# that the sco calculation was run on a dataset imported directly into\n')
+            f.write('# Python instead of via filenames.\n')
+        else:
+            for im in stimulus_file_names:
+                f.write('%s\n' % im)
     return {'exported_predictions_filename':    mgh_flnm,
             'exported_image_ordering_filename': ord_flnm}

@@ -103,8 +103,8 @@ def create_brain_dataframe(results, keys=None):
             warnings.warn("Results dict does not contain key %s, skipping" % k)
     return brain_dict
 
-def create_model_dataframe(results, model_df_path="./soc_model_params.csv", keys=None,
-                           voxel_num_greater_than_images=True, voxel_num=None):
+def create_model_dataframe(results, image_names, model_df_path="./soc_model_params.csv", keys=None,
+                           image_num=None, voxel_num=None):
     """creates the model dataframe from the results dict
 
     This function takes in a results dict create by one sco_chain run and turns it into a pandas
@@ -113,9 +113,16 @@ def create_model_dataframe(results, model_df_path="./soc_model_params.csv", keys
     model. Those keys are given by the constant MODEL_DF_KEYS and can be overwritten by the user
     using the kwarg keys.
 
-    We also make the assumption that there are more voxels in the results than there are images. If
-    that's not the case, set voxel_num_greater_than_images equal to False and set voxel_num equal
-    to the number of voxels in your results.
+    We need a list / array image_names, which gives the names of each of the images, in order. This
+    way we can give them more informative labels (even if it's just the indexes in a matlab array,
+    as when using Kay2013's stimuli.mat) for direct comparison.
+
+    We also assume that this results dictionary will contain the key 'predicted_responses', which
+    is the final output of the model. We assume that this is an array of voxels x images, and so
+    infer the number of voxels and images that this model was fit on from this array. If for some
+    reason this is not true (which it really should be -- you will basically always have
+    predicted_responses), then set image_num and voxel_num to the number of images and voxels,
+    respectively.
 
     Arguments
     =============================
@@ -124,19 +131,21 @@ def create_model_dataframe(results, model_df_path="./soc_model_params.csv", keys
     as soc_model_params.csv in the current directory.
     """
     model_df_dict = {}
-    if not voxel_num:
-        voxel_num = 0
+    if voxel_num and image_num:
+        warnings.warn("Using user-set voxel_num and image_num instead of inferring from data")
+    elif (voxel_num and not image_num) or (image_num and not voxel_num):
+        raise Exception("image_num and voxel_num must be both set or both None, you cannot set"
+                        " only one!")
+    else:
+        image_num, voxel_num = results['predicted_responses'].shape
     if keys:
         model_keys = keys
     else:
         model_keys = MODEL_DF_KEYS
     for k in model_keys:
         try:
-            # This is temporary fix, list-like entries will soon all be arrays.
+            # they should all be arrays, but just in case.
             model_df_dict[k] = np.asarray(results[k])
-            # figure out what the number of voxels is as we go through.
-            if voxel_num_greater_than_images and max(model_df_dict[k].shape) > voxel_num:
-                voxel_num = max(model_df_dict[k].shape)
         except KeyError:
             warnings.warn("Results dict does not contain key %s, skipping" % k)
     # We assume that we have three types of variables here, as defined by their shape:
@@ -145,17 +154,18 @@ def create_model_dataframe(results, model_df_path="./soc_model_params.csv", keys
     # dataframe. Example: pRF_v123_labels, where each value says whether the corresponding voxel is
     # in V1, V2 or V3.
     #
-    # 2. Two-dimensional, voxels on the first dimension. For these, we just assume that each column
-    # of the array should be a separate column in our dataframe (with its name taken from the name
-    # of the variable with a suffix of '_0', '_1' etc ). Example: pRF_centers, where each value
-    # gives the x and y coordinates of the center of the voxel's pRF.
+    # 2. Two-dimensional, voxels on the first dimension, second dimension doesn't correspond to
+    # images. For these, we just assume that each column of the array should be a separate column
+    # in our dataframe (with its name taken from the name of the variable with a suffix of '_0',
+    # '_1' etc ). Example: pRF_centers, where each value gives the x and y coordinates of the
+    # center of the voxel's pRF.
     #
-    # 3. Two-dimensional, voxels on the second dimension. For these, we assume that images are on
-    # the first dimension and so these variables give the response (of some kind) to each image of
-    # each voxel. Thus each row should be a separate column in our dataframe, suffixed with
-    # '_image_1', '_image_2', etc. These will correspond to the names in the image
-    # dataframe. Example: predicted response, where each value gives the model's predicted response
-    # of that voxel to the given image.
+    # 3. Two-dimensional, voxels on the first dimension, images on the second or similarly, images
+    # on the first and voxels on the second dimensions. For these, we assume these variables give
+    # the response (of some kind) to each image of each voxel. Thus each row should be a separate
+    # column in our dataframe, suffixed with '_image_1', '_image_2', etc. These will correspond to
+    # the names in the image dataframe. Example: predicted response, where each value gives the
+    # model's predicted response of that voxel to the given image.
     # 
     # 4. Three-dimensional, with voxels on the first dimension, images on the second, and something
     # else on the third; we give each of those third dimensions a separate column similar to case 2
@@ -177,23 +187,31 @@ def create_model_dataframe(results, model_df_path="./soc_model_params.csv", keys
             tmp_dict[k] = v
         elif len(v.shape) == 2:
             if v.shape[0] == voxel_num:
-                # then this is case two above.
-                for i in range(v.shape[1]):
-                    tmp_dict["%s_%s" % (k, i)] = v[:, i]
-            elif v.shape[1] == voxel_num:
-                # then this is case three above.
+                if v.shape[1] != image_num:
+                    # then this is case two above.
+                    for i in range(v.shape[1]):
+                        tmp_dict["%s_dim%s" % (k, i)] = v[:, i]
+                else:
+                    # then this is case three above
+                    for i in range(v.shape[1]):
+                        tmp_dict["%s_image_%s" % (k, image_names[i])] = v[:, i]
+            elif v.shape[0] == image_num:
+                if v.shape[1] != voxel_num:
+                    raise Exception("For variable %s, images are on the first dimension but voxels"
+                                    " not on the second! (dimensions: %s)" % (k, v.shape))
+                # then this is case three above
                 for i in range(v.shape[0]):
-                    tmp_dict["%s_image_%s" % (k, i)] = v[i, :]
+                    tmp_dict["%s_image_%s" % (k, image_names[i])] = v[i, :]
             else:
-                raise Exception("Result variable %s is two dimensional but neither dimension "
-                                "corresponds to the number of voxels (dimensions: %s)!" %
-                                (k, v.shape))
+                raise Exception("Result variable %s is two dimensional but the first dimension "
+                                "doesn't correspond to the number of voxels or images (dimensions:"
+                                " %s)!" % (k, v.shape))
         elif len(v.shape) == 3:
             # Here, we assume it's voxels x images x something, like case four above.
             if v.shape[0] == voxel_num:
                 for i in range(v.shape[1]):
                     for j in range(v.shape[2]):
-                        tmp_dict["%s_image_%s_%s" % (k, i, j)] = v[:, i, j]
+                        tmp_dict["%s_image_%s_dim%s" % (k, image_names[i], j)] = v[:, i, j]
             else:
                 raise Exception("Result variable %s is three dimensional but the first dimension "
                                 "doesn't correspond to the number of voxels (dimensions: %s)!" %

@@ -49,13 +49,14 @@ def main(image_base_path, subject_dir='/home/billbrod/Documents/SCO-test-data/Fr
     elif os.path.splitext(image_base_path)[1] == ".mat":
         # in this case, we assume it's stimuli.mat from
         # http://kendrickkay.net/socmodel/index.html#contentsofstimuli. We want to grab only the
-        # 'images' key from this and only images 226 through 260/end (stimulus set 3), since each
-        # entry is a single frame and thus easy to handle.
+        # 'images' key from this and only images 226 through 260/end (stimulus set 3; note that we
+        # have to convert from MATLAB's 1-indexing to python's 0-indexing), since each entry is a
+        # single frame and thus easy to handle.
         stimulus_images = sio.loadmat(image_base_path)
         stimulus_images = stimulus_images['images'][0, 225:]
         # in this case, we already have the stimulus images, so we don't need the sco chain to do
         # the importing of them.
-        kwargs = {'stimulus_images': stimulus_images[:2]}
+        kwargs = {'stimulus_images': stimulus_images[:3]}
         # We need to modify the stimulus chain that's part of sco_chain because we don't need the
         # import_stimulus_images step.
         stim_chain = (

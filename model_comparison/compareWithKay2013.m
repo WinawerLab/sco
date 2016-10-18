@@ -13,7 +13,7 @@
 % 
 % By William F. Broderick
 
-function modelfit = compareWithKay2013(knkutilsPath, stimuliPath, stimuliIdx, voxelIdx, modelPath)
+function compareWithKay2013(knkutilsPath, stimuliPath, stimuliIdx, voxelIdx, modelPath)
 % arguments:
 % 
 % knkutilsPath: string, path to your knkutils folder, which we'll
@@ -35,18 +35,21 @@ function modelfit = compareWithKay2013(knkutilsPath, stimuliPath, stimuliIdx, vo
     stimuli = images(stimuliIdx);
     clear images;
     
+    for imgNum=stimuliIdx
+        eval(sprintf('modelTable.MATLAB_predicted_responses_image_%d=nan(height(modelTable),1);',imgNum));
+    end
+    
     [stimuli, normAlreadyDoneFlag] = preprocessStimuli(stimuli, modelTable);
     
-    modelfit = zeros(length(voxelIdx), length(stimuliIdx));
     for vox=voxelIdx
         if ~normAlreadyDoneFlag
             stimuliTmp = divisiveNormalization(stimuli, modelTable, voxelIdx);
         else
             stimuliTmp = stimuli;
         end
-        modelfit(voxelIdx, :) = generateVoxelPredictions(stimuliTmp, modelTable, vox, stimuliIdx);
+        modelTable = generateVoxelPredictions(stimuliTmp, modelTable, vox, stimuliIdx);
     end
-        
+    writetable(modelTable,'Kay2013.csv');
 end
 
 function [stimuli, normAlreadyDoneFlag] = preprocessStimuli(stimuli, modelTable)
@@ -144,10 +147,10 @@ function stimuli =  divisiveNormalization(stimuli, modelTable, voxelIdx)
 
 end
 
-function modelfit = generateVoxelPredictions(stimuli, modelTable, voxelIdx, stimuliIdx)
+function modelTable = generateVoxelPredictions(stimuli, modelTable, voxelIdx, stimuliIdx)
 % The parameters are [R C S G N C] where
-%   R is the row index of the center of the 2D Gaussian (pRF_pixel_centers_)
-%   C is the column index of the center of the 2D Gaussian (pRF_pixel_centers)
+%   R is the row index of the center of the 2D Gaussian (pRF_pixel_centers_image_###_dim0)
+%   C is the column index of the center of the 2D Gaussian (pRF_pixel_centers_image_###_dim1)
 %   S is the standard deviation of the 2D Gaussian (pRF_pixel_sizes)
 %   G is a gain parameter (Kay2013_response_gain)
 %   N is the exponent of the power-law nonlinearity (Kay2013_output_nonlinearity)
@@ -159,21 +162,21 @@ function modelfit = generateVoxelPredictions(stimuli, modelTable, voxelIdx, stim
     res = 90;
     % issue a dummy call to makegaussian2d.m to pre-compute xx and yy.
     % these variables are re-used to achieve faster computation.
-    [d,xx,yy] = makegaussian2d(res,2,2,2,2);
+    [~,xx,yy] = makegaussian2d(res,2,2,2,2);
     
     socfun = @(dd,wts,c) bsxfun(@minus,dd,c*(dd*wts)).^2 * wts;
     gaufun = @(pp) vflatten(makegaussian2d(res,pp(1),pp(2),pp(3),pp(3),xx,yy,0,0)/(2*pi*pp(3)^2));
     modelfun = @(pp,dd) pp(4)*(socfun(dd,gaufun(pp),restrictrange(pp(6),0,1)).^pp(5));
     
-    modelfit = zeros(1, length(stimuliIdx));
     for idx=1:length(stimuliIdx)
-        params = [eval(sprintf('modelTable.pRF_pixel_centers_image_%d_dim0(%d)', stimuliIdx(idx), voxelIdx)),
-                  eval(sprintf('modelTable.pRF_pixel_centers_image_%d_dim1(%d)', stimuliIdx(idx), voxelIdx)),
+        params = [floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%d_dim0(%d)', stimuliIdx(idx), voxelIdx))),
+                  floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%d_dim1(%d)', stimuliIdx(idx), voxelIdx))),
                   eval(sprintf('modelTable.pRF_pixel_sizes_image_%d(%d)', stimuliIdx(idx), voxelIdx)),
                   modelTable.Kay2013_response_gain(voxelIdx),
                   modelTable.Kay2013_output_nonlinearity(voxelIdx),
                   modelTable.Kay2013_SOC_constant(voxelIdx)];
-        modelfit(idx) = modelfun(params, stimuli(idx,:));
+        modelfit = modelfun(params, stimuli(idx,:));
+        eval(sprintf('modelTable.MATLAB_predicted_responses_image_%d(%d) = %d;', stimuliIdx(idx),voxelIdx,modelfit));
     end
 
 end

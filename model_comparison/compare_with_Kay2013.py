@@ -81,7 +81,11 @@ def main(image_base_path, subject_dir='/home/billbrod/Documents/SCO-test-data/Fr
         # This takes in the eccentricity, size, and area, but we don't use any of them, since we
         # just want to use 3 cpd and ignore everything else. And this must be floats.
         return {3: 1}
-    # And this runs it
-    results = sco_chain(subject=subject, max_eccentricity=20,
+    # And this runs it. To make sure it has the same size as the the images used in Kendrick's
+    # code, we set the normalized_stimulus_aperture, normalized_aperture_edge_width, and
+    # normalized_pixels_per_degree values. We want our final image to be 90x90, with the edge
+    # taking up 10% of the total image (ie 5% of the radius).
+    results = sco_chain(subject=subject, max_eccentricity=2.7, normalized_stimulus_aperture=15*2.727,
+                        normalized_pixels_per_degree=15, stimulus_aperture_edge_width=15*(3-2.727),
                         pRF_frequency_preference_function=freq_pref, **kwargs)
     return results

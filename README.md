@@ -1,9 +1,9 @@
 # sco ##############################################################################################
 The Standard Cortical Observer Python library.
 
-## Author ##########################################################################################
+## Authors #########################################################################################
 
- * [Noah C. Benson](https://github.com/noahbenson) &lt;<nben@nyu.edu>&gt; (*corresponding author*)
+ * [Noah C. Benson](https://github.com/noahbenson) (*corresponding author*) &lt;<nben@nyu.edu>&gt;
  * [Bill Broderick](https://github.com/billbrod)
  * [Catherine Olson](https://github.com/catherio)
  * [Heiko Mueller](https://github.com/heikomuller)

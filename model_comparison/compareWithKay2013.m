@@ -62,12 +62,20 @@ function [stimuli, normAlreadyDoneFlag] = preprocessStimuli(stimuli, modelTable)
 % we can, divisive normalization (we apply divisive normalization here
 % if all voxels have the same divisive normalization parameters)
 
-    stimuli = cat(3, stimuli{:});
     % resize the stimuli to 150 x 150 to reduce computational time.
     % use single-format to save memory.
-    temp = zeros(150,150,size(stimuli,3),'single');
-    for p=1:size(stimuli,3)
-        temp(:,:,p) = imresize(single(stimuli(:,:,p)),[150 150],'cubic');
+    temp = zeros(150,150,size(stimuli,2),'single');
+    for p=1:size(stimuli,2)
+        stim = stimuli{:, p};
+        if length(size(stim)) == 2
+            temp(:,:,p) = imresize(single(stim),[150 150],'cubic');
+        else
+            % most of the stimuli are made up of multiple frames, but they're all
+            % variants on the same thing. For these, we just grab the
+            % first frame and ignore the rest because we just want to
+            % get a sense of what the model is doing.
+            temp(:,:,p) = imresize(single(stim(:,:,1)),[150 150],'cubic');
+        end
     end
     stimuli = temp;
     clear temp;

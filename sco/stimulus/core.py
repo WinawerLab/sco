@@ -206,7 +206,8 @@ def calc_stimulus_default_parameters(stimulus_image_filenames=None,
             'normalized_stimulus_aperture': np.asarray(asz),
             'normalized_pixels_per_degree': np.asarray(d2p),
             'max_eccentricity':             np.asarray(mxe),
-            'stimulus_images':              np.asarray(stimulus_images)}
+            'stimulus_images':              np.asarray(stimulus_images),
+            'stimulus_image_filenames':     np.asarray(stimulus_image_filenames)}
 
 @calculates('normalized_stimulus_images',
             imgs='stimulus_images',

@@ -13,10 +13,11 @@ import os
 import glob
 import imghdr
 import scipy.io as sio
+import numpy as np
 
 
-def main(image_base_path, subject_dir='/home/billbrod/Documents/SCO-test-data/Freesurfer_subjects',
-         subject='test-sub'):
+def main(image_base_path, stimuli_idx, subject='test-sub',
+         subject_dir='/home/billbrod/Documents/SCO-test-data/Freesurfer_subjects',):
     """
     Run python SCO and Matlab SOC on the same batch of images
 
@@ -53,10 +54,13 @@ def main(image_base_path, subject_dir='/home/billbrod/Documents/SCO-test-data/Fr
         # have to convert from MATLAB's 1-indexing to python's 0-indexing), since each entry is a
         # single frame and thus easy to handle.
         stimulus_images = sio.loadmat(image_base_path)
-        stimulus_images = stimulus_images['images'][0, 225:]
+        stimulus_images = stimulus_images['images'][0, stimuli_idx]
+        # some of the stimuli have multiple frames associated with them; they're just variations on
+        # the same image, so we only take one of them to make predictions for.
+        stimulus_images = np.asarray([im if len(im.shape)==2 else im[:, :, 0] for im in stimulus_images])
+        kwargs = {'stimulus_images': stimulus_images[:1]}
         # in this case, we already have the stimulus images, so we don't need the sco chain to do
         # the importing of them.
-        kwargs = {'stimulus_images': stimulus_images[:3]}
         # We need to modify the stimulus chain that's part of sco_chain because we don't need the
         # import_stimulus_images step.
         stim_chain = (
@@ -84,8 +88,9 @@ def main(image_base_path, subject_dir='/home/billbrod/Documents/SCO-test-data/Fr
     # And this runs it. To make sure it has the same size as the the images used in Kendrick's
     # code, we set the normalized_stimulus_aperture, normalized_aperture_edge_width, and
     # normalized_pixels_per_degree values. We want our final image to be 90x90, with the edge
-    # taking up 10% of the total image (ie 5% of the radius).
+    # taking up 10% of the total image (ie 5% of the radius). setting pRF_blob_std to 1 should
+    # speed things up
     results = sco_chain(subject=subject, max_eccentricity=2.7, normalized_stimulus_aperture=15*2.727,
                         normalized_pixels_per_degree=15, stimulus_aperture_edge_width=15*(3-2.727),
-                        pRF_frequency_preference_function=freq_pref, **kwargs)
+                        pRF_frequency_preference_function=freq_pref, pRF_blob_stds=1, **kwargs)
     return results

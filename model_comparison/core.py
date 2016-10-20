@@ -10,12 +10,12 @@ import numpy as np
 
 # Keys from the results dict that correspond to model parameters and so that we want to save in the
 # output dataframe
-MODEL_DF_KEYS = ['pRF_centers', 'pRF_pixel_sizes', 'pRF_hemispheres', 'pRF_responses',
-                 'pRF_voxel_indices', 'SOC_normalized_responses', 'predicted_responses',
+MODEL_DF_KEYS = ['pRF_centers', 'pRF_pixel_sizes', 'pRF_hemispheres',
+                 'pRF_voxel_indices', 'SOC_responses', 'predicted_responses',
                  'pRF_pixel_centers', 'pRF_eccentricity', 'pRF_v123_labels', 'pRF_sizes',
                  'pRF_polar_angle', 'Kay2013_output_nonlinearity', 'Kay2013_pRF_sigma_slope',
                  'Kay2013_SOC_constant', 'Kay2013_normalization_r', 'Kay2013_normalization_s',
-                 'Kay2013_response_gain']
+                 'Kay2013_response_gain', 'pRF_frequency_preferences', 'pRF_matrices']
 
 # Keys from the results dict that correspond to model setup and so we want
 # to save them but not in the dataframe.
@@ -23,7 +23,7 @@ MODEL_SETUP_KEYS = ['max_eccentricity', 'normalized_pixels_per_degree', 'stimulu
                     'gabor_orientations', 'stimulus_pixels_per_degree', 'subject',
                     'stimulus_contrast_functions', 'normalized_stimulus_aperture',
                     'pRF_frequency_preference_function', 'stimulus_aperture_edge_width',
-                    'normalized_contrast_functions']
+                    'normalized_contrast_functions', 'pRF_blob_stds']
 
 # Keys that show the stimulus images in some form.
 IMAGES_KEYS = ['stimulus_images', 'normalized_stimulus_images', 'stimulus_image_filenames']

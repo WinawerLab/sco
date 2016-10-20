@@ -185,6 +185,10 @@ it as an array (with every entry the same) for ease of use.
   target width and depth of the stimulus image in
   pixels.User-specified, with a default value of `(300,300)`. First
   used in `stimulus.core.calc_normalized_stimulus_images`
+
+* `pRF_blob_stds`: a positive number specifying the number of standard
+  deviations to include in the pRF Gaussian blob definition. By default
+  this value is 2. Used in the `pRF.core.calc_pRF_matrices function`.
   
 All the Kay2013 parameters can be a single float (in which case the
 same value is used for each voxel), a list/array of floats (which must
@@ -358,20 +362,22 @@ areas V1, V2, and V3).
   also has default value created in
   `pRF.core.calc_pRF_defualt_options`. Used in
   `pRF.core.calc_pRF_responses`.
-  
-* `pRF_responses`: n x m numpy array. Contains the predicted responses
-  of each voxel's pRF to each image. This is the output of the
-  "spatial summation" step from Kay2013a and is the input to the
-  second order contrast step. It's calculated by
-  `pRF.core.calc_pRF_responses`.
 
-* `SOC_normalized_responses`: n x m numpy array. The responses of
-  each voxel after being put through the the second-order contrast
-  calculation: `(x - c * x_bar)^2`, where `x_bar` is the average
-  response across voxels to this image and `c` is the value of
-  `Kay2013_SOC_constant` for this area. Each entry in the list is the
-  predicted response of all voxels to one image. This is calculated in
-  `normalization.core.calc_Kay2013_SOC_normalization`.
+* `pRF_matrices`: n x m numpy array of image matrices where n is the
+  number of pRFs and m is the number of images. Each element of the
+  pRF_matrices value is a sparse array (scipy.sparse.csr_matrix) the
+  same size as the normalized stimulus image to which it corresponds;
+  the values in this image correspond to weights on the pRF Gaussian
+  and are set to sum to 1. This is calculated by
+  pRF.core.calc_pRF_matrices.
+  
+* `SOC_responses`: n x m numpy array. The responses of each voxel after
+  being put through the the second-order contrast calculation:
+  `(x - c * x_bar)^2`, where `x_bar` is the weighted average contrast
+  value (see normalized_contrast_functions) across pixels in the pRF
+  and `c` is the value of `Kay2013_SOC_constant` for this area. Each entry
+  in the list is the predicted response of all voxels to one image. This
+  is calculated in `normalization.core.calc_Kay2013_SOC_normalization`.
 
 * `predicted_responses`: m x n numpy array. Contains the final
   predicted response of each voxel to each image (so each step has

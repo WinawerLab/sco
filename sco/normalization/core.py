@@ -23,10 +23,12 @@ def calc_normalization_default_parameters(pRF_v123_labels, Kay2013_response_gain
     voxels in areas V1, V2, and V3. This function will take these values and form arrays that
     correspond to the other voxel-level arrays.
     """
-    return {'Kay2013_response_gain': _turn_param_into_array(Kay2013_response_gain, pRF_v123_labels),
+    return {'Kay2013_response_gain':       _turn_param_into_array(Kay2013_response_gain,
+                                                                  pRF_v123_labels),
             'Kay2013_output_nonlinearity': _turn_param_into_array(Kay2013_output_nonlinearity,
                                                                   pRF_v123_labels),
-            'Kay2013_SOC_constant': _turn_param_into_array(Kay2013_SOC_constant, pRF_v123_labels)}
+            'Kay2013_SOC_constant':        _turn_param_into_array(Kay2013_SOC_constant,
+                                                                  pRF_v123_labels)}
 
 @calculates('SOC_responses')
 def calc_Kay2013_SOC_normalization(pRF_matrices,

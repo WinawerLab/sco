@@ -43,7 +43,7 @@ def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n
     img_scale  = (img_center[0]/maxecc, img_center[1]/maxecc)
     for (xx,yy,zz,ss) in zip(x,y,z,sigs):
         ss = ss*img_scale[0]
-        exp_const = -0.5/(ss*ss)
+        exp_const = -0.5/(ss * ss)
         row = int(round(yy*img_scale[0] + img_center[0]))
         col = int(round(xx*img_scale[1] + img_center[1]))
         if row < 0 or col < 0 or row >= image_size or col >= image_size: continue
@@ -53,7 +53,7 @@ def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n
         cc = min([image_size, int(round(col + ss))])
         (mesh_xs, mesh_ys) = np.meshgrid(np.asarray(range(c0,cc), dtype=np.float) - col,
                                          np.asarray(range(r0,rr), dtype=np.float) - row)
-        gaus = np.exp(exp_const * np.sqrt(mesh_xs**2 + mesh_ys**2))
+        gaus = np.exp(exp_const * (mesh_xs**2 + mesh_ys**2))
         img[r0:rr, c0:cc, 0] += zz
         img[r0:rr, c0:cc, 1] += gaus
     return np.flipud(img[:,:,0] / (img[:,:,1] + (1.0 - img[:,:,1].astype(bool))))

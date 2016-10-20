@@ -14,6 +14,8 @@ from sco.contrast      import (calc_contrast,      contrast_chain)
 from sco.pRF           import (calc_pRF,           pRF_chain)
 from sco.normalization import (calc_normalization, normalization_chain)
 
+from sco.util          import (cortical_image)
+
 # Version information...
 _version_major = 0
 _version_minor = 1
@@ -47,5 +49,6 @@ def reload_sco():
     reload(sys.modules['sco.contrast'])
     reload(sys.modules['sco.pRF'])
     reload(sys.modules['sco.normalization'])
+    reload(sys.modules['sco.util'])
     reload(sys.modules['sco'])
     return None

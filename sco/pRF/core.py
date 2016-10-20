@@ -22,12 +22,16 @@ def calc_pRF_default_parameters(pRF_frequency_preference_function=None):
     pixels while the e parameter is in units of degrees.
     By default, the function returns a Gaussian set of weights around 1 cycle per sigma.
     '''
-    _default_frequencies = [0.5*2.0**(0.5*float(k)) for k in range(10)]
+    #_default_frequencies = [0.5*2.0**(0.5*float(k)) for k in range(10)]
+    _default_frequencies = [6.0 / k for k in [0.5, 0.75, 1, 1.25, 1.5, 2]]
     def _default_pRF_frequency_preference_function(e, s, l):
-        ss = 1.0 / s
+        ss = 6.0 * (1.0 / s)
         weights = np.asarray([np.exp(-0.5*((k - ss)/ss)**2) for k in _default_frequencies])
-        weights /= np.sum(weights)
-        return {k:v for (k,v) in zip(_default_frequencies, weights) if v > 0.001}
+        wtot = np.sum(weights)
+        weights /= wtot
+        res = {k:v for (k,v) in zip(_default_frequencies, weights) if v > 0.01}
+        wtot = np.sum(res.values())
+        return {k: (v/wtot) for (k,v) in res.iteritems()}
     if pRF_frequency_preference_function is None:
         return {'pRF_frequency_preference_function': _default_pRF_frequency_preference_function}
     else:
@@ -67,17 +71,31 @@ def _pRF_matrix(imshape, x0, sig, rad):
     '''
     rrng = map(round, [max([x0[0] - rad, 0]), min([x0[0] + rad, imshape[0]])])
     crng = map(round, [max([x0[1] - rad, 0]), min([x0[1] + rad, imshape[1]])])
+    rrng = map(int, rrng)
+    crng = map(int, crng)
     if any(s[1] - s[0] <= 0 for s in [rrng, crng]):
         raise ValueError('Bad image or std given to _pRF_matrix')
     cnst = -0.5 / (sig*sig)
-    mtx = sparse.dok_matrix(imshape)
-    rad2 = rad*rad
-    for r in range(int(np.floor(rrng[0])), int(np.ceil(rrng[1]))):
-        for c in range(int(np.floor(crng[0])), int(np.ceil(crng[1]))):
-            d2 = (r - x0[0])**2 + (c - x0[1])**2
-            if d2 <= rad2: mtx[r,c] = np.exp(cnst * d2)
-    mtx = mtx / mtx.sum()
+
+    mtx = sparse.lil_matrix(imshape)
+    (xmsh,ymsh) = np.meshgrid(np.asarray(range(crng[0], crng[1]), dtype=np.float) - x0[1],
+                              np.asarray(range(rrng[0], rrng[1]), dtype=np.float) - x0[0])
+    mini_mtx = np.exp(cnst * (xmsh**2 + ymsh**2))
+    mini_mtx /= mini_mtx.sum()
+    mtx[rrng[0]:rrng[1], crng[0]:crng[1]] = mini_mtx
     return mtx.asformat('csr')
+
+    # Old method (slower):
+    #mtx = sparse.lil_matrix(imshape)
+    #rad2 = rad*rad
+    #for r in range(int(np.floor(rrng[0])), int(np.ceil(rrng[1]))):
+    #    dr2 = (r - x0[0])**2
+    #    if dr2 > rad2: continue
+    #    for c in range(int(np.floor(crng[0])), int(np.ceil(crng[1]))):
+    #        d2 = dr2 + (c - x0[1])**2
+    #        if d2 <= rad2: mtx[r,c] = np.exp(cnst * d2)
+    #mtx = mtx / mtx.sum()
+    #return mtx.asformat('csr')
 
 @calculates('pRF_matrices')
 def calc_pRF_matrices(pRF_pixel_centers, pRF_pixel_sizes, normalized_stimulus_images,

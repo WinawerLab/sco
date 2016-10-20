@@ -38,7 +38,7 @@ def calc_contrast_default_parameters(pRF_v123_labels, gabor_orientations=8,
         raise ValueError('gabor_orientations must be a list or an integer')
     # That's all this needs to do for now. We want gabor_orientations to be an array, because that
     # makes things easier.
-    return {'gabor_orientations': np.asarray(gabor_orientations),
+    return {'gabor_orientations':      np.asarray(gabor_orientations),
             'Kay2013_normalization_r': _turn_param_into_array(Kay2013_normalization_r, pRF_v123_labels),
             'Kay2013_normalization_s': _turn_param_into_array(Kay2013_normalization_s, pRF_v123_labels)}
 

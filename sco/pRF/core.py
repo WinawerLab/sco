@@ -4,23 +4,10 @@
 # By Noah C. Benson
 
 import numpy                 as     np
+import scipy.sparse          as     sparse
 
 from   ..core                import calculates
 
-
-# This function extracts the entire (weighted) pRF region...
-def _extract_pRF(im, x0, sl, sig):
-    if any(s[1] - s[0] <= 0 for s in sl): return 0
-    xrng = map(float, range(sl[1][0], sl[1][1]))
-    yrng = map(float, range(sl[0][0], sl[0][1]))
-    cnst = -0.5 / (sig*sig)
-    gaus = np.exp(
-        cnst * np.sum(
-            np.asarray([g - x for (g,x) in zip(np.meshgrid(xrng, yrng), reversed(x0))])**2,
-            axis=0))
-    mag  = np.sum(gaus, axis=None)
-    part = im[sl[0][0]:sl[0][1], sl[1][0]:sl[1][1]]
-    return np.sum(part * gaus, axis=None) / mag
 
 @calculates()
 def calc_pRF_default_parameters(pRF_frequency_preference_function=None):
@@ -37,9 +24,10 @@ def calc_pRF_default_parameters(pRF_frequency_preference_function=None):
     '''
     _default_frequencies = [0.5*2.0**(0.5*float(k)) for k in range(10)]
     def _default_pRF_frequency_preference_function(e, s, l):
-        weights = np.asarray([np.exp(-0.5*((k - s)/s)**2) for k in _default_frequencies])
+        ss = 1.0 / s
+        weights = np.asarray([np.exp(-0.5*((k - ss)/ss)**2) for k in _default_frequencies])
         weights /= np.sum(weights)
-        return {k:v for (k,v) in zip(_default_frequencies, weights) if v > 0.01}
+        return {k:v for (k,v) in zip(_default_frequencies, weights) if v > 0.001}
     if pRF_frequency_preference_function is None:
         return {'pRF_frequency_preference_function': _default_pRF_frequency_preference_function}
     else:
@@ -71,36 +59,75 @@ def calc_pRF_pixel_data(ims, x0s, sigs, d2ps):
     return {'pRF_pixel_centers': x0s_px,
             'pRF_pixel_sizes': sigs_px}
 
-@calculates('pRF_responses')
-def calc_pRF_responses(pRF_pixel_centers, pRF_pixel_sizes, pRF_eccentricity, pRF_v123_labels,
-                       normalized_stimulus_images,
-                       normalized_contrast_functions,
-                       pRF_frequency_preference_function):
+def _pRF_matrix(imshape, x0, sig, rad):
     '''
-    calc_pRF_responses is a calculator that adds to the datapool the estimated responses of each pRF
-    as the element pRF_responses. These responses are estimated by using the weighted mean response
-    where the weights come from the pRF_frequency_preference_function.
+    _pRF_matrix(imshape, x0, sig, rad) yields a scipy sparse csr_matrix of size imshape that
+    contains Gaussian blob weights that sum to 1 representing the pRF. The weights extend to
+    the radius rad.
+    '''
+    rrng = map(round, [max([x0[0] - rad, 0]), min([x0[0] + rad, imshape[0]])])
+    crng = map(round, [max([x0[1] - rad, 0]), min([x0[1] + rad, imshape[1]])])
+    if any(s[1] - s[0] <= 0 for s in [rrng, crng]):
+        raise ValueError('Bad image or std given to _pRF_matrix')
+    cnst = -0.5 / (sig*sig)
+    mtx = sparse.dok_matrix(imshape)
+    rad2 = rad*rad
+    for r in range(int(np.floor(rrng[0])), int(np.ceil(rrng[1]))):
+        for c in range(int(np.floor(crng[0])), int(np.ceil(crng[1]))):
+            d2 = (r - x0[0])**2 + (c - x0[1])**2
+            if d2 <= rad2: mtx[r,c] = np.exp(cnst * d2)
+    mtx = mtx / mtx.sum()
+    return mtx.asformat('csr')
+
+@calculates('pRF_matrices')
+def calc_pRF_matrices(pRF_pixel_centers, pRF_pixel_sizes, normalized_stimulus_images,
+                      pRF_blob_stds=2):
+    '''
+    calc_pRF_matrices is a calculator that adds to the datapool a set of images the same size as
+    the normalized_stimulus_images for each pRF as the new datum 'pRF_matrices'; these matrices
+    store Gaussian weights of the pRFs that sum to 1. They are stored as scipy.sparse.csr_matrix
+    matrices to conserve space.
     The following data are required:
       * pRF_pixel_centers, pRF_pixel_sizes, pRF_eccentricity, pRF_v123_labels
       * normalized_stimulus_images
-      * normalized_contrast_functions
-      * pRF_frequency_preference_function
-    The resulting datum, pRF_responses, is a numpy matrix sized (n,m) where n is the number of pRFs
-    and m is the number of stimulus images.
+    The following datum is optional:
+      * pRF_blob_stds (default 2) specifies how many standard deviations should be included in the
+        Gaussian blob that defines the pRF.
+    The resulting datum, pRF_matrices, is a numpy matrix sized (n,m) where n is the number of pRFs
+    and m is the number of stimulus images. Each element is a sparse matrix the same size as the
+    relevant normalized stimulus image whose values represent weights on the pixel and add to 1.
     '''
-    responses = np.asarray(
-        [[(0 if (x0[0] < 0 or x0[0] >= im.shape[0] or x0[1] < 0 or x0[1] >= im.shape[1]) else
-           np.sum([v*ncf(f)[int(x0[0]), int(x0[1])]
-                   for (f, v) in fpref.iteritems()])
-           / np.sum(fpref.values()))
-          for (im, ncf, x0, sig) in zip(normalized_stimulus_images,
-                                        ncfs,
-                                        np.round(x0s),
-                                        sigs)
-          for fpref              in [pRF_frequency_preference_function(ecc, sig, lab)]]
-         for (x0s, sigs, ecc, lab, ncfs) in zip(pRF_pixel_centers,
-                                                pRF_pixel_sizes,
-                                                pRF_eccentricity,
-                                                pRF_v123_labels,
-                                                normalized_contrast_functions)])
-    return {'pRF_responses': np.asarray(responses)}
+    # okay, we're going to generate a bunch of these; we want to cache them in case some are
+    # identical, which is likely if all images are normalized to the same size
+    cache = {}
+    matrices = np.empty((len(pRF_pixel_centers), len(normalized_stimulus_images)), dtype=np.object)
+    for (i, (x0s, sigs)) in enumerate(zip(pRF_pixel_centers, pRF_pixel_sizes)):
+        for (j, (im, x0, sig)) in enumerate(zip(normalized_stimulus_images, x0s, sigs)):
+            k = tuple(x0) + (sig,) + im.shape
+            if k not in cache:
+                cache[k] = _pRF_matrix(im.shape, x0, sig, sig*pRF_blob_stds)
+            matrices[i,j] = cache[k]
+    return {'pRF_matrices': matrices}
+
+@calculates('pRF_frequency_preferences')
+def calc_pRF_frequency_preferences(pRF_v123_labels, pRF_eccentricity, pRF_sizes,
+                                   pRF_frequency_preference_function):
+    '''
+    calc_pRF_frequency_preferences is a calculator that produces the frequency preference
+    dictionaries for each pRF using the following required data:
+      * pRF_v123_labels
+      * pRF_eccentricity
+      * pRF_sizes
+      * pRF_frequency_preference_function
+    Note that all of these are added automatically in either the sco.anatomy calculators or by the
+    sco.pRF calc_pRF_default_parameters layer of the pRF calculator.
+    This calculator puts the datum 'pRF_frequency_preferences' into the datapool; each element of
+    this 1D numpy array is a dictionary whose keys are the frequencies and whose values are the
+    weights of that frequency for the relevant pRF.
+    '''
+    prefs = np.asarray(
+        [pRF_frequency_preference_function(ecc, sig, lab)
+         for (sig, ecc, lab) in zip(pRF_sizes, pRF_eccentricity, pRF_v123_labels)])
+    return {'pRF_frequency_preferences': prefs}
+
+

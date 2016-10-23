@@ -13,7 +13,7 @@
 % 
 % By William F. Broderick
 
-function compareWithKay2013(knkutilsPath, stimuliPath, stimuliIdx, voxelIdx, modelPath)
+function compareWithKay2013(knkutilsPath, stimuliPath, stimuliIdx, voxelIdx, modelPath, savePath)
 % arguments:
 % 
 % knkutilsPath: string, path to your knkutils folder, which we'll
@@ -29,6 +29,9 @@ function compareWithKay2013(knkutilsPath, stimuliPath, stimuliIdx, voxelIdx, mod
 % 
 % modelPath: string, path to the python dataframe / matlab table
 % containing all the model parameters
+% 
+% savePath: string, path to save the updated python dataframe /
+% matlab table at (should probably be a csv)
     modelTable = readtable(modelPath);
     addpath(genpath(knkutilsPath));
     load(stimuliPath, 'images');
@@ -49,7 +52,7 @@ function compareWithKay2013(knkutilsPath, stimuliPath, stimuliIdx, voxelIdx, mod
         end
         modelTable = generateVoxelPredictions(stimuliTmp, modelTable, vox, stimuliIdx);
     end
-    writetable(modelTable,'Kay2013.csv');
+    writetable(modelTable, savePath);
 end
 
 function [stimuli, normAlreadyDoneFlag] = preprocessStimuli(stimuli, modelTable)

@@ -43,7 +43,7 @@ def main(image_base_path, stimuli_idx, subject='test-sub',
         # specifying whta type of image it is). If it's not an image file, it returns None.
         stimulus_image_filenames = [img for img in stimulus_image_filenames
                                     if imghdr.what(img)]
-        kwargs = {'stimulus_image_filenames': stimulus_image_filenames[:2]}
+        kwargs = {'stimulus_image_filenames': stimulus_image_filenames[stimulus_idx]}
         # and we use the default sco_chain
         sco_chain = sco.sco_chain
     # if it's a .mat file
@@ -58,7 +58,7 @@ def main(image_base_path, stimuli_idx, subject='test-sub',
         # some of the stimuli have multiple frames associated with them; they're just variations on
         # the same image, so we only take one of them to make predictions for.
         stimulus_images = np.asarray([im if len(im.shape)==2 else im[:, :, 0] for im in stimulus_images])
-        kwargs = {'stimulus_images': stimulus_images[:1]}
+        kwargs = {'stimulus_images': stimulus_images}
         # in this case, we already have the stimulus images, so we don't need the sco chain to do
         # the importing of them.
         # We need to modify the stimulus chain that's part of sco_chain because we don't need the

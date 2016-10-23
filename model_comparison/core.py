@@ -15,7 +15,8 @@ MODEL_DF_KEYS = ['pRF_centers', 'pRF_pixel_sizes', 'pRF_hemispheres',
                  'pRF_pixel_centers', 'pRF_eccentricity', 'pRF_v123_labels', 'pRF_sizes',
                  'pRF_polar_angle', 'Kay2013_output_nonlinearity', 'Kay2013_pRF_sigma_slope',
                  'Kay2013_SOC_constant', 'Kay2013_normalization_r', 'Kay2013_normalization_s',
-                 'Kay2013_response_gain', 'pRF_frequency_preferences', 'pRF_matrices']
+                 'Kay2013_response_gain', 'pRF_frequency_preferences']
+    # we currently aren't grabbing pRF_matrices, because I don't know what to do with them.
 
 # Keys from the results dict that correspond to model setup and so we want
 # to save them but not in the dataframe.

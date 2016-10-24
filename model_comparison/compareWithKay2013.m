@@ -39,7 +39,7 @@ function compareWithKay2013(knkutilsPath, stimuliPath, stimuliIdx, voxelIdx, mod
     clear images;
     
     for imgNum=stimuliIdx
-        eval(sprintf('modelTable.MATLAB_predicted_responses_image_%d=nan(height(modelTable),1);',imgNum));
+        eval(sprintf('modelTable.MATLAB_predicted_responses_image_%04d=nan(height(modelTable),1);',imgNum));
     end
     
     [stimuli, normAlreadyDoneFlag] = preprocessStimuli(stimuli, modelTable);
@@ -180,14 +180,14 @@ function modelTable = generateVoxelPredictions(stimuli, modelTable, voxelIdx, st
     modelfun = @(pp,dd) pp(4)*(socfun(dd,gaufun(pp),restrictrange(pp(6),0,1)).^pp(5));
     
     for idx=1:length(stimuliIdx)
-        params = [floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%d_dim0(%d)', stimuliIdx(idx), voxelIdx))),
-                  floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%d_dim1(%d)', stimuliIdx(idx), voxelIdx))),
-                  eval(sprintf('modelTable.pRF_pixel_sizes_image_%d(%d)', stimuliIdx(idx), voxelIdx)),
+        params = [floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%04d_dim0(%d)', stimuliIdx(idx), voxelIdx))),
+                  floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%04d_dim1(%d)', stimuliIdx(idx), voxelIdx))),
+                  eval(sprintf('modelTable.pRF_pixel_sizes_image_%04d(%d)', stimuliIdx(idx), voxelIdx)),
                   modelTable.Kay2013_response_gain(voxelIdx),
                   modelTable.Kay2013_output_nonlinearity(voxelIdx),
                   modelTable.Kay2013_SOC_constant(voxelIdx)];
         modelfit = modelfun(params, stimuli(idx,:));
-        eval(sprintf('modelTable.MATLAB_predicted_responses_image_%d(%d) = %d;', stimuliIdx(idx),voxelIdx,modelfit));
+        eval(sprintf('modelTable.MATLAB_predicted_responses_image_%04d(%d) = %d;', stimuliIdx(idx),voxelIdx,modelfit));
     end
 
 end

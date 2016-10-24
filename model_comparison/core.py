@@ -195,14 +195,14 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
                 else:
                     # then this is case three above
                     for i in range(v.shape[1]):
-                        tmp_dict["%s_image_%s" % (k, image_names[i])] = v[:, i]
+                        tmp_dict["%s_image_%04d" % (k, image_names[i])] = v[:, i]
             elif v.shape[0] == image_num:
                 if v.shape[1] != voxel_num:
                     raise Exception("For variable %s, images are on the first dimension but voxels"
                                     " not on the second! (dimensions: %s)" % (k, v.shape))
                 # then this is case three above
                 for i in range(v.shape[0]):
-                    tmp_dict["%s_image_%s" % (k, image_names[i])] = v[i, :]
+                    tmp_dict["%s_image_%04d" % (k, image_names[i])] = v[i, :]
             else:
                 raise Exception("Result variable %s is two dimensional but the first dimension "
                                 "doesn't correspond to the number of voxels or images (dimensions:"
@@ -212,7 +212,7 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
             if v.shape[0] == voxel_num:
                 for i in range(v.shape[1]):
                     for j in range(v.shape[2]):
-                        tmp_dict["%s_image_%s_dim%s" % (k, image_names[i], j)] = v[:, i, j]
+                        tmp_dict["%s_image_%04d_dim%s" % (k, image_names[i], j)] = v[:, i, j]
             else:
                 raise Exception("Result variable %s is three dimensional but the first dimension "
                                 "doesn't correspond to the number of voxels (dimensions: %s)!" %

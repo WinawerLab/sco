@@ -17,7 +17,7 @@ import numpy as np
 
 
 def main(image_base_path, stimuli_idx, subject='test-sub',
-         subject_dir='/home/billbrod/Documents/SCO-test-data/Freesurfer_subjects',):
+         subject_dir='/home/billbrod/Documents/SCO-test-data/Freesurfer_subjects'):
     """
     Run python SCO and Matlab SOC on the same batch of images
 
@@ -35,6 +35,9 @@ def main(image_base_path, stimuli_idx, subject='test-sub',
     """
     if subject_dir and subject_dir not in nfs.subject_paths():
         nfs.add_subject_path(subject_dir)
+    # if there's just one value and not a list
+    if not hasattr(stimuli_idx, '__iter__'):
+        stimuli_idx = [stimuli_idx]
     if os.path.isdir(image_base_path):
         # Interestingly enough, this works regardless of whether image_base_path ends in os.sep or
         # not.
@@ -43,7 +46,7 @@ def main(image_base_path, stimuli_idx, subject='test-sub',
         # specifying whta type of image it is). If it's not an image file, it returns None.
         stimulus_image_filenames = [img for img in stimulus_image_filenames
                                     if imghdr.what(img)]
-        kwargs = {'stimulus_image_filenames': stimulus_image_filenames[stimulus_idx]}
+        kwargs = {'stimulus_image_filenames': stimulus_image_filenames[stimuli_idx]}
         # and we use the default sco_chain
         sco_chain = sco.sco_chain
     # if it's a .mat file

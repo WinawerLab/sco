@@ -71,7 +71,7 @@ def _pRF_matrix(imshape, x0, sig, rad):
     contains Gaussian blob weights that sum to 1 representing the pRF. The weights extend to
     the radius rad.
     '''
-    sig = float(sig) * 0.05
+    sig = float(sig)
     rad = 3.0*sig
     rrng = map(round, [max([x0[0] - rad, 0]), min([x0[0] + rad, imshape[0]])])
     crng = map(round, [max([x0[1] - rad, 0]), min([x0[1] + rad, imshape[1]])])

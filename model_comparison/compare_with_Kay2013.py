@@ -69,6 +69,8 @@ def main(image_base_path, stimuli_idx, voxel_idx=None, subject='test-sub',
         stimulus_image_filenames = [img for img in stimulus_image_filenames
                                     if imghdr.what(img)]
         kwargs.update({'stimulus_image_filenames': stimulus_image_filenames[stimuli_idx]})
+        # here, stimuli_names can simply be the filenames we're using
+        stimuli_names = stimulus_image_filenames[stimuli_idx]
         # and we use the default sco_chain (with the possible exception of anat_chain, see above)
         sco_chain = (('calc_anatomy', anat_chain),
                      ('calc_stimulus', sco.stimulus.calc_stimulus),
@@ -84,9 +86,23 @@ def main(image_base_path, stimuli_idx, voxel_idx=None, subject='test-sub',
         # single frame and thus easy to handle.
         stimulus_images = sio.loadmat(image_base_path)
         stimulus_images = stimulus_images['images'][0, stimuli_idx]
-        # some of the stimuli have multiple frames associated with them; they're just variations on
-        # the same image, so we only take one of them to make predictions for.
-        stimulus_images = np.asarray([im if len(im.shape)==2 else im[:, :, 0] for im in stimulus_images])
+        # some of the stimuli have multiple frames associated with them; we want to predict all of
+        # them separately, but remember that they were grouped together for later visualization. I
+        # can't figure out how to get this loop into a list comprehension, so we'll have to deal
+        # with the slight slowdown. stimuli_names is an array we create to keep track of these
+        # images. We will return it to the calling code and eventually pass it to create_model_df.
+        tmp = []
+        stimuli_names = []
+        for idx, im in zip(stimuli_idx, stimulus_images):
+            if len(im.shape) == 3:
+                for i in range(im.shape[2]):
+                    tmp.append(im[:, :, i])
+                    stimuli_names.append("%04d_sub%02d" % (idx, i))
+            else:
+                tmp.append(im)
+                stimuli_names.append("%04d" % idx)
+        stimuli_names = np.asarray(stimuli_names)
+        stimulus_images = np.asarray(tmp)
         kwargs.update({'stimulus_images': stimulus_images})
         # in this case, we already have the stimulus images, so we don't need the sco chain to do
         # the importing of them.
@@ -122,7 +138,7 @@ def main(image_base_path, stimuli_idx, voxel_idx=None, subject='test-sub',
     results = sco_chain(subject=subject, max_eccentricity=2.7, normalized_stimulus_aperture=15*2.727,
                         normalized_pixels_per_degree=15, stimulus_aperture_edge_width=15*(3-2.727),
                         pRF_frequency_preference_function=freq_pref, pRF_blob_stds=1, **kwargs)
-    return results
+    return results, stimuli_names
 
 
 # if __name__ == '__main__':

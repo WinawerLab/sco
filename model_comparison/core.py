@@ -7,6 +7,8 @@
 import warnings
 import pandas as pd
 import numpy as np
+from scipy import io as sio
+import os
 
 # Keys from the results dict that correspond to model parameters and so that we want to save in the
 # output dataframe
@@ -116,7 +118,8 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
 
     We need a list / array image_names, which gives the names of each of the images, in order. This
     way we can give them more informative labels (even if it's just the indexes in a matlab array,
-    as when using Kay2013's stimuli.mat) for direct comparison.
+    as when using Kay2013's stimuli.mat) for direct comparison. the values of image_names can
+    either be all integers or all strings, the two cannot mix.
 
     We also assume that this results dictionary will contain the key 'predicted_responses', which
     is the final output of the model. We assume that this is an array of voxels x images, and so
@@ -182,6 +185,12 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
 
     # We use this tmp_dict to construct the model_df
     tmp_dict = {}
+    if isinstance(image_names[0], int):
+        # if image_names contains integers, then we use this %04d string formatting
+        img_format_string = "%s_image_%04d"
+    else:
+        # else we just use the values as is.
+        img_format_string = "%s_image_%s"
     for k, v in model_df_dict.iteritems():
         if len(v.shape) == 1:
             # This is case 1, and we grab the value as is
@@ -195,14 +204,14 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
                 else:
                     # then this is case three above
                     for i in range(v.shape[1]):
-                        tmp_dict["%s_image_%04d" % (k, image_names[i])] = v[:, i]
+                        tmp_dict[img_format_string % (k, image_names[i])] = v[:, i]
             elif v.shape[0] == image_num:
                 if v.shape[1] != voxel_num:
                     raise Exception("For variable %s, images are on the first dimension but voxels"
                                     " not on the second! (dimensions: %s)" % (k, v.shape))
                 # then this is case three above
                 for i in range(v.shape[0]):
-                    tmp_dict["%s_image_%04d" % (k, image_names[i])] = v[i, :]
+                    tmp_dict[img_format_string % (k, image_names[i])] = v[i, :]
             else:
                 raise Exception("Result variable %s is two dimensional but the first dimension "
                                 "doesn't correspond to the number of voxels or images (dimensions:"
@@ -212,7 +221,7 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
             if v.shape[0] == voxel_num:
                 for i in range(v.shape[1]):
                     for j in range(v.shape[2]):
-                        tmp_dict["%s_image_%04d_dim%s" % (k, image_names[i], j)] = v[:, i, j]
+                        tmp_dict[(img_format_string + "_dim%s") % (k, image_names[i], j)] = v[:, i, j]
             else:
                 raise Exception("Result variable %s is three dimensional but the first dimension "
                                 "doesn't correspond to the number of voxels (dimensions: %s)!" %
@@ -229,6 +238,8 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
         model_df.pRF_hemispheres = model_df.pRF_hemispheres.map({1: 'L', -1: 'R'})
     # Finally, we save model_df as a csv for easy importing / exporting
     model_df.to_csv(model_df_path)
+    sio.savemat(os.path.splitext(model_df_path)[0] + "_image_names.mat",
+                {'image_names': image_names})
     return model_df
 
 def _get_size(v):

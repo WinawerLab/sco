@@ -16,10 +16,9 @@ import scipy.io as sio
 import numpy as np
 
 
-def main(image_base_path, stimuli_idx, subject='test-sub',
+def main(image_base_path, stimuli_idx, voxel_idx=None, subject='test-sub',
          subject_dir='/home/billbrod/Documents/SCO-test-data/Freesurfer_subjects'):
-    """
-    Run python SCO and Matlab SOC on the same batch of images
+    """Run python SCO and Matlab SOC on the same batch of images
 
     Arguments
     ---------
@@ -27,6 +26,16 @@ def main(image_base_path, stimuli_idx, subject='test-sub',
     image_base_path: string. This is assumed to either be a directory, in which case the model will
     be run on every image in the directory, or a .mat file containing the image stimuli, in which
     case they will be loaded in and used.
+
+    stimuli_idx: array. Which stimuli from image_base_path we should use. These are assumed
+    to be integers that we use as indexes into the stimulus_images (if image_base_path is a .mat
+    file) or stimulus_image_filenames (if it's a directory), and we only pass those specified
+    images/filenames to the model.
+
+    voxel_idx: array or None, optional. Which voxels to run the model for and create
+    predictions. If None or unset, will run the model for all voxels. Else will use the optional
+    calculator sco.anatomy.core.calc_voxel_selector to subset the voxels and run only those indices
+    correspond to those included in this array.
 
     subject_dir: string or None. If not None, will add this to neuropythy.freesurfer's subject
     paths
@@ -38,6 +47,19 @@ def main(image_base_path, stimuli_idx, subject='test-sub',
     # if there's just one value and not a list
     if not hasattr(stimuli_idx, '__iter__'):
         stimuli_idx = [stimuli_idx]
+    if voxel_idx is not None:
+        if not hasattr(voxel_idx, '__iter__'):
+            voxel_idx = [voxel_idx]
+        anat_chain = (('import',           sco.anatomy.core.import_benson14_from_freesurfer),
+                      ('calc_pRF_centers', sco.anatomy.core.calc_pRFs_from_freesurfer_retinotopy),
+                      ('calc_voxel_selector', sco.anatomy.core.calc_voxel_selector),
+                      ('calc_anatomy_defualt_parameters', sco.anatomy.core.calc_anatomy_default_parameters),
+                      ('calc_pRF_sizes',   sco.anatomy.core.calc_Kay2013_pRF_sizes))
+        anat_chain = sco.core.calc_chain(anat_chain)
+        kwargs = {'voxel_idx': voxel_idx}
+    else:
+        anat_chain = sco.anatomy.calc_anatomy
+        kwargs = {}
     if os.path.isdir(image_base_path):
         # Interestingly enough, this works regardless of whether image_base_path ends in os.sep or
         # not.
@@ -46,9 +68,13 @@ def main(image_base_path, stimuli_idx, subject='test-sub',
         # specifying whta type of image it is). If it's not an image file, it returns None.
         stimulus_image_filenames = [img for img in stimulus_image_filenames
                                     if imghdr.what(img)]
-        kwargs = {'stimulus_image_filenames': stimulus_image_filenames[stimuli_idx]}
-        # and we use the default sco_chain
-        sco_chain = sco.sco_chain
+        kwargs.update({'stimulus_image_filenames': stimulus_image_filenames[stimuli_idx]})
+        # and we use the default sco_chain (with the possible exception of anat_chain, see above)
+        sco_chain = (('calc_anatomy', anat_chain),
+                     ('calc_stimulus', sco.stimulus.calc_stimulus),
+                     ('calc_contrast', sco.contrast.calc_contrast),
+                     ('calc_pRF', sco.pRF.calc_pRF),
+                     ('calc_normalization', sco.normalization.calc_normalization))
     # if it's a .mat file
     elif os.path.splitext(image_base_path)[1] == ".mat":
         # in this case, we assume it's stimuli.mat from
@@ -61,7 +87,7 @@ def main(image_base_path, stimuli_idx, subject='test-sub',
         # some of the stimuli have multiple frames associated with them; they're just variations on
         # the same image, so we only take one of them to make predictions for.
         stimulus_images = np.asarray([im if len(im.shape)==2 else im[:, :, 0] for im in stimulus_images])
-        kwargs = {'stimulus_images': stimulus_images}
+        kwargs.update({'stimulus_images': stimulus_images})
         # in this case, we already have the stimulus images, so we don't need the sco chain to do
         # the importing of them.
         # We need to modify the stimulus chain that's part of sco_chain because we don't need the
@@ -70,7 +96,7 @@ def main(image_base_path, stimuli_idx, subject='test-sub',
             ('calc_stimulus_default_parameters', sco.stimulus.core.calc_stimulus_default_parameters),
             ('calc_normalized_stimulus', sco.stimulus.core.calc_normalized_stimulus_images))
         # This is our modified chain.
-        sco_chain = (('calc_anatomy', sco.anatomy.calc_anatomy),
+        sco_chain = (('calc_anatomy', anat_chain),
                      # need to call calc_chain on this to make it ready to go.
                      ('calc_stimulus', sco.core.calc_chain(stim_chain)),
                      ('calc_contrast', sco.contrast.calc_contrast),

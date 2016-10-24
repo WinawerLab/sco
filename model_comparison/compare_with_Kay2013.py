@@ -97,3 +97,32 @@ def main(image_base_path, stimuli_idx, subject='test-sub',
                         normalized_pixels_per_degree=15, stimulus_aperture_edge_width=15*(3-2.727),
                         pRF_frequency_preference_function=freq_pref, pRF_blob_stds=1, **kwargs)
     return results
+
+
+# if __name__ == '__main__':
+#     import argparse
+#     import core
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument(
+#         "image_base_path",
+#         help=("string. This is assumed to either be a directory, in which case the model will be "
+#               "be run on every image in the directory, or a .mat file containing the image stimuli"
+#               ", in which case they will be loaded in and used."))
+#     parser.add_argument("subject", help=("string. The specific subject to run on.If unset, will "
+#                                          "use test-sub"))
+#     parser.add_argument("model_df_path", help=("string. Absolute path to save the model dataframe"
+#                                                " at."))
+#     parser.add_argument("stimuli_idx", nargs='+', type=int,
+#                         help="list of ints. Which indices in the stimuli to run.")
+#     parser.add_argument("-s", "--subject_dir", help=("string (optional). If specified, will add to"
+#                                                      "neuropythy.freesurfer's subject paths"),
+#                         default=None)
+#     args = parser.parse_args()
+#     if args.subject_dir is not None:
+#         results = main(args.image_base_path, np.asarray(args.stimuli_idx), args.subject)
+#     else:
+#         results = main(args.image_base_path, np.asarray(args.stimuli_idx), args.subject,
+#                        args.subject_dir)
+#     # for image_names, we use stimuli_idx plus 1, since we use stimuli_idx in python but we'll use
+#     # the names in matlab.
+#     core.create_model_dataframe(results, np.array(args.stimuli_idx)+1, args.model_df_path)

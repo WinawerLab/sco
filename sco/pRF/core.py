@@ -12,8 +12,8 @@ from   ..core                import calculates
 @calculates()
 def calc_pRF_default_parameters(pRF_frequency_preference_function=None):
     '''
-    calc_pRF_default_parameters is a calculator that chooses default values for the options accepted by
-    the pRF calculation chain. Currently, there is exactly one of these:
+    calc_pRF_default_parameters is a calculator that chooses default values for the options accepted
+    by the pRF calculation chain. Currently, there is exactly one of these:
     pRF_frequency_preference_function. This must be, if provided, a function that accepts three
     arguments: (e, s, l) where e is an eccentricity, s is a pRF size (sigma), and l is a visual area
     label (1, 2, or 3 for V1-V3). The function must return a dictionary whose keys are frequencies
@@ -23,10 +23,12 @@ def calc_pRF_default_parameters(pRF_frequency_preference_function=None):
     By default, the function returns a Gaussian set of weights around 1 cycle per sigma.
     '''
     #_default_frequencies = [0.5*2.0**(0.5*float(k)) for k in range(10)]
-    _default_frequencies = [6.0 / k for k in [0.5, 0.75, 1, 1.25, 1.5, 2]]
+    _default_frequencies = [0.75, 1.0, 1.2, 1.5, 2.0, 3.0]
+    _default_std = 0.3
     def _default_pRF_frequency_preference_function(e, s, l):
-        ss = 6.0 * (1.0 / s)
-        weights = np.asarray([np.exp(-0.5*((k - ss)/ss)**2) for k in _default_frequencies])
+        ss = 2.0 / s
+        weights = np.asarray([np.exp(-0.5*((k - ss)/_default_std)**2)
+                              for k in _default_frequencies])
         wtot = np.sum(weights)
         weights /= wtot
         res = {k:v for (k,v) in zip(_default_frequencies, weights) if v > 0.01}
@@ -69,6 +71,8 @@ def _pRF_matrix(imshape, x0, sig, rad):
     contains Gaussian blob weights that sum to 1 representing the pRF. The weights extend to
     the radius rad.
     '''
+    sig = float(sig) * 0.05
+    rad = 3.0*sig
     rrng = map(round, [max([x0[0] - rad, 0]), min([x0[0] + rad, imshape[0]])])
     crng = map(round, [max([x0[1] - rad, 0]), min([x0[1] + rad, imshape[1]])])
     rrng = map(int, rrng)

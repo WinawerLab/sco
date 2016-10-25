@@ -22,10 +22,12 @@ function compareWithKay2013(knkutilsPath, stimuliPath, stimuliIdx, voxelIdx, mod
 % stimuliPath: string, path to stimuli.mat which we'll grab the
 % input images from
 % 
-% stimuliIdx: vector, subset of images to use for these models
+% stimuliIdx: vector, subset of images to use for these models, or
+% string, path to a .txt file that contains said vector
 % 
 % voxelIdx: vector, subset of voxels to generate predictions
-% for. There's no reason to do this for every voxel.
+% for (there's no reason to run this function for every voxel), or
+% string, path to a .txt file that contains said vector.
 % 
 % modelPath: string, path to the python dataframe / matlab table
 % containing all the model parameters
@@ -46,6 +48,9 @@ function compareWithKay2013(knkutilsPath, stimuliPath, stimuliIdx, voxelIdx, mod
     modelTable = readtable(modelPath);
     addpath(genpath(knkutilsPath));
     load(stimuliPath, 'images');
+    if ischar(stimuliIdx)
+        stimuliIdx = load(stimuliIdx);
+    end
     stimuli = images(stimuliIdx);
     clear images;
     
@@ -59,6 +64,9 @@ function compareWithKay2013(knkutilsPath, stimuliPath, stimuliIdx, voxelIdx, mod
     
     [stimuli, normAlreadyDoneFlag] = preprocessStimuli(stimuli, modelTable);
     
+    if ischar(voxelIdx)
+        voxelIdx = load(voxelIdx);
+    end
     for vox=voxelIdx
         if ~normAlreadyDoneFlag
             stimuliTmp = divisiveNormalization(stimuli, modelTable, voxelIdx);

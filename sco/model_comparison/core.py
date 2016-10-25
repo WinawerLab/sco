@@ -49,7 +49,7 @@ def _check_default_keys(results):
         if k not in results:
             warnings.warn("Default key %s not in results!" % k)
 
-def create_setup_dataframe(results, keys=None):
+def create_setup_dict(results, keys=None):
     """Return a dictionary containing just the model setup-relevant keys
 
     I don't think returning a dataframe makes sense here, because we mainly want these around for
@@ -68,7 +68,7 @@ def create_setup_dataframe(results, keys=None):
             warnings.warn("Results dict does not contain key %s, skipping" % k)
     return setup_dict
 
-def create_images_dataframe(results, keys=None):
+def create_images_dict(results, keys=None):
     """Return a dictionary containing just the keys corresponding to the stimulus images
 
     I don't think returning a dataframe makes sense here, because we mainly want these around for
@@ -87,7 +87,7 @@ def create_images_dataframe(results, keys=None):
             warnings.warn("Results dict does not contain key %s, skipping" % k)
     return images_dict
 
-def create_brain_dataframe(results, keys=None):
+def create_brain_dict(results, keys=None):
     """Return a dictionary containing just the keys corresponding to the input brain images
 
     I don't think returning a dataframe makes sense here, because we mainly want these around for
@@ -237,7 +237,7 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
     if 'pRF_hemispheres' in model_df.columns:
         model_df.pRF_hemispheres = model_df.pRF_hemispheres.map({1: 'L', -1: 'R'})
     # Finally, we save model_df as a csv for easy importing / exporting
-    model_df.to_csv(model_df_path)
+    model_df.to_csv(model_df_path, index_label='voxel')
     sio.savemat(os.path.splitext(model_df_path)[0] + "_image_names.mat",
                 {'image_names': image_names})
     return model_df

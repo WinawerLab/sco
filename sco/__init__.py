@@ -13,6 +13,7 @@ from sco.stimulus      import (calc_stimulus,      stimulus_chain)
 from sco.contrast      import (calc_contrast,      contrast_chain)
 from sco.pRF           import (calc_pRF,           pRF_chain)
 from sco.normalization import (calc_normalization, normalization_chain)
+from sco.model_comparison import create_model_dataframe
 
 from sco.util          import (cortical_image)
 

@@ -7,17 +7,26 @@
 #
 # By William F. Broderick
 
-import sco
-import neuropythy.freesurfer as nfs
 import os
 import glob
 import imghdr
-import scipy.io as sio
 import numpy as np
+import neuropythy.freesurfer as nfs
+import scipy.io as sio
+
+from ..anatomy import core as anatomy_core
+from ..stimulus import core as stimulus_core
+
+from ..anatomy import calc_anatomy
+from ..stimulus import calc_stimulus
+from ..contrast import calc_contrast
+from ..pRF import calc_pRF
+from ..normalization import calc_normalization
+from ..core import calc_chain
 
 
-def main(image_base_path, stimuli_idx, voxel_idx=None, subject='test-sub',
-         subject_dir='/home/billbrod/Documents/SCO-test-data/Freesurfer_subjects'):
+def compare_with_Kay2013(image_base_path, stimuli_idx, voxel_idx=None, subject='test-sub',
+                         subject_dir='/home/billbrod/Documents/SCO-test-data/Freesurfer_subjects'):
     """Run python SCO and Matlab SOC on the same batch of images
 
     Arguments
@@ -42,7 +51,7 @@ def main(image_base_path, stimuli_idx, voxel_idx=None, subject='test-sub',
 
     subject: string. The specific subject to run on.
     """
-    if subject_dir and subject_dir not in nfs.subject_paths():
+    if subject_dir is not None and subject_dir not in nfs.subject_paths():
         nfs.add_subject_path(subject_dir)
     # if there's just one value and not a list
     if not hasattr(stimuli_idx, '__iter__'):
@@ -50,15 +59,15 @@ def main(image_base_path, stimuli_idx, voxel_idx=None, subject='test-sub',
     if voxel_idx is not None:
         if not hasattr(voxel_idx, '__iter__'):
             voxel_idx = [voxel_idx]
-        anat_chain = (('import',           sco.anatomy.core.import_benson14_from_freesurfer),
-                      ('calc_pRF_centers', sco.anatomy.core.calc_pRFs_from_freesurfer_retinotopy),
-                      ('calc_voxel_selector', sco.anatomy.core.calc_voxel_selector),
-                      ('calc_anatomy_defualt_parameters', sco.anatomy.core.calc_anatomy_default_parameters),
-                      ('calc_pRF_sizes',   sco.anatomy.core.calc_Kay2013_pRF_sizes))
-        anat_chain = sco.core.calc_chain(anat_chain)
+        anat_chain = (('import',           anatomy_core.import_benson14_from_freesurfer),
+                      ('calc_pRF_centers', anatomy_core.calc_pRFs_from_freesurfer_retinotopy),
+                      ('calc_voxel_selector', anatomy_core.calc_voxel_selector),
+                      ('calc_anatomy_defualt_parameters', anatomy_core.calc_anatomy_default_parameters),
+                      ('calc_pRF_sizes',   anatomy_core.calc_Kay2013_pRF_sizes))
+        anat_chain = calc_chain(anat_chain)
         kwargs = {'voxel_idx': voxel_idx}
     else:
-        anat_chain = sco.anatomy.calc_anatomy
+        anat_chain = calc_anatomy
         kwargs = {}
     if os.path.isdir(image_base_path):
         # Interestingly enough, this works regardless of whether image_base_path ends in os.sep or
@@ -73,10 +82,10 @@ def main(image_base_path, stimuli_idx, voxel_idx=None, subject='test-sub',
         stimuli_names = stimulus_image_filenames[stimuli_idx]
         # and we use the default sco_chain (with the possible exception of anat_chain, see above)
         sco_chain = (('calc_anatomy', anat_chain),
-                     ('calc_stimulus', sco.stimulus.calc_stimulus),
-                     ('calc_contrast', sco.contrast.calc_contrast),
-                     ('calc_pRF', sco.pRF.calc_pRF),
-                     ('calc_normalization', sco.normalization.calc_normalization))
+                     ('calc_stimulus', calc_stimulus),
+                     ('calc_contrast', calc_contrast),
+                     ('calc_pRF', calc_pRF),
+                     ('calc_normalization', calc_normalization))
     # if it's a .mat file
     elif os.path.splitext(image_base_path)[1] == ".mat":
         # in this case, we assume it's stimuli.mat from
@@ -109,20 +118,20 @@ def main(image_base_path, stimuli_idx, voxel_idx=None, subject='test-sub',
         # We need to modify the stimulus chain that's part of sco_chain because we don't need the
         # import_stimulus_images step.
         stim_chain = (
-            ('calc_stimulus_default_parameters', sco.stimulus.core.calc_stimulus_default_parameters),
-            ('calc_normalized_stimulus', sco.stimulus.core.calc_normalized_stimulus_images))
+            ('calc_stimulus_default_parameters', stimulus_core.calc_stimulus_default_parameters),
+            ('calc_normalized_stimulus', stimulus_core.calc_normalized_stimulus_images))
         # This is our modified chain.
         sco_chain = (('calc_anatomy', anat_chain),
                      # need to call calc_chain on this to make it ready to go.
-                     ('calc_stimulus', sco.core.calc_chain(stim_chain)),
-                     ('calc_contrast', sco.contrast.calc_contrast),
-                     ('calc_pRF', sco.pRF.calc_pRF),
-                     ('calc_normalization', sco.normalization.calc_normalization))
+                     ('calc_stimulus', calc_chain(stim_chain)),
+                     ('calc_contrast', calc_contrast),
+                     ('calc_pRF', calc_pRF),
+                     ('calc_normalization', calc_normalization))
     else:
         raise Exception("Don't know how to handle image_base_path %s, must be directory or .mat "
                         "file" % image_base_path)
     # This prepares the sco_chain, making it a callable object
-    sco_chain = sco.core.calc_chain(sco_chain)
+    sco_chain = calc_chain(sco_chain)
 
     # in order to handle the fact that the Kay2013 matlab code only deals with spatial orientation
     # of 3 cpd, we have to define a new pRF_frequency_preference_function to replace the default.
@@ -139,32 +148,3 @@ def main(image_base_path, stimuli_idx, voxel_idx=None, subject='test-sub',
                         normalized_pixels_per_degree=15, stimulus_aperture_edge_width=15*(3-2.727),
                         pRF_frequency_preference_function=freq_pref, pRF_blob_stds=1, **kwargs)
     return results, stimuli_names
-
-
-# if __name__ == '__main__':
-#     import argparse
-#     import core
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument(
-#         "image_base_path",
-#         help=("string. This is assumed to either be a directory, in which case the model will be "
-#               "be run on every image in the directory, or a .mat file containing the image stimuli"
-#               ", in which case they will be loaded in and used."))
-#     parser.add_argument("subject", help=("string. The specific subject to run on.If unset, will "
-#                                          "use test-sub"))
-#     parser.add_argument("model_df_path", help=("string. Absolute path to save the model dataframe"
-#                                                " at."))
-#     parser.add_argument("stimuli_idx", nargs='+', type=int,
-#                         help="list of ints. Which indices in the stimuli to run.")
-#     parser.add_argument("-s", "--subject_dir", help=("string (optional). If specified, will add to"
-#                                                      "neuropythy.freesurfer's subject paths"),
-#                         default=None)
-#     args = parser.parse_args()
-#     if args.subject_dir is not None:
-#         results = main(args.image_base_path, np.asarray(args.stimuli_idx), args.subject)
-#     else:
-#         results = main(args.image_base_path, np.asarray(args.stimuli_idx), args.subject,
-#                        args.subject_dir)
-#     # for image_names, we use stimuli_idx plus 1, since we use stimuli_idx in python but we'll use
-#     # the names in matlab.
-#     core.create_model_dataframe(results, np.array(args.stimuli_idx)+1, args.model_df_path)

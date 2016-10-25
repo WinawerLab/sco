@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.tri    as tri
 
 def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n_stds=1,
-                   size_gain=1, method='triangulation'):
+                   size_gain=1, method='triangulation', subplot=None):
     '''
     cortical_image(datapool) yields an array of figures that reconstruct the cortical images for the
     given sco results datapool. The image is always sized such that the width and height span 
@@ -34,8 +34,15 @@ def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n
     # if not given an image number, we want to iterate through all images:
     if image_number is None:
         return np.asarray([cortical_image(datapool, visual_area=visual_area, image_number=ii,
-                                          image_size=image_size, n_stds=n_stds, method=method)
+                                          image_size=image_size, n_stds=n_stds, method=method,
+                                          subplot=subplot)
                            for ii in range(len(datapool['stimulus_images']))])
+    if subplot is None:
+        plotter = plt
+        fig = plotter.figure()
+    else:
+        plotter = subplot
+        fig = subplot
     if method == 'triangulation':
         # deal with pyplot's interactive mode
         maxecc = float(datapool['max_eccentricity'][image_number])
@@ -47,10 +54,9 @@ def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n
                                 for (xx,yy,zz,l) in zip(x,y,z,labs)
                                 if l == visual_area])
 
-        fig = plt.figure()
-        plt.tripcolor(tri.Triangulation(x,y), z, cmap='jet', shading='gouraud')
-        plt.axis('equal')
-        plt.axis('off')
+        plotter.tripcolor(tri.Triangulation(x,y), z, cmap='jet', shading='gouraud')
+        plotter.axis('equal')
+        plotter.axis('off')
         return fig
     
     elif method == 'pRF_projection':
@@ -86,10 +92,10 @@ def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n
             img[r0:rr, c0:cc, 0] += zz
             img[r0:rr, c0:cc, 1] += gaus
             img = np.flipud(img[:,:,0] / (img[:,:,1] + (1.0 - img[:,:,1].astype(bool))))
-            fig = plt.figure()
-            plt.imshow(img)
-            plt.axis('equal')
-            plt.asix('off')
+            fig = plotter.figure()
+            plotter.imshow(img)
+            plotter.axis('equal')
+            plotter.asix('off')
             return fig
     else:
         raise ValueError('unrecognized method: %s' % method)

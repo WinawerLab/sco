@@ -132,8 +132,8 @@ def calc_divisive_normalization_functions(stimulus_contrast_functions, Kay2013_n
         else:
             func = stimulus_contrast_functions[func_idx]
             filtered = func(cpd)
-            normalized = dict((k, (v**r)/(s**r + (np.sum(v, axis=0)/len(v)**r)))
-                              for k, v in filtered.iteritems())
+            filt_sum = np.sum(filtered.values(), axis=0)**r
+            normalized = {k: (v**r)/(s**r + filt_sum) for (k,v) in filtered.iteritems()}
             # this also sums
             normalized = np.sum(normalized.values(), axis=0)
             normalized.setflags(write=False)

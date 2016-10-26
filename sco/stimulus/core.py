@@ -16,6 +16,104 @@ import warnings
 
 warnings.filterwarnings('ignore', category=UserWarning, message='.*From scipy 0.13.0.*')
 
+@calculates()
+def calc_stimulus_default_parameters(stimulus_image_filenames=None,
+                                     stimulus_images=None,
+                                     stimulus_edge_value=0.5,
+                                     stimulus_aperture_edge_width=None,
+                                     stimulus_pixels_per_degree=24,
+                                     normalized_stimulus_aperture=None,
+                                     normalized_pixels_per_degree=None,
+                                     max_eccentricity=None):
+    '''
+    calc_stimulus_default_parameters() is a calculator that expects no particular options, but
+    fills in several options if not given. These fall into two categories; first, some options
+    are given default values if not provided:
+      * stimulus_edge_value is set to 0.5
+      * stimulus_pixels_per_degree is set to 24 if not provided
+      * stimulus_aperture_edge_width is set to normalized_pixels_per_degree
+    Other options are dependent on each other:
+      * normalized_stimulus_aperture
+      * normalized_pixels_per_degree
+      * max_eccentricity
+    If all three of these are provided (and not None) then they are left as is; if two are given
+    then the last is set to obey the equation
+     max_eccentricity * normalized_pixels_per_degree == normalized_stimulus_aperture.
+    If one or zero of them is given, then the minimum number of following defaults are used, with
+    the remaining value filled in as soon as two of the three values has been assigned:
+      * max_eccentricity = 12
+      * normalized_pixels_per_degree = 15
+    Finally, the parameter stimulus_images is required so that all values can be coerced to arrays
+    the appropriate size if necessary.
+    '''
+    mxe = max_eccentricity
+    d2p = normalized_pixels_per_degree
+    asz = normalized_stimulus_aperture
+    # We need either stimulus_image_filenames or stimulus_images to be defined.
+    if not stimulus_image_filenames:
+        assert stimulus_images is not None, "If stimulus_image_filenames is not defined, stimulus_images must be!"
+        n = len(stimulus_images)
+    else:
+        n = len(stimulus_image_filenames)
+    # First, fill out lengths:
+    if hasattr(mxe, '__iter__'):
+        if len(mxe) != n:
+            raise ValueError('len(max_eccentricity) != len(stimulus_images)')
+    else:
+        mxe = [mxe for i in range(n)]
+    if hasattr(d2p, '__iter__'):
+        if len(d2p) != n:
+            raise ValueError('len(normalized_pixels_per_degree) != len(stimulus_images)')
+    else:
+        d2p = [d2p for i in range(n)]
+    if hasattr(asz, '__iter__'):
+        if len(asz) != n:
+            raise ValueError('len(normalized_stimulus_aperture) != len(stimulus_images)')
+    else:
+        asz = [asz for i in range(n)]
+    if hasattr(stimulus_edge_value, '__iter__'):
+        if len(stimulus_edge_value) != n:
+            raise ValueError('len(stimulus_edge_value) != len(stimulus_images)')
+    else:
+        stimulus_edge_value = [stimulus_edge_value for i in range(n)]
+    if hasattr(stimulus_pixels_per_degree, '__iter__'):
+        if len(stimulus_pixels_per_degree) != n:
+            raise ValueError('len(stimulus_pixels_per_degree) != len(stimulus_images)')
+    else:
+        stimulus_pixels_per_degree = [stimulus_pixels_per_degree for i in range(n)]
+    if hasattr(stimulus_aperture_edge_width, '__iter__'):
+        if len(stimulus_aperture_edge_width) != n:
+            raise ValueError('len(stimulus_aperture_edge_width) != len(stimulus_images)')
+    else:
+        stimulus_aperture_edge_width = [stimulus_aperture_edge_width
+                                        for i in range(n)]
+    # Now fix the params that depend on each other:
+    (mxe, d2p, asz) = [[None if x == 0 else x for x in xx] for xx in [mxe, d2p, asz]]
+    mxe = [m     if m is not None           else \
+           12    if d is None or a is None  else \
+           a/d
+           for (m,d,a) in zip(mxe,d2p,asz)]
+    d2p = [d     if d is not None           else \
+           15    if a is None               else \
+           a/m
+           for (m,d,a) in zip(mxe,d2p,asz)]
+    asz = [a     if a is not None           else \
+           m*d
+           for (m,d,a) in zip(mxe,d2p,asz)]
+    # And fix the aperture edge if needed:
+    stimulus_aperture_edge_width = [d if ew is None else ew
+                                    for (ew,d) in zip(stimulus_aperture_edge_width,d2p)]
+    # And return all of them as arrays:
+    return {'stimulus_edge_value':          np.asarray(stimulus_edge_value),
+            'stimulus_pixels_per_degree':   np.asarray(stimulus_pixels_per_degree),
+            'stimulus_aperture_edge_width': np.asarray(stimulus_aperture_edge_width),
+            'normalized_stimulus_aperture': np.asarray(asz),
+            'normalized_pixels_per_degree': np.asarray(d2p),
+            'max_eccentricity':             np.asarray(mxe),
+            'stimulus_images':              np.asarray(stimulus_images),
+            'stimulus_image_filenames':     np.asarray(stimulus_image_filenames)}
+
+
 @calculates('stimulus_images', filenames='stimulus_image_filenames')
 def import_stimulus_images(filenames, stimulus_gamma=None):
     '''
@@ -116,102 +214,6 @@ def image_apply_aperture(im, radius, center=None, fill_value=0.5, edge_width=10,
     # That's it!
     return final_im
 
-@calculates()
-def calc_stimulus_default_parameters(stimulus_image_filenames=None,
-                                     stimulus_images=None,
-                                     stimulus_edge_value=0.5,
-                                     stimulus_aperture_edge_width=None,
-                                     stimulus_pixels_per_degree=24,
-                                     normalized_stimulus_aperture=None,
-                                     normalized_pixels_per_degree=None,
-                                     max_eccentricity=None):
-    '''
-    calc_stimulus_default_parameters() is a calculator that expects no particular options, but
-    fills in several options if not given. These fall into two categories; first, some options
-    are given default values if not provided:
-      * stimulus_edge_value is set to 0.5
-      * stimulus_pixels_per_degree is set to 24 if not provided
-      * stimulus_aperture_edge_width is set to normalized_pixels_per_degree
-    Other options are dependent on each other:
-      * normalized_stimulus_aperture
-      * normalized_pixels_per_degree
-      * max_eccentricity
-    If all three of these are provided (and not None) then they are left as is; if two are given
-    then the last is set to obey the equation
-     max_eccentricity * normalized_pixels_per_degree == normalized_stimulus_aperture.
-    If one or zero of them is given, then the minimum number of following defaults are used, with
-    the remaining value filled in as soon as two of the three values has been assigned:
-      * max_eccentricity = 12
-      * normalized_pixels_per_degree = 15
-    Finally, the parameter stimulus_images is required so that all values can be coerced to arrays
-    the appropriate size if necessary.
-    '''
-    mxe = max_eccentricity
-    d2p = normalized_pixels_per_degree
-    asz = normalized_stimulus_aperture
-    # We need either stimulus_image_filenames or stimulus_images to be defined.
-    if not stimulus_image_filenames:
-        assert stimulus_images is not None, "If stimulus_image_filenames is not defined, stimulus_images must be!"
-        n = len(stimulus_images)
-    else:
-        n = len(stimulus_image_filenames)
-    # First, fill out lengths:
-    if hasattr(mxe, '__iter__'):
-        if len(mxe) != n:
-            raise ValueError('len(max_eccentricity) != len(stimulus_images)')
-    else:
-        mxe = [mxe for i in range(n)]
-    if hasattr(d2p, '__iter__'):
-        if len(d2p) != n:
-            raise ValueError('len(normalized_pixels_per_degree) != len(stimulus_images)')
-    else:
-        d2p = [d2p for i in range(n)]
-    if hasattr(asz, '__iter__'):
-        if len(asz) != n:
-            raise ValueError('len(normalized_stimulus_aperture) != len(stimulus_images)')
-    else:
-        asz = [asz for i in range(n)]
-    if hasattr(stimulus_edge_value, '__iter__'):
-        if len(stimulus_edge_value) != n:
-            raise ValueError('len(stimulus_edge_value) != len(stimulus_images)')
-    else:
-        stimulus_edge_value = [stimulus_edge_value for i in range(n)]
-    if hasattr(stimulus_pixels_per_degree, '__iter__'):
-        if len(stimulus_pixels_per_degree) != n:
-            raise ValueError('len(stimulus_pixels_per_degree) != len(stimulus_images)')
-    else:
-        stimulus_pixels_per_degree = [stimulus_pixels_per_degree for i in range(n)]
-    if hasattr(stimulus_aperture_edge_width, '__iter__'):
-        if len(stimulus_aperture_edge_width) != n:
-            raise ValueError('len(stimulus_aperture_edge_width) != len(stimulus_images)')
-    else:
-        stimulus_aperture_edge_width = [stimulus_aperture_edge_width
-                                        for i in range(n)]
-    # Now fix the params that depend on each other:
-    (mxe, d2p, asz) = [[None if x == 0 else x for x in xx] for xx in [mxe, d2p, asz]]
-    mxe = [m     if m is not None           else \
-           12    if d is None or a is None  else \
-           a/d
-           for (m,d,a) in zip(mxe,d2p,asz)]
-    d2p = [d     if d is not None           else \
-           15    if a is None               else \
-           a/m
-           for (m,d,a) in zip(mxe,d2p,asz)]
-    asz = [a     if a is not None           else \
-           m*d
-           for (m,d,a) in zip(mxe,d2p,asz)]
-    # And fix the aperture edge if needed:
-    stimulus_aperture_edge_width = [d if ew is None else ew
-                                    for (ew,d) in zip(stimulus_aperture_edge_width,d2p)]
-    # And return all of them as arrays:
-    return {'stimulus_edge_value':          np.asarray(stimulus_edge_value),
-            'stimulus_pixels_per_degree':   np.asarray(stimulus_pixels_per_degree),
-            'stimulus_aperture_edge_width': np.asarray(stimulus_aperture_edge_width),
-            'normalized_stimulus_aperture': np.asarray(asz),
-            'normalized_pixels_per_degree': np.asarray(d2p),
-            'max_eccentricity':             np.asarray(mxe),
-            'stimulus_images':              np.asarray(stimulus_images),
-            'stimulus_image_filenames':     np.asarray(stimulus_image_filenames)}
 
 @calculates('normalized_stimulus_images',
             imgs='stimulus_images',

@@ -23,11 +23,16 @@ function compareWithKay2013(knkutilsPath, stimuliPath, stimuliIdx, voxelIdx, mod
 % input images from
 % 
 % stimuliIdx: vector, subset of images to use for these models, or
-% string, path to a .txt file that contains said vector
+% string, path to a .txt file that contains said vector. This should
+% be matlab indices, so 1-indexed and whatever you passed to the
+% python function +1.
 % 
-% voxelIdx: vector, subset of voxels to generate predictions
-% for (there's no reason to run this function for every voxel), or
-% string, path to a .txt file that contains said vector.
+% voxelIdx: vector, subset of voxels to generate predictions for
+% (there's no reason to run this function for every voxel), or string,
+% path to a .txt file that contains said vector. This should
+% correspond to the values in your model dataframe / table and so is
+% probably 0-indexed. We will use modelTable.voxel==voxelIdx(i) to
+% find the appropriate values
 % 
 % modelPath: string, path to the python dataframe / matlab table
 % containing all the model parameters
@@ -64,12 +69,15 @@ function compareWithKay2013(knkutilsPath, stimuliPath, stimuliIdx, voxelIdx, mod
     
     [stimuli, normAlreadyDoneFlag] = preprocessStimuli(stimuli, modelTable);
     
+    % we want to look at the contrast images.
+    save('contrast_images.mat','stimuli');
+    
     if ischar(voxelIdx)
         voxelIdx = load(voxelIdx);
     end
     for vox=voxelIdx
         if ~normAlreadyDoneFlag
-            stimuliTmp = divisiveNormalization(stimuli, modelTable, voxelIdx);
+            stimuliTmp = divisiveNormalization(stimuli, modelTable, modelTable.voxel==voxelIdx);
         else
             stimuliTmp = stimuli;
         end
@@ -146,18 +154,23 @@ function [stimuli, normAlreadyDoneFlag] = preprocessStimuli(stimuli, modelTable)
     
 end
 
-function stimuli =  divisiveNormalization(stimuli, modelTable, voxelIdx)
+function stimuli =  divisiveNormalization(stimuli, modelTable, modelIdx)
 % compute the population term in the divisive-normalization equation.  
 % this term is simply the average across the complex-cell outputs 
 % at each position (averaging across orientation).
+% 
+% modelIdx can either be a single integer or a boolean array, in which
+% case we take the value from the corresponding row. The boolean
+% array has only been tested with one 1s (and the rest 0s) and
+% allows us to pass modelTable.voxel==voxelIdx as an index.
     stimuliPOP = blob(stimuli,2,8)/8;
 
     % repeat the population term for each of the orientations
     stimuliPOP = upsamplematrix(stimuliPOP,8,2,[],'nearest');
     
     % We only do this if all voxels have the same r and s
-    r = modelTable.Kay2013_normalization_r(voxelIdx);
-    s = modelTable.Kay2013_normalization_s(voxelIdx);
+    r = modelTable.Kay2013_normalization_r(modelIdx);
+    s = modelTable.Kay2013_normalization_s(modelIdx);
     
     % apply divisive normalization to the complex-cell outputs.  there are two parameters
     % that influence this operation: an exponent term (r) and a semi-saturation term (s).  
@@ -195,14 +208,14 @@ function modelTable = generateVoxelPredictions(stimuli, modelTable, voxelIdx, st
     modelfun = @(pp,dd) pp(4)*(socfun(dd,gaufun(pp),restrictrange(pp(6),0,1)).^pp(5));
     
     for idx=1:length(stimuliNames)
-        params = [floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%s_dim0(%d)', stimuliNames{idx}, voxelIdx))),
-                  floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%s_dim1(%d)', stimuliNames{idx}, voxelIdx))),
-                  eval(sprintf('modelTable.pRF_pixel_sizes_image_%s(%d)', stimuliNames{idx}, voxelIdx)),
-                  modelTable.Kay2013_response_gain(voxelIdx),
-                  modelTable.Kay2013_output_nonlinearity(voxelIdx),
-                  modelTable.Kay2013_SOC_constant(voxelIdx)];
+        params = [floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%s_dim0(modelTable.voxel==%d)', stimuliNames{idx}, voxelIdx))),
+                  floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%s_dim1(modelTable.voxel==%d)', stimuliNames{idx}, voxelIdx))),
+                  eval(sprintf('modelTable.pRF_pixel_sizes_image_%s(modelTable.voxel==%d)', stimuliNames{idx}, voxelIdx)),
+                  modelTable.Kay2013_response_gain(modelTable.voxel==voxelIdx),
+                  modelTable.Kay2013_output_nonlinearity(modelTable.voxel==voxelIdx),
+                  modelTable.Kay2013_SOC_constant(modelTable.voxel==voxelIdx)];
         modelfit = modelfun(params, stimuli(idx,:));
-        eval(sprintf('modelTable.MATLAB_predicted_responses_image_%s(%d) = %d;', stimuliNames{idx},voxelIdx,modelfit));
+        eval(sprintf('modelTable.MATLAB_predicted_responses_image_%s(modelTable.voxel==%d) = %d;', stimuliNames{idx},voxelIdx,modelfit));
     end
 
 end

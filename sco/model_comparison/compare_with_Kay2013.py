@@ -146,5 +146,5 @@ def compare_with_Kay2013(image_base_path, stimuli_idx, voxel_idx=None, subject='
     # speed things up
     results = sco_chain(subject=subject, max_eccentricity=2.7, normalized_stimulus_aperture=15*2.727,
                         normalized_pixels_per_degree=15, stimulus_aperture_edge_width=15*(3-2.727),
-                        pRF_frequency_preference_function=freq_pref, pRF_blob_stds=1, **kwargs)
+                        pRF_frequency_preference_function=freq_pref, pRF_blob_stds=2, **kwargs)
     return results, stimuli_names

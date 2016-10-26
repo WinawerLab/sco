@@ -29,7 +29,7 @@ def main(image_base_path, stimuli_idx, voxel_idx, subject, model_df_path="./soc_
                                                          voxel_idx, subject,
                                                          subject_dir)
     model_df = create_model_dataframe(results, stimulus_model_names, model_df_path)
-    return model_df
+    return model_df, results
 
 
 if __name__ == '__main__':

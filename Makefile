@@ -5,7 +5,8 @@ VOXEL_IDX := $(shell seq 0 2)
 
 KNK_PATH=/home/billbrod/Documents/Kendrick-socmodel/code/
 SUBJ=test-sub
-SUBJ_DIR=/Volumes/server/Freesurfer_subjects
+# SUBJ_DIR=/Volumes/server/Freesurfer_subjects
+SUBJ_DIR=/home/billbrod/Documents/SCO-test-data/Freesurfer_subjects
 
 # make sure matlab is in your path, which it may not be by default if you're on Mac.
 
@@ -31,7 +32,7 @@ stim_idx.txt :
 	python2.7 sco/model_comparison/py_to_matlab.py -p2m $@
 
 MATLAB_soc_model_params.csv : soc_model_params.csv voxel_idx.txt stim_idx.txt
-	matlab -nodesktop -nodisplay -r "cd $(pwd)/sco/model_comparison; compareWithKay2013('$(KNK_PATH)', '$(pwd)/stimuli.mat', '$(pwd)/stim.txt', '$(pwd)/voxel_idx.txt', '$<', '$(pwd)/soc_model_params_image_names.mat', '$@'); quit;"
+	matlab -nodesktop -nodisplay -r "cd $(shell pwd)/sco/model_comparison; compareWithKay2013('$(KNK_PATH)', '$(shell pwd)/stimuli.mat', '$(shell pwd)/stim_idx.txt', '$(shell pwd)/voxel_idx.txt', '$(shell pwd)/$<', '$(shell pwd)/soc_model_params_image_names.mat', '$(shell pwd)/$@'); quit;"
 
 .PHONY: clean
 clean :

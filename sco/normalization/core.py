@@ -31,32 +31,45 @@ def calc_normalization_default_parameters(pRF_v123_labels, Kay2013_response_gain
                                                                   pRF_v123_labels)}
 
 @calculates('SOC_responses')
-def calc_Kay2013_SOC_normalization(pRF_matrices,
+def calc_Kay2013_SOC_normalization(pRF_views,
+                                   normalized_pixels_per_degree,
                                    normalized_contrast_functions,
                                    pRF_frequency_preferences,
                                    Kay2013_SOC_constant):
     """
     Calculate the second-order contrast
     """
-    # Because pRF_matrices are all sparse and sum to 1, we can use them cleverly to save time:
-    responses = np.zeros(pRF_matrices.shape)
-    for (i, (cfns, ws, prefs, c)) in enumerate(zip(normalized_contrast_functions,
-                                                   pRF_matrices,
-                                                   pRF_frequency_preferences,
-                                                   Kay2013_SOC_constant)):
-        for (j, (cfn, w)) in enumerate(zip(cfns, ws)):
-            # make the relevant image...
-            im = np.sum([cfn(k) * v for (k,v) in prefs.iteritems()], axis=0)
-            # get the mean value of the pRF
-            mu = w.multiply(im).sum()
-            # find the pixels we care about and subtract this from them
-            w1 = w.astype(bool)
-            blob_mu = w1 * (c * mu)
-            blob = w1.multiply(im) - blob_mu
-            # calculate the response
-            responses[i,j] = w.multiply(blob.multiply(blob)).sum()
-    return {'SOC_responses': responses}
-
+    # we can use the (PRFSpec class) pRF_view elements' __call__ function to do this calculation
+    # efficiently; see the pRF/core.py source code for more information, or the sco.pRF.PRFSpec
+    # class documentation.
+    return {'SOC_responses': np.asarray(
+        [ [ view(im, d2p, c=cval)
+            for (ncf, d2p, cval) in zip(ncfs,
+                                        normalized_pixels_per_degree,
+                                        Kay2013_SOC_constant)
+            for im in [np.sum([v*ncf(k) for (k,v) in prefs.iteritems()], axis=0)]]
+          for (view, ncfs, prefs) in zip(pRF_views,
+                                         normalized_contrast_functions,
+                                         pRF_frequency_preferences)])}
+    ## Because pRF_matrices are all sparse and sum to 1, we can use them cleverly to save time:
+    #responses = np.zeros(pRF_matrices.shape)
+    #for (i, (cfns, ws, prefs, c)) in enumerate(zip(normalized_contrast_functions,
+    #                                               pRF_matrices,
+    #                                               pRF_frequency_preferences,
+    #                                               Kay2013_SOC_constant)):
+    #    for (j, (cfn, w)) in enumerate(zip(cfns, ws)):
+    #        # make the relevant image...
+    #        im = np.sum([cfn(k) * v for (k,v) in prefs.iteritems()], axis=0)
+    #        # get the mean value of the pRF
+    #        mu = w.multiply(im).sum()
+    #        # find the pixels we care about and subtract this from them
+    #        w1 = w.astype(bool)
+    #        blob_mu = w1 * (c * mu)
+    #        blob = w1.multiply(im) - blob_mu
+    #        # calculate the response
+    #        responses[i,j] = w.multiply(blob.multiply(blob)).sum()
+    #return {'SOC_responses': responses}
+    
 @calculates('predicted_responses')
 def calc_Kay2013_output_nonlinearity(SOC_responses, Kay2013_output_nonlinearity,
                                      Kay2013_response_gain):

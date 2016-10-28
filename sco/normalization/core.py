@@ -35,8 +35,7 @@ def calc_Kay2013_SOC_normalization(pRF_views,
                                    normalized_pixels_per_degree,
                                    normalized_contrast_functions,
                                    pRF_frequency_preferences,
-                                   Kay2013_SOC_constant,
-                                   stimulus_edge_value):
+                                   Kay2013_SOC_constant):
     """
     Calculate the second-order contrast
     """
@@ -44,11 +43,10 @@ def calc_Kay2013_SOC_normalization(pRF_views,
     # efficiently; see the pRF/core.py source code for more information, or the sco.pRF.PRFSpec
     # class documentation.
     return {'SOC_responses': np.asarray(
-        [ [ view(im, d2p, c=cval, edge_value=ev)
-            for (ncf, d2p, cval, ev) in zip(ncfs,
-                                            normalized_pixels_per_degree,
-                                            Kay2013_SOC_constant,
-                                            stimulus_edge_value)
+        [ [ view(im, d2p, c=cval)
+            for (ncf, d2p, cval) in zip(ncfs,
+                                        normalized_pixels_per_degree,
+                                        Kay2013_SOC_constant)
             for im in [np.sum([v*ncf(k) for (k,v) in prefs.iteritems()], axis=0)]]
           for (view, ncfs, prefs) in zip(pRF_views,
                                          normalized_contrast_functions,

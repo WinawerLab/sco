@@ -22,11 +22,10 @@ def calc_pRF_default_parameters(pRF_frequency_preference_function=None):
     pixels while the e parameter is in units of degrees.
     By default, the function returns a Gaussian set of weights around 1 cycle per sigma.
     '''
-    #_default_frequencies = [0.5*2.0**(0.5*float(k)) for k in range(10)]
-    _default_frequencies = [0.75, 1.0, 1.2, 1.5, 2.0, 3.0]
-    _default_std = 0.3
+    _default_frequencies = [0.75 * 2.0**(0.5 * k) for k in range(6)]
+    _default_std = 0.5
     def _default_pRF_frequency_preference_function(e, s, l):
-        ss = 2.0 / s
+        ss = 3.0 / s
         weights = np.asarray([np.exp(-0.5*((k - ss)/_default_std)**2)
                               for k in _default_frequencies])
         wtot = np.sum(weights)
@@ -147,7 +146,7 @@ class PRFSpec(object):
         mtx = sparse.lil_matrix(imshape)
         mtx[rrng[0]:rrng[1], crng[0]:crng[1]] = mini_mtx
         return mtx.asformat('csr')
-    def __call__(self, im, d2p, c=None, edge_value=0.5):
+    def __call__(self, im, d2p, c=None, edge_value=0):
         '''
         prf(im, d2p) yields a tuple (u, w) in which u and w are equal-length vectors; the vector u
           contains the values found in the pRF while the equivalent vector w contains the matching
@@ -158,8 +157,10 @@ class PRFSpec(object):
 
         Note that the parameter im may be either a single image or an image stack (in which case it
         must be size (l, m, n) where l is the number of images and m and n are the rows and columns.
-        Additionally, there is an optional parameter edge_value which is, by default, 0.5 and is
-        used outside of the image range.
+        Additionally, there is an optional parameter edge_value which is, by default, 0 and is
+        used outside of the image range. Note that, because this function is generally meant to be
+        used with contrast images, 0 is appropriate for the edge_value; it indicates that there is
+        no contrast beyond the edge of the stimulus.
         '''
         # first we just grab out the values and weights; to do this we first grab the parameters:
         (x0, sig, rad, rrng, crng, rrng0, crng0) = self._params(im.shape, d2p)

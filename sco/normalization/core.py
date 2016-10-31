@@ -44,13 +44,12 @@ def calc_Kay2013_SOC_normalization(pRF_views,
     # class documentation.
     return {'SOC_responses': np.asarray(
         [ [ view(im, d2p, c=cval)
-            for (ncf, d2p, cval) in zip(ncfs,
-                                        normalized_pixels_per_degree,
-                                        Kay2013_SOC_constant)
-            for im in [np.sum([v*ncf(k) for (k,v) in prefs.iteritems()], axis=0)]]
-          for (view, ncfs, prefs) in zip(pRF_views,
-                                         normalized_contrast_functions,
-                                         pRF_frequency_preferences)])}
+            for (ncf, d2p) in zip(ncfs, normalized_pixels_per_degree)
+            for im         in [np.sum([v*ncf(k) for (k,v) in prefs.iteritems()], axis=0)]]
+          for (view, ncfs, cval, prefs) in zip(pRF_views,
+                                               normalized_contrast_functions,
+                                               Kay2013_SOC_constant,
+                                               pRF_frequency_preferences)])}
     ## Because pRF_matrices are all sparse and sum to 1, we can use them cleverly to save time:
     #responses = np.zeros(pRF_matrices.shape)
     #for (i, (cfns, ws, prefs, c)) in enumerate(zip(normalized_contrast_functions,

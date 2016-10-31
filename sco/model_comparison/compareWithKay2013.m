@@ -119,18 +119,52 @@ function [stimuli, normAlreadyDoneFlag] = preprocessStimuli(stimuli, modelTable)
     % the new resolution is 180 x 180 (15-pixel padding on each side).
     stimuli = placematrix(zeros(180,180,size(stimuli,3),'single'),stimuli);
    
+    % The following shows Kendrick's original notes, with Noah's
+    % additional explanations. 
+    
     % apply Gabor filters to the stimuli.  filters occur at different positions, 
     % orientations, and phases.  there are several parameters that govern the
     % design of the filters:
-    %   the number of cycles per image is 37.5*(180/150)
-    %   the spatial frequency bandwidth of the filters is 1 octave
-    %   the separation of adjacent filters is 1 std dev of the Gaussian envelopes
-    %     (this results in a 90 x 90 grid of positions)
+    % 
+    %   the number of cycles per image is 37.5*(180/150). This is 45
+    %   cycles per image; since there are 180 pixels, we get .25
+    %   cycles/pixel
+    % 
+    %   the spatial frequency bandwidth of the filters is 1
+    %   octave. This should give us the relationship between frequency
+    %   and standard deviation. For the bandwidth b, freqnecy f,
+    %   standard deviation s, and constant q = sqrt(ln(2)/2): b =
+    %   log2( (s/f * pi + q) / (s/f * pi - q)), giving us that
+    %   here, sigma is approximately 2.25 pixels
+    % 
+    %   the separation of adjacent filters is 1 std dev of the
+    %   Gaussian envelopes (this results in a 90 x 90 grid of
+    %   positions). The fact that 180x180 turns into 90x90 tells me
+    %   that 1 std of the Gaussian envelope is 2 pixels, which
+    %   approximately matches above.
+    % 
     %   filters occur at 8 orientations
-    %   filters occur at 2 phases (between 0 and pi)
-    %   the Gaussian envelopes are thresholded at .01
-    %   filters are scaled to have an equivalent Michelson contrast of 1
-    %   the dot-product between each filter and each stimulus is computed
+    % 
+    %   filters occur at 2 phases (between 0 and pi) (this is the
+    %   real and imaginary parts of the Gabor)
+    % 
+    %   the Gaussian envelopes are thresholded at .01. This means
+    %   that the Gaussian envelope was thresholded at 3 standard
+    %   devaitions, so with a Gaussian envelope of 2.25 pixels, the
+    %   filter would be 13.5 x 13.5 pixels^2. Or for a 2 pixel
+    %   envelope, 12 x 12 pixels^2
+    % 
+    %   filters are scaled to have an equivalent Michelson contrast of
+    %   1 This just means that the minimum value of the filter image
+    %   is 0, so doesn't make any sense to me. Michelson contrast
+    %   is (max(image) - min(image)) / (max(image) +
+    %   min(image)). Shouldn't the minimum value of the filter
+    %   image be negative? Typically one scales filters to have a
+    %   power of 1 and a mean of 0.
+    % 
+    %   the dot-product between each filter and each stimulus is
+    %   computed.
+    % 
     % after this step, stimulus is images x phases*orientations*positions.
     stimuli = applymultiscalegaborfilters(reshape(stimuli,180*180,[])', ...
                                           37.5*(180/150),-1,1,8,2,.01,2,0);

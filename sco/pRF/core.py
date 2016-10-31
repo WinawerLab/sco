@@ -25,7 +25,7 @@ def calc_pRF_default_parameters(pRF_frequency_preference_function=None):
     _default_frequencies = [0.75 * 2.0**(0.5 * k) for k in range(6)]
     _default_std = 0.5
     def _default_pRF_frequency_preference_function(e, s, l):
-        ss = 3.0 / s
+        ss = 1.5 / s
         weights = np.asarray([np.exp(-0.5*((k - ss)/_default_std)**2)
                               for k in _default_frequencies])
         wtot = np.sum(weights)

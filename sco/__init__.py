@@ -8,11 +8,14 @@ visual stimuli.
 # Import relevant functions...
 from .core import (iscalc, calculates, calc_chain, calc_translate)
 
-from sco.anatomy       import (calc_anatomy,       anatomy_chain,       export_predicted_responses)
-from sco.stimulus      import (calc_stimulus,      stimulus_chain)
-from sco.contrast      import (calc_contrast,      contrast_chain)
-from sco.pRF           import (calc_pRF,           pRF_chain)
-from sco.normalization import (calc_normalization, normalization_chain)
+from sco.stimulus      import (calc_stimulus,        stimulus_chain)
+from sco.contrast      import (calc_contrast,        contrast_chain)
+from sco.pRF           import (calc_pRF,             pRF_chain)
+from sco.normalization import (calc_normalization,   normalization_chain)
+from sco.anatomy       import (calc_anatomy,         volumes_anatomy_chain,
+                               calc_surface_anatomy, surface_anatomy_chain,
+                               export_predicted_response_volumes,
+                               export_predicted_response_surface)
 
 from sco.util          import (cortical_image)
 
@@ -30,8 +33,15 @@ sco_chain = (('calc_anatomy',       calc_anatomy),
              ('calc_contrast',      calc_contrast),
              ('calc_pRF',           calc_pRF),
              ('calc_normalization', calc_normalization))
+# The surfaces calculation chain
+sco_surface_chain = (('calc_anatomy',       calc_surface_anatomy),
+                     ('calc_stimulus',      calc_stimulus),
+                     ('calc_contrast',      calc_contrast),
+                     ('calc_pRF',           calc_pRF),
+                     ('calc_normalization', calc_normalization))
 
-calc_sco = calc_chain(sco_chain)
+calc_sco         = calc_chain(sco_chain)
+calc_surface_sco = calc_chain(sco_surface_chain)
 
 def reload_sco():
     '''

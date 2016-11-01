@@ -59,8 +59,8 @@ def compare_with_Kay2013(image_base_path, stimuli_idx, voxel_idx=None, subject='
     if voxel_idx is not None:
         if not hasattr(voxel_idx, '__iter__'):
             voxel_idx = [voxel_idx]
-        anat_chain = (('import',           anatomy_core.import_benson14_from_freesurfer),
-                      ('calc_pRF_centers', anatomy_core.calc_pRFs_from_freesurfer_retinotopy),
+        anat_chain = (('import',           anatomy_core.import_benson14_volumes_from_freesurfer),
+                      ('calc_pRF_centers', anatomy_core.calc_pRFs_from_freesurfer_retinotopy_volumes),
                       ('calc_voxel_selector', anatomy_core.calc_voxel_selector),
                       ('calc_anatomy_defualt_parameters', anatomy_core.calc_anatomy_default_parameters),
                       ('calc_pRF_sizes',   anatomy_core.calc_Kay2013_pRF_sizes))
@@ -138,7 +138,7 @@ def compare_with_Kay2013(image_base_path, stimuli_idx, voxel_idx=None, subject='
     def freq_pref(e, s, l):
         # This takes in the eccentricity, size, and area, but we don't use any of them, since we
         # just want to use 3 cpd and ignore everything else. And this must be floats.
-        return {3: 1}
+        return {3.0: 1.0}
     # And this runs it. To make sure it has the same size as the the images used in Kendrick's
     # code, we set the normalized_stimulus_aperture, normalized_aperture_edge_width, and
     # normalized_pixels_per_degree values. We want our final image to be 90x90, with the edge

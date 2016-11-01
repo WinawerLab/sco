@@ -101,7 +101,7 @@ def import_benson14_surface_from_freesurfer(subject):
             'rh_eccentricity_mgh': r_eccen_mgz,
             'rh_v123_labels_mgh':  r_label_mgz}
 
-@calculates('pRF_centers', 'pRF_voxel_indices',
+@calculates('pRF_centers', 'pRF_voxel_indices', 'pRF_hemispheres',
             'pRF_polar_angle', 'pRF_eccentricity', 'pRF_v123_labels')
 def calc_pRFs_from_freesurfer_retinotopy_volumes(polar_angle_mgh, eccentricity_mgh,
                                                  v123_labels_mgh, ribbon_mghs,

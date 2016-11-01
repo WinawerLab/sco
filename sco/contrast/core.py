@@ -133,9 +133,9 @@ def calc_divisive_normalization_functions(stimulus_contrast_functions,
             cache[(r, s)] = dict()
         cache = cache[(r, s)]
         if isinstance(cpd, set):
-            return {x: _divisive_normalization_function(func_idx, x) for x in cpd}
+            return {x: _divisive_normalization_function(func_idx, x, vox_id) for x in cpd}
         elif hasattr(cpd, '__iter__'):
-            return [_divisive_normalization_function(func_idx, x) for x in cpd]
+            return [_divisive_normalization_function(func_idx, x, vox_id) for x in cpd]
         elif cpd in cache:
             return cache[cpd]
         else:

@@ -141,10 +141,9 @@ def compare_with_Kay2013(image_base_path, stimuli_idx, voxel_idx=None, subject='
         return {3.0: 1.0}
     # And this runs it. To make sure it has the same size as the the images used in Kendrick's
     # code, we set the normalized_stimulus_aperture, normalized_aperture_edge_width, and
-    # normalized_pixels_per_degree values. We want our final image to be 90x90, with the edge
-    # taking up 10% of the total image (ie 5% of the radius). setting pRF_blob_std to 1 should
-    # speed things up
-    results = sco_chain(subject=subject, max_eccentricity=2.7, normalized_stimulus_aperture=15*2.727,
-                        normalized_pixels_per_degree=15, stimulus_aperture_edge_width=15*(3-2.727),
-                        pRF_frequency_preference_function=freq_pref, pRF_blob_stds=2, **kwargs)
+    # normalized_pixels_per_degree values.
+    results = sco_chain(subject=subject, max_eccentricity=7.5, normalized_stimulus_aperture=7.5*12,
+                        normalized_pixels_per_degree=12, stimulus_aperture_edge_width=0,
+                        pRF_frequency_preference_function=freq_pref, pRF_blob_stds=2,
+                        stimulus_pixels_per_degree=53, gabor_orientations=8, **kwargs)
     return results, stimuli_names

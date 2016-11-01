@@ -1,12 +1,12 @@
 SHELL := /bin/bash
 
 # for full stimuli, use the following:
-# STIMULI_IDX := $(shell seq 69 224)
+STIMULI_IDX := $(shell seq 69 224)
 
 # for testing:
-STIMULI_IDX := $(shell seq 69 73)
+# STIMULI_IDX := $(shell seq 69 73)
 
-VOXEL_IDX = $(shell seq 3 5)
+VOXEL_IDX = $(shell seq 0 2)
 
 # KNK_PATH=/home/billbrod/Documents/Kendrick-socmodel/code/
 KNK_PATH=/Users/winawerlab/matlab/git/knkutils/
@@ -19,7 +19,7 @@ SUBJ_DIR=/Volumes/server/Freesurfer_subjects
 # for our stimuli, we use the pictures from Kay2013, which Kendrick
 # provides on his website.
 stimuli.mat : 
-	wget http://kendrickkay.net/socmodel/stimuli.mat
+	wget -q http://kendrickkay.net/socmodel/stimuli.mat
         # we need to do this to get the stimuli.mat into the format we want
 	matlab -nodesktop -nodisplay -r "load('$@','images'); save('$@','images'); quit"
 
@@ -40,7 +40,13 @@ stim_idx.txt :
 MATLAB_soc_model_params.csv : soc_model_params.csv voxel_idx.txt stim_idx.txt
 	matlab -nodesktop -nodisplay -r "cd $(shell pwd)/sco/model_comparison; compareWithKay2013('$(KNK_PATH)', '$(shell pwd)/stimuli.mat', '$(shell pwd)/stim_idx.txt', '$(shell pwd)/voxel_idx.txt', '$(shell pwd)/$<', '$(shell pwd)/soc_model_params_image_names.mat', '$(shell pwd)/$@'); quit;"
 
-.PHONY: clean
-clean :
-	rm voxel_idx.txt
-	rm stim_idx.txt
+.PHONY : cleantmps
+cleantmps :
+	-rm voxel_idx.txt
+	-rm stim_idx.txt
+
+.PHONY : fullclean
+fullclean : cleantmps
+	-rm soc_model_params.csv
+	-rm soc_model_params_image_names.mat
+	-rm MATLAB_soc_model_params.csv

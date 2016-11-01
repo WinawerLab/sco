@@ -9,22 +9,33 @@ import pandas as pd
 import numpy as np
 from scipy import io as sio
 import os
+import inspect
+
+
+# We need to define these before our MODEL_DF_KEYS constant below
+def _get_pRF_pixel_centers(pRF_views, normalized_stimulus_images, stimulus_pixels_per_degree):
+    pixel_centers = np.asarray([[list(view._params(im.shape, d2p))[0] for im, d2p in
+                                 zip(normalized_stimulus_images, stimulus_pixels_per_degree)]
+                                for view in pRF_views])
+    return pixel_centers
+
+
+def _get_pRF_pixel_size(pRF_views, normalized_stimulus_images, stimulus_pixels_per_degree):
+    pixel_sizes = np.asarray([[list(view._params(im.shape, d2p))[1] for im, d2p in
+                               zip(normalized_stimulus_images, stimulus_pixels_per_degree)]
+                              for view in pRF_views])
+    return pixel_sizes
+
 
 # Keys from the results dict that correspond to model parameters and so that we want to save in the
 # output dataframe
-MODEL_DF_KEYS = ['pRF_centers', 'pRF_pixel_sizes', 'pRF_hemispheres',
-                 'pRF_voxel_indices', 'SOC_responses', 'predicted_responses',
-                 'pRF_eccentricity', 'pRF_v123_labels',
+MODEL_DF_KEYS = ['pRF_centers', 'pRF_hemispheres', 'pRF_voxel_indices', 'SOC_responses', 
+                 'pRF_eccentricity', 'pRF_v123_labels', 'predicted_responses', 'pRF_sizes',
                  'pRF_polar_angle', 'Kay2013_output_nonlinearity', 'Kay2013_pRF_sigma_slope',
                  'Kay2013_SOC_constant', 'Kay2013_normalization_r', 'Kay2013_normalization_s',
                  'Kay2013_response_gain', 'pRF_frequency_preferences', 'voxel_idx',
-                 {'pRF_pixel_centers': }, {'pRF_sizes': }]
-    # for pRF_pixel_centers and pRF_sizes, make functions using a kwarg (pRF_views) that are the
-    # keys to the dictionaries above. As we iterate through the keys, if one is a dict we assume
-    # it's of this format, where key is the value we want to store it as and value is a function
-    # whose kwarg is a key in results with the calculation required to get the right values. This
-    # relies on me being able to use the python inspect library to grab the name of the kwarg,
-    # otherwise that will be another thing in the value (make it a tuple?)
+                 {'pRF_pixel_centers': _get_pRF_pixel_centers},
+                 {'pRF_pixel_sizes': _get_pRF_pixel_size}]
     
 # Keys from the results dict that correspond to model setup and so we want
 # to save them but not in the dataframe.
@@ -40,20 +51,26 @@ IMAGES_KEYS = ['stimulus_images', 'normalized_stimulus_images', 'stimulus_image_
 # Keys that show brain data in some form.
 BRAIN_DATA_KEYS = ['v123_labels_mgh', 'polar_angle_mgh', 'ribbon_mghs', 'eccentricity_mgh']
 
-# Need to go through Kendrick's socmodel.m file (in knkutils/imageprocessing) to figure out what
-# parameters he uses there. Actually, it looks like that isn't exactly what we want (shit.)
-# because it assumes more similar parameters across voxels than we have. Instead go through the
-# fitting example to create the model? Just don't fit any of the parameters and skip to the
-# end. And run it a whole bunch of times for all the different voxels.
 
-def _check_default_keys(results):
-    default_keys = (MODEL_DF_KEYS + MODEL_SETUP_KEYS + IMAGES_KEYS + BRAIN_DATA_KEYS)
+def _check_default_keys(results, keys=None):
+    if keys is not None:
+        keys = (MODEL_DF_KEYS + MODEL_SETUP_KEYS + IMAGES_KEYS + BRAIN_DATA_KEYS)
     for k in results:
-        if k not in default_keys:
+        if k not in keys:
             warnings.warn("Results key %s is not in any of our default key sets!" % k)
-    for k in default_keys:
-        if k not in results:
-            warnings.warn("Default key %s not in results!" % k)
+    for k in keys:
+        if isinstance(k, basestring):
+            if k not in results:
+                warnings.warn("Default key %s not in results!" % k)
+        # if the key's not a string, we assume it's a dictionary and then we assume its value is a
+        # function whose keys are all string that we'll grab from results
+        elif isinstance(k, dict):
+            assert len(k)==1, "Don't know how to handle more than one entry here!"
+            # grab the value corresponding to the first (and only) key
+            for arg in inspect.getargspec(k.items()[0][1]).args:
+                # if this contains 'idx' then this is an index into the array.
+                if 'idx' not in arg:
+                    assert arg in results, "Required key %s not in results!" % arg
 
 def create_setup_dict(results, keys=None):
     """Return a dictionary containing just the model setup-relevant keys
@@ -152,13 +169,21 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
         model_keys = keys
     else:
         model_keys = MODEL_DF_KEYS
+    _check_default_keys(results, model_keys)
     for k in model_keys:
+        if isinstance(k, dict):
+            # we've already asserted that there's only one entry in k.
+            k, tmp_func = k.items()[0]
+            tmp_args = inspect.getargspec(tmp_func).args
+            value = tmp_func(*[results.get(i) for i in tmp_args])
+        else:
+            value = results[k]
         try:
             # they should all be arrays, but just in case.
-            model_df_dict[k] = np.asarray(results[k])
+            model_df_dict[k] = np.asarray(value)
         except KeyError:
             warnings.warn("Results dict does not contain key %s, skipping" % k)
-    # We assume that we have three types of variables here, as defined by their shape:
+    # We assume that we have four types of variables here, as defined by their shape:
     #
     # 1. One-dimensional. For these, we simply want their values to be one of the columns of our
     # dataframe. Example: pRF_v123_labels, where each value says whether the corresponding voxel is
@@ -188,6 +213,11 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
     # As we loop through these variables, we split up any two dimensional arrays so that each value
     # in the dictionary is a one-dimensional array, all with length equal to the number of
     # voxels. This will make the creation of the dataframe very easy.
+    # 
+    # Entries in MODEL_DF_KEYS can also be dictionaries, in which case they must have one key,
+    # value pair and the key is the column in the dataframe we'll place it in and the value is a
+    # function that takes keys from results as its args and returns an array that fits in one of
+    # the categories above.
 
     # We use this tmp_dict to construct the model_df
     tmp_dict = {}
@@ -246,7 +276,7 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
     # infer voxel label from the indices directly.
     if 'voxel_idx' in model_df.columns:
         model_df = model_df.rename(columns={'voxel_idx': 'voxel'})
-        model_df.set_index('voxel')
+        model_df = model_df.set_index('voxel')
     # Finally, we save model_df as a csv for easy importing / exporting
     model_df.to_csv(model_df_path, index_label='voxel')
     sio.savemat(os.path.splitext(model_df_path)[0] + "_image_names.mat",

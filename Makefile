@@ -1,12 +1,18 @@
 SHELL := /bin/bash
 
-STIMULI_IDX := $(shell seq 69 73)
-VOXEL_IDX := $(shell seq 0 2)
+# for full stimuli, use the following:
+# STIMULI_IDX := $(shell seq 69 224)
 
-KNK_PATH=/home/billbrod/Documents/Kendrick-socmodel/code/
+# for testing:
+STIMULI_IDX := $(shell seq 69 73)
+
+VOXEL_IDX = $(shell seq 3 5)
+
+# KNK_PATH=/home/billbrod/Documents/Kendrick-socmodel/code/
+KNK_PATH=/Users/winawerlab/matlab/git/knkutils/
 SUBJ=test-sub
-# SUBJ_DIR=/Volumes/server/Freesurfer_subjects
-SUBJ_DIR=/home/billbrod/Documents/SCO-test-data/Freesurfer_subjects
+SUBJ_DIR=/Volumes/server/Freesurfer_subjects
+# SUBJ_DIR=/home/billbrod/Documents/SCO-test-data/Freesurfer_subjects
 
 # make sure matlab is in your path, which it may not be by default if you're on Mac.
 

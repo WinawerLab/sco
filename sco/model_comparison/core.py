@@ -14,12 +14,18 @@ import os
 # output dataframe
 MODEL_DF_KEYS = ['pRF_centers', 'pRF_pixel_sizes', 'pRF_hemispheres',
                  'pRF_voxel_indices', 'SOC_responses', 'predicted_responses',
-                 'pRF_pixel_centers', 'pRF_eccentricity', 'pRF_v123_labels', 'pRF_sizes',
+                 'pRF_eccentricity', 'pRF_v123_labels',
                  'pRF_polar_angle', 'Kay2013_output_nonlinearity', 'Kay2013_pRF_sigma_slope',
                  'Kay2013_SOC_constant', 'Kay2013_normalization_r', 'Kay2013_normalization_s',
-                 'Kay2013_response_gain', 'pRF_frequency_preferences']
-    # we currently aren't grabbing pRF_matrices, because I don't know what to do with them.
-
+                 'Kay2013_response_gain', 'pRF_frequency_preferences', 'voxel_idx',
+                 {'pRF_pixel_centers': }, {'pRF_sizes': }]
+    # for pRF_pixel_centers and pRF_sizes, make functions using a kwarg (pRF_views) that are the
+    # keys to the dictionaries above. As we iterate through the keys, if one is a dict we assume
+    # it's of this format, where key is the value we want to store it as and value is a function
+    # whose kwarg is a key in results with the calculation required to get the right values. This
+    # relies on me being able to use the python inspect library to grab the name of the kwarg,
+    # otherwise that will be another thing in the value (make it a tuple?)
+    
 # Keys from the results dict that correspond to model setup and so we want
 # to save them but not in the dataframe.
 MODEL_SETUP_KEYS = ['max_eccentricity', 'normalized_pixels_per_degree', 'stimulus_edge_value',
@@ -236,6 +242,11 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
     # I prefer the letters, I think that makes it clearer.
     if 'pRF_hemispheres' in model_df.columns:
         model_df.pRF_hemispheres = model_df.pRF_hemispheres.map({1: 'L', -1: 'R'})
+    # if we've included voxel_idx, make that (with the name of voxel) the index. Otherwise, we
+    # infer voxel label from the indices directly.
+    if 'voxel_idx' in model_df.columns:
+        model_df = model_df.rename(columns={'voxel_idx': 'voxel'})
+        model_df.set_index('voxel')
     # Finally, we save model_df as a csv for easy importing / exporting
     model_df.to_csv(model_df_path, index_label='voxel')
     sio.savemat(os.path.splitext(model_df_path)[0] + "_image_names.mat",

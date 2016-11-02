@@ -1,15 +1,19 @@
 # core.py
 #
-# core code for comparing model performances
+# core code for comparing model performances and visualizing them.
 #
 # By William F Broderick
 
+import argparse
 import warnings
-import pandas as pd
-import numpy as np
-from scipy import io as sio
 import os
 import inspect
+import re
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import io as sio
 
 
 # We need to define these before our MODEL_DF_KEYS constant below
@@ -283,19 +287,192 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
                 {'image_names': image_names})
     return model_df
 
-def _get_size(v):
-    """returns the number of entries that v has
 
-    this is necessary because some of our variables are lists, some arrays, etc; so we can't rely
-    on a simple len() or .shape. This tries them all and returns the relevant one.
+def _load_pkl_or_mat(path, mat_field):
+    if os.path.splitext(path)[1] == ".mat":
+        path = sio.loadmat(path)[mat_field]
+    elif os.path.splitext(path)[1] == ".pkl":
+        path = np.loads(path)
+    else:
+        raise Exception("Don't know how to handle extensions %s" %
+                        os.path.splitext(path)[1])
+    return path
+
+
+def _create_plot_df(condition, stimuli_idx, stimulus_model_names, model_df):
+    """create dataframe stimuli associated with condition to plot from
+
+    condition can be either a boolean array, in which case we grab the values from stimuli_idx
+    corresponding to the Trues, or an array of integers, in which case we assume it's just the
+    index numbers themselves.
     """
-    try:
-        # this will work for arrays and array-like things (mgh images for example)
-        return v.shape
-    except AttributeError:
-        # then it's probably a list
-        try:
-            return len(v)
-        except TypeError:
-            # then it's probably an integer or another single item
-            return 1
+    tmp = []
+    if True in condition:
+        stimulus_iterate = stimuli_idx[np.where(condition)]
+    else:
+        # assume it's just the index nubmers directly
+        stimulus_iterate = condition
+    for n in stimulus_iterate:
+        tmp.append(np.where(["%04d" % n in name for name in stimulus_model_names]))
+    names = stimulus_model_names[np.asarray(tmp).flatten()]
+    plot_df = model_df[["MATLAB_predicted_responses_image_%s"%i for i in names]+
+                       ["predicted_responses_image_%s"%i for i in names]]
+
+    plot_df = plot_df.reset_index().rename(columns={'index':'voxel'})
+    plot_df = pd.wide_to_long(plot_df, ["predicted_responses", "MATLAB_predicted_responses"],
+                              i='voxel', j='image')
+    plot_df = plot_df.rename(columns={'predicted_responses':'predicted_responses_languagepython',
+                                      'MATLAB_predicted_responses': 'predicted_responses_languageMATLAB'})
+    plot_df = plot_df.reset_index()
+    plot_df = pd.wide_to_long(plot_df, ['predicted_responses'], i='voxel', j='language')
+    plot_df = plot_df.reset_index()
+
+    plot_df['language'] = plot_df['language'].apply(lambda x: x.replace('_language', ''))
+    plot_df['image'] = plot_df['image'].apply(lambda x: x.replace('_image_', ''))
+
+    plot_df['subimage'] = plot_df['image'].apply(lambda x: re.search(r'[0-9]*_sub([0-9]*)', x).groups()[0])
+    plot_df['image'] = plot_df['image'].apply(lambda x: re.search(r'([0-9]*)_sub[0-9]*', x).groups()[0])
+    return plot_df
+
+
+def _plot_stimuli(condition, stimuli_idx, stimuli, subflag=False):
+    """plot stimuli associated with condition
+
+    condition can be either a boolean array, in which case we grab the values from stimuli_idx
+    corresponding to the Trues, or an array of integers, in which case we assume it's just the
+    index numbers themselves.
+
+    subflag, optional, can be False or an integer. It's used to examine the 'subimages' of our
+    stimuli: several stimuli have multiple frames in them which were presented together; we refer
+    to these frames as the 'subimages'. If subflag is false, then we show the first subimage of
+    each of the indices. Else, subimage should be an index into the images we're showing and we'll
+    then show all the subimages for that stimulus. (e.g., condition = [139, 140, 141] and subflag =
+    0; then we'll show all the subimages of stimulus 139).
+    """
+    if True in condition:
+        tmp_idx = stimuli_idx[np.where(condition)]
+    else:
+        # assume it's just the index numbers directly
+        tmp_idx = np.asarray(condition)
+    fig = plt.figure(figsize=[10, 10])
+    if not subflag:
+        for i, idx in enumerate(tmp_idx):
+            ax = fig.add_subplot(np.ceil(np.sqrt(len(tmp_idx))), np.ceil(np.sqrt(len(tmp_idx))),
+                                 i+1)
+            plt.imshow(stimuli[idx][:, :, 0], cmap='gray', vmin=0, vmax=255)
+            plt.title((idx, 0))
+            ax.xaxis.set_visible(False)
+            ax.yaxis.set_visible(False)
+    else:
+        for idx in range(stimuli[tmp_idx[subflag]].shape[2]):
+            ax = fig.add_subplot(np.ceil(np.sqrt(stimuli[tmp_idx[subflag]].shape[2])),
+                                 np.ceil(np.sqrt(stimuli[tmp_idx[subflag]].shape[2])), idx+1)
+            plt.imshow(stimuli[tmp_idx[subflag]][:, :, idx], cmap='gray', vmin=0, vmax=255)
+            plt.title((tmp_idx[subflag], idx))
+            ax.xaxis.set_visible(False)
+            ax.yaxis.set_visible(False)
+    return fig
+
+
+def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_model_names,
+                               stimuli_descriptions, stimuli, stimuli_idx,
+                               image_template_path="./SCO_model_comparison_{condition}_{plot_type}.svg"):
+    """visualize the model comparisons
+
+    Arguments
+    ==================
+
+    conditions: list of conditions to plot. Each should be either a string (in which case we plot
+    the predictions for those stimuli whose description contain that string) or a list of integers
+    (in which case we plot the predictions for the stimuli with those indices).
+
+    condition_titles: list of strings. Should be the same length as conditions and be the title we
+    want to associate with those plots. Will title the corresponding graphs and go into their
+    filename.
+
+    model_df: pandas dataframe or a string with the path to the csv of that dataframe. This should
+    contain the results of running the model using both the python and accompanying matlab code
+    (and so should have both columns for both predicted_responses and MATLAB_predicted_responses)
+
+    stimulus_model_names: 1d numpy array or string with path to that array (can be .mat or .pkl; ;
+    if it's a .mat then we assume the structure that contains this is called "image_names"). This
+    should contain the names of the images the model generated predictions for. This array is
+    created by and saved by compare_with_Kay2013.main and these names show up in the columns of the
+    model_df.
+
+    stimuli_descriptions: 1d numpy array or string with path to that array (can be .mat or .pkl; if
+    it's a .mat then we assume the structure that contains this is called "stimuliNames"). This
+    should contain the descriptions of the stimuli used by the model (Catherine Olsson created this
+    and it should be found in this repository), and is used to select which images we want to plot
+    the comparisons for.
+
+    stimuli: 1d numpy array of 2d and 3d numpy arrays or string with path to that array (can be
+    .mat or .pkl). This is the superset of images that the model was trained on (ie, can include
+    more than the images used). Should have the same length as stimuli_descriptions.
+
+    stimuli_idx: 1d numpy array or None. Specifies which of the stimuli (in the stimuli array) the
+    model were trained on. If all were used, this should be None.
+
+    image_template_path: string. String to save the resulting plots at. Should contain {condition}
+    (which will be filled with the corresponding condition title) and {plot_type} (which will be
+    filled with "stimuli", showing the corresponding stimuli, and "predictions", showing the
+    corresponding predictions).
+    """
+    if isinstance(model_df, basestring):
+        model_df = pd.read_csv(model_df)
+
+    if isinstance(stimulus_model_names, basestring):
+        stimulus_model_names = _load_pkl_or_mat(stimulus_model_names, 'image_names')
+
+    if stimuli_idx is not None:
+        stimuli_idx = np.asarray(stimuli_idx)
+        
+    if isinstance(stimuli_descriptions, basestring):
+        stimuli_descriptions = _load_pkl_or_mat(stimuli_descriptions, 'stimuliNames')
+        if stimuli_idx is not None:
+            stimuli_descriptions = stimuli_descriptions[0, stimuli_idx]
+            stimuli_descriptions = np.asarray([i[0] for i in stimuli_descriptions])
+
+    if isinstance(stimuli, basestring):
+        stimuli = _load_pkl_or_mat(stimuli, 'images')        
+        stimuli = stimuli[0, :]
+
+    for cond, title in zip(conditions, condition_titles):
+        if isinstance(cond, basestring):
+            plot_condition = [cond == description for description in stimuli_descriptions]
+        else:
+            plot_condition = cond
+        
+        plot_df = _create_plot_df(plot_condition, stimuli_idx, stimulus_model_names, model_df)
+        g = sns.factorplot(data=plot_df, y='predicted_responses', x='image', hue='language',
+                           col='voxel', col_wrap=3, legend_out=True)
+        g.fig.suptitle(title)
+        g.fig.subplots_adjust(top=.9, right=.9)
+        g.savefig(image_template_path.format(plot_type="predictions", condition=title))
+
+        fig = _plot_stimuli(plot_condition, stimuli_idx, stimuli)
+        fig.suptitle(title)
+        fig.savefig(image_template_path.format(plot_type="stimuli", condition=title))
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description=("Visualize model predictions stored in model_df, comparing matlab and python "
+                     "versions of the model. If called from command line, plots default selection "
+                     "of images; for more control, see Compare_with_Kay2013.ipynb"))
+    parser.add_argument("model_df_path", help="string. Path where model dataframe is saved.")
+    parser.add_argument("stimulus_model_names",
+                        help=("string. Path where names of stimuli model made predictions for are"
+                              " saved. Will correspond to the columns of the model_df"))
+    parser.add_argument("stimuli_descriptions",
+                        help="string. Path where stimuli descriptions are saved.")
+    parser.add_argument("stimuli", help="string. Path to stimuli.mat")
+    parser.add_argument("stimuli_idx", nargs='+', type=int,
+                        help="list of ints. Which indices in the stimuli to run.")
+    conditions = ['grating_ori', 'grating_contrast', 'plaid_contrast', 'circular_contrast',
+                  [180, 181, 182, 84, 183], range(131, 138)]
+    condition_titles = ['orientations', 'gratings', 'plaid', 'circular', 'sparse', 'size']
+    args = parser.parse_args()
+    visualize_model_comparison(conditions, condition_titles, args.model_df_path,
+                               args.stimulus_model_names, args.stimuli_descriptions, args.stimuli,
+                               args.stimuli_idx)

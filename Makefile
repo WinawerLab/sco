@@ -40,6 +40,11 @@ stim_idx.txt :
 MATLAB_soc_model_params.csv : soc_model_params.csv voxel_idx.txt stim_idx.txt
 	matlab -nodesktop -nodisplay -r "cd $(shell pwd)/sco/model_comparison; compareWithKay2013('$(KNK_PATH)', '$(shell pwd)/stimuli.mat', '$(shell pwd)/stim_idx.txt', '$(shell pwd)/voxel_idx.txt', '$(shell pwd)/$<', '$(shell pwd)/soc_model_params_image_names.mat', '$(shell pwd)/$@'); quit;"
 
+.PHONY : images
+# this will create several images, with names based on the default options in sco/model_comparison/core.py
+images : MATLAB_soc_model_params.csv stimuli.mat soc_model_params.csv
+	python2.7 sco/model_comparison/core.py $< soc_model_params_image_names.mat sco/model_comparison/stimuliNames.mat stimuli.mat $(STIMULI_IDX)
+
 .PHONY : cleantmps
 cleantmps :
 	-rm voxel_idx.txt

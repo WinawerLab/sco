@@ -25,7 +25,7 @@ def calc_pRF_default_parameters(pRF_frequency_preference_function=None):
     _default_frequencies = [0.75 * 2.0**(0.5 * k) for k in range(6)]
     _default_std = 0.5
     def _default_pRF_frequency_preference_function(e, s, l):
-        ss = 3.0 / s
+        ss = 1.5 / s
         weights = np.asarray([np.exp(-0.5*((k - ss)/_default_std)**2)
                               for k in _default_frequencies])
         wtot = np.sum(weights)
@@ -36,7 +36,10 @@ def calc_pRF_default_parameters(pRF_frequency_preference_function=None):
     if pRF_frequency_preference_function is None:
         return {'pRF_frequency_preference_function': _default_pRF_frequency_preference_function}
     else:
-        return {'pRF_frequency_preference_function': pRF_frequency_preference_function}
+        def _pRF_frequency_preference_function_wrapper(e, s, l):
+            pref = pRF_frequency_preference_function(e, s, l)
+            return {float(k): float(v) for (k,v) in pref.iteritems()}
+        return {'pRF_frequency_preference_function': _pRF_frequency_preference_function_wrapper}
 
 @calculates('pRF_pixel_centers', 'pRF_pixel_sizes',
             x0s='pRF_centers', sigs='pRF_sizes',
@@ -90,18 +93,6 @@ def _pRF_matrix(imshape, x0, sig, rad):
     mtx[rrng[0]:rrng[1], crng[0]:crng[1]] = mini_mtx
     return mtx.asformat('csr')
 
-    # Old method (slower):
-    #mtx = sparse.lil_matrix(imshape)
-    #rad2 = rad*rad
-    #for r in range(int(np.floor(rrng[0])), int(np.ceil(rrng[1]))):
-    #    dr2 = (r - x0[0])**2
-    #    if dr2 > rad2: continue
-    #    for c in range(int(np.floor(crng[0])), int(np.ceil(crng[1]))):
-    #        d2 = dr2 + (c - x0[1])**2
-    #        if d2 <= rad2: mtx[r,c] = np.exp(cnst * d2)
-    #mtx = mtx / mtx.sum()
-    #return mtx.asformat('csr')
-
 class PRFSpec(object):
     '''
     The PRFSpec class specifies a pRF size and location such that it can be used to extract a pRF
@@ -113,6 +104,7 @@ class PRFSpec(object):
         self.sigma = sigma
         self.n_sigmas = n_sigmas
     def _params(self, imshape, d2p):
+        if len(imshape) > 2: imshape = imshape[-2:]
         x0 = np.asarray([imshape[0]*0.5 - self.center[1]*d2p, imshape[1]*0.5 + self.center[0]*d2p])
         sig = float(self.sigma) * d2p
         rad = self.n_sigmas * sig
@@ -139,8 +131,8 @@ class PRFSpec(object):
         weights for the given prf over the given image im (or an image of size im,shape); the d2p
         parameter specifies the number of degrees per pixel for the image.
         '''
-        if isinstance(imshape, np.ndarray):
-            return self.matrix(imshape.shape)
+        if isinstance(imshape, np.ndarray): return self.matrix(imshape.shape)
+        if len(imshape) > 2:                imshape = imshape[-2:]
         (x0, sig, rad, rrng, crng, _, _) = self._params(imshape, d2p)
         mini_mtx = self._weights(x0, sig, rrng, crng)
         mtx = sparse.lil_matrix(imshape)
@@ -228,17 +220,6 @@ def calc_pRF_views(pRF_centers, pRF_sizes, normalized_stimulus_images, stimulus_
     '''
     return {'pRF_views': np.asarray(
         [PRFSpec(x0, sig, n_sigmas=pRF_blob_stds) for (x0, sig) in zip(pRF_centers, pRF_sizes)])}
-    # okay, we're going to generate a bunch of these; we want to cache them in case some are
-    # identical, which is likely if all images are normalized to the same size
-    #cache = {}
-    #matrices = np.empty((len(pRF_pixel_centers), len(normalized_stimulus_images)), dtype=np.object)
-    #for (i, (x0s, sigs)) in enumerate(zip(pRF_pixel_centers, pRF_pixel_sizes)):
-    #    for (j, (im, x0, sig)) in enumerate(zip(normalized_stimulus_images, x0s, sigs)):
-    #        k = tuple(x0) + (sig,) + im.shape
-    #        if k not in cache:
-    #            cache[k] = _pRF_matrix(im.shape, x0, sig, sig*pRF_blob_stds)
-    #        matrices[i,j] = cache[k]
-    #return {'pRF_matrices': matrices}
 
 @calculates('pRF_frequency_preferences')
 def calc_pRF_frequency_preferences(pRF_v123_labels, pRF_eccentricity, pRF_sizes,

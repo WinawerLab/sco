@@ -17,7 +17,8 @@ import warnings
 warnings.filterwarnings('ignore', category=UserWarning, message='.*From scipy 0.13.0.*')
 
 @calculates()
-def calc_stimulus_default_parameters(stimulus_image_filenames,
+def calc_stimulus_default_parameters(stimulus_image_filenames=None,
+                                     stimulus_images=None,
                                      stimulus_edge_value=0.5,
                                      stimulus_aperture_edge_width=None,
                                      stimulus_pixels_per_degree=24,
@@ -48,39 +49,44 @@ def calc_stimulus_default_parameters(stimulus_image_filenames,
     mxe = max_eccentricity
     d2p = normalized_pixels_per_degree
     asz = normalized_stimulus_aperture
-    n = len(stimulus_image_filenames)
+    # We need either stimulus_image_filenames or stimulus_images to be defined.
+    if not stimulus_image_filenames:
+        assert stimulus_images is not None, "If stimulus_image_filenames is not defined, stimulus_images must be!"
+        n = len(stimulus_images)
+    else:
+        n = len(stimulus_image_filenames)
     # First, fill out lengths:
     if hasattr(mxe, '__iter__'):
         if len(mxe) != n:
             raise ValueError('len(max_eccentricity) != len(stimulus_images)')
     else:
-        mxe = [mxe for i in stimulus_image_filenames]
+        mxe = [mxe for i in range(n)]
     if hasattr(d2p, '__iter__'):
         if len(d2p) != n:
             raise ValueError('len(normalized_pixels_per_degree) != len(stimulus_images)')
     else:
-        d2p = [d2p for i in stimulus_image_filenames]
+        d2p = [d2p for i in range(n)]
     if hasattr(asz, '__iter__'):
         if len(asz) != n:
             raise ValueError('len(normalized_stimulus_aperture) != len(stimulus_images)')
     else:
-        asz = [asz for i in stimulus_image_filenames]
+        asz = [asz for i in range(n)]
     if hasattr(stimulus_edge_value, '__iter__'):
         if len(stimulus_edge_value) != n:
             raise ValueError('len(stimulus_edge_value) != len(stimulus_images)')
     else:
-        stimulus_edge_value = [stimulus_edge_value for i in stimulus_image_filenames]
+        stimulus_edge_value = [stimulus_edge_value for i in range(n)]
     if hasattr(stimulus_pixels_per_degree, '__iter__'):
         if len(stimulus_pixels_per_degree) != n:
             raise ValueError('len(stimulus_pixels_per_degree) != len(stimulus_images)')
     else:
-        stimulus_pixels_per_degree = [stimulus_pixels_per_degree for i in stimulus_image_filenames]
+        stimulus_pixels_per_degree = [stimulus_pixels_per_degree for i in range(n)]
     if hasattr(stimulus_aperture_edge_width, '__iter__'):
         if len(stimulus_aperture_edge_width) != n:
             raise ValueError('len(stimulus_aperture_edge_width) != len(stimulus_images)')
     else:
         stimulus_aperture_edge_width = [stimulus_aperture_edge_width
-                                        for i in stimulus_image_filenames]
+                                        for i in range(n)]
     # Now fix the params that depend on each other:
     (mxe, d2p, asz) = [[None if x == 0 else x for x in xx] for xx in [mxe, d2p, asz]]
     mxe = [m     if m is not None           else \
@@ -103,7 +109,10 @@ def calc_stimulus_default_parameters(stimulus_image_filenames,
             'stimulus_aperture_edge_width': np.asarray(stimulus_aperture_edge_width),
             'normalized_stimulus_aperture': np.asarray(asz),
             'normalized_pixels_per_degree': np.asarray(d2p),
-            'max_eccentricity':             np.asarray(mxe)}
+            'max_eccentricity':             np.asarray(mxe),
+            'stimulus_images':              np.asarray(stimulus_images),
+            'stimulus_image_filenames':     np.asarray(stimulus_image_filenames)}
+
 
 @calculates('stimulus_images', filenames='stimulus_image_filenames')
 def import_stimulus_images(filenames, stimulus_gamma=None):
@@ -204,6 +213,7 @@ def image_apply_aperture(im, radius, center=None, fill_value=0.5, edge_width=10,
                 final_im[r,c] = w*final_im[r,c] + (1.0 - w)*fill_value
     # That's it!
     return final_im
+
 
 @calculates('normalized_stimulus_images',
             imgs='stimulus_images',

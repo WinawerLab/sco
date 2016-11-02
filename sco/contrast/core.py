@@ -64,6 +64,8 @@ def calc_stimulus_contrast_functions(imgs, d2p, orients, ev):
     # Now, the function that is called:
     def _stimulus_contrast_function(k, cpd):
         cache = _stimulus_contrast_cache[k]
+        # want to make sure that cpd is a float
+        cpd = float(cpd)
         if isinstance(cpd, set):
             return {x: _stimulus_contrast_function(k, x) for x in cpd}
         elif hasattr(cpd, '__iter__'):
@@ -92,15 +94,20 @@ def calc_stimulus_contrast_functions(imgs, d2p, orients, ev):
     def _make_stim_contrast_fn(k):
         """makes the stimulus contrast function for image k
 
-        This is necessary because of some weirdness in python scoping; it's neccessary to make sure
+        This is necessary because of some weirdness in python scoping; it's neccessary to make sur
         each function gets the right k.
         """
         return lambda f: _stimulus_contrast_function(k, f)
-    return {'stimulus_contrast_functions': np.asarray([_make_stim_contrast_fn(k) for k in range(len(imgs))])}
+    return {'stimulus_contrast_functions': np.asarray([_make_stim_contrast_fn(k)
+                                                       for k in range(len(imgs))])}
 
 
 @calculates('normalized_contrast_functions')
-def calc_divisive_normalization_functions(stimulus_contrast_functions, Kay2013_normalization_r,
+def calc_divisive_normalization_functions(stimulus_contrast_functions,
+                                          normalized_stimulus_images,
+                                          stimulus_edge_value,
+                                          normalized_pixels_per_degree,
+                                          Kay2013_normalization_r,
                                           Kay2013_normalization_s):
     """
     calc_divisive_normalization_functions is a calculator that produces a value named
@@ -118,24 +125,30 @@ def calc_divisive_normalization_functions(stimulus_contrast_functions, Kay2013_n
 
     def _divisive_normalization_function(func_idx, cpd, vox_id):
         cache = _divisive_normalization_cache[func_idx]
-        r = Kay2013_normalization_r[vox_id]
-        s = Kay2013_normalization_s[vox_id]
+        r     = Kay2013_normalization_r[vox_id]
+        s     = Kay2013_normalization_s[vox_id]
+        ev    = stimulus_edge_value[func_idx]
+        cpp   = cpd / normalized_pixels_per_degree[func_idx]
         if (r, s) not in cache:
             cache[(r, s)] = dict()
         cache = cache[(r, s)]
         if isinstance(cpd, set):
-            return {x: _divisive_normalization_function(func_idx, x) for x in cpd}
+            return {x: _divisive_normalization_function(func_idx, x, vox_id) for x in cpd}
         elif hasattr(cpd, '__iter__'):
-            return [_divisive_normalization_function(func_idx, x) for x in cpd]
+            return [_divisive_normalization_function(func_idx, x, vox_id) for x in cpd]
         elif cpd in cache:
             return cache[cpd]
         else:
-            func = stimulus_contrast_functions[func_idx]
-            filtered = func(cpd)
-            filt_sum = np.sum(filtered.values(), axis=0)**r
-            normalized = {k: (v**r)/(s**r + filt_sum) for (k,v) in filtered.iteritems()}
-            # this also sums
-            normalized = np.sum(normalized.values(), axis=0)
+            func       = stimulus_contrast_functions[func_idx]
+            im0        = normalized_stimulus_images[func_idx]
+            imsmooth   = ndi.convolve(im0,
+                                      np.abs(gabor_kernel(cpp)),
+                                      mode='constant',
+                                      cval=ev)
+            filtered   = func(cpd)
+            normalized = np.sum([(v**r)/(s**r + imsmooth**r)
+                                 for v in filtered.itervalues()],
+                                axis=0)
             normalized.setflags(write=False)
             cache[cpd] = normalized
             return normalized

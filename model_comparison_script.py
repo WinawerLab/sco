@@ -33,7 +33,10 @@ def main(image_base_path, stimuli_idx, voxel_idx, subject, model_df_path="./soc_
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=("Create the dataframe with predicted responses for"
+                                                  " the given stimuli, voxels, and subject, using "
+                                                  "the options from Kay2013, for comparison with "
+                                                  "the matlab version of model."))
     parser.add_argument(
         "image_base_path",
         help=("string. This is assumed to either be a directory, in which case the model will be "

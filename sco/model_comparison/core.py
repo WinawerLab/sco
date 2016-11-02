@@ -17,16 +17,16 @@ from scipy import io as sio
 
 
 # We need to define these before our MODEL_DF_KEYS constant below
-def _get_pRF_pixel_centers(pRF_views, normalized_stimulus_images, stimulus_pixels_per_degree):
+def _get_pRF_pixel_centers(pRF_views, normalized_stimulus_images, normalized_pixels_per_degree):
     pixel_centers = np.asarray([[list(view._params(im.shape, d2p))[0] for im, d2p in
-                                 zip(normalized_stimulus_images, stimulus_pixels_per_degree)]
+                                 zip(normalized_stimulus_images, normalized_pixels_per_degree)]
                                 for view in pRF_views])
     return pixel_centers
 
 
-def _get_pRF_pixel_size(pRF_views, normalized_stimulus_images, stimulus_pixels_per_degree):
+def _get_pRF_pixel_size(pRF_views, normalized_stimulus_images, normalized_pixels_per_degree):
     pixel_sizes = np.asarray([[list(view._params(im.shape, d2p))[1] for im, d2p in
-                               zip(normalized_stimulus_images, stimulus_pixels_per_degree)]
+                               zip(normalized_stimulus_images, normalized_pixels_per_degree)]
                               for view in pRF_views])
     return pixel_sizes
 

@@ -299,22 +299,13 @@ def _load_pkl_or_mat(path, mat_field):
     return path
 
 
-def _create_plot_df(condition, stimuli_idx, stimulus_model_names, model_df):
+def _create_plot_df(stimuli_idx, stimulus_model_names, stimuli_descriptions, model_df):
     """create dataframe stimuli associated with condition to plot from
 
     condition can be either a boolean array, in which case we grab the values from stimuli_idx
     corresponding to the Trues, or an array of integers, in which case we assume it's just the
     index numbers themselves.
     """
-    tmp = []
-    if True in condition:
-        stimulus_iterate = stimuli_idx[np.where(condition)]
-    else:
-        # assume it's just the index nubmers directly
-        stimulus_iterate = condition
-    for n in stimulus_iterate:
-        tmp.append(np.where(["%04d" % n in name for name in stimulus_model_names]))
-    names = stimulus_model_names[np.asarray(tmp).flatten()]
     plot_df = model_df[["MATLAB_predicted_responses_image_%s"%i for i in names]+
                        ["predicted_responses_image_%s"%i for i in names]]
 
@@ -332,6 +323,9 @@ def _create_plot_df(condition, stimuli_idx, stimulus_model_names, model_df):
 
     plot_df['subimage'] = plot_df['image'].apply(lambda x: re.search(r'[0-9]*_sub([0-9]*)', x).groups()[0])
     plot_df['image'] = plot_df['image'].apply(lambda x: re.search(r'([0-9]*)_sub[0-9]*', x).groups()[0])
+
+    mapping = dict(('%04d' % k, v) for k, v in zip(stimuli_idx, stimuli_descriptions))
+    plot_df['image_name'] = plot_df.image.map(mapping)
     return plot_df
 
 
@@ -443,7 +437,8 @@ def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_
         else:
             plot_condition = cond
         
-        plot_df = _create_plot_df(plot_condition, stimuli_idx, stimulus_model_names, model_df)
+        plot_df = _create_plot_df(plot_condition, stimuli_idx, stimulus_model_names,
+                                  stimuli_descriptions, model_df)
         g = sns.factorplot(data=plot_df, y='predicted_responses', x='image', hue='language',
                            col='voxel', col_wrap=3, legend_out=True)
         g.fig.suptitle(title)

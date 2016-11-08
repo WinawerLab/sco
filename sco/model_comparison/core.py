@@ -299,24 +299,16 @@ def _load_pkl_or_mat(path, mat_field):
     return path
 
 
-def _create_plot_df(condition, stimuli_idx, stimulus_model_names, model_df):
+def _create_plot_df(stimuli_idx, stimulus_model_names, stimuli_descriptions, model_df):
     """create dataframe stimuli associated with condition to plot from
 
     condition can be either a boolean array, in which case we grab the values from stimuli_idx
     corresponding to the Trues, or an array of integers, in which case we assume it's just the
     index numbers themselves.
     """
-    tmp = []
-    if True in condition:
-        stimulus_iterate = stimuli_idx[np.where(condition)]
-    else:
-        # assume it's just the index nubmers directly
-        stimulus_iterate = condition
-    for n in stimulus_iterate:
-        tmp.append(np.where(["%04d" % n in name for name in stimulus_model_names]))
-    names = stimulus_model_names[np.asarray(tmp).flatten()]
-    plot_df = model_df[["MATLAB_predicted_responses_image_%s"%i for i in names]+
-                       ["predicted_responses_image_%s"%i for i in names]]
+    # this grabs the columns that contain the predicted responses from both the matlab and the
+    # python code.
+    plot_df = model_df.filter(like="predicted_responses_image")
 
     plot_df = plot_df.reset_index().rename(columns={'index':'voxel'})
     plot_df = pd.wide_to_long(plot_df, ["predicted_responses", "MATLAB_predicted_responses"],
@@ -332,10 +324,13 @@ def _create_plot_df(condition, stimuli_idx, stimulus_model_names, model_df):
 
     plot_df['subimage'] = plot_df['image'].apply(lambda x: re.search(r'[0-9]*_sub([0-9]*)', x).groups()[0])
     plot_df['image'] = plot_df['image'].apply(lambda x: re.search(r'([0-9]*)_sub[0-9]*', x).groups()[0])
+
+    mapping = dict(('%04d' % k, v) for k, v in zip(stimuli_idx, stimuli_descriptions))
+    plot_df['image_name'] = plot_df.image.map(mapping)
     return plot_df
 
 
-def _plot_stimuli(condition, stimuli_idx, stimuli, subflag=False):
+def _plot_stimuli(condition, stimuli_idx, stimuli, stimuli_descriptions, subflag=False):
     """plot stimuli associated with condition
 
     condition can be either a boolean array, in which case we grab the values from stimuli_idx
@@ -349,7 +344,8 @@ def _plot_stimuli(condition, stimuli_idx, stimuli, subflag=False):
     then show all the subimages for that stimulus. (e.g., condition = [139, 140, 141] and subflag =
     0; then we'll show all the subimages of stimulus 139).
     """
-    if True in condition:
+    if isinstance(condition, basestring):
+        condition = [condition == description for description in stimuli_descriptions]
         tmp_idx = stimuli_idx[np.where(condition)]
     else:
         # assume it's just the index numbers directly
@@ -375,7 +371,7 @@ def _plot_stimuli(condition, stimuli_idx, stimuli, subflag=False):
 
 
 def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_model_names,
-                               stimuli_descriptions, stimuli, stimuli_idx,
+                               stimuli_descriptions, stimuli, stimuli_idx, plot_kwargs=None,
                                image_template_path="./SCO_model_comparison_{condition}_{plot_type}.svg"):
     """visualize the model comparisons
 
@@ -413,6 +409,11 @@ def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_
     stimuli_idx: 1d numpy array or None. Specifies which of the stimuli (in the stimuli array) the
     model were trained on. If all were used, this should be None.
 
+    plot_kwargs: dictionary or list of dictionaries (same length as conditions), optional. Plot
+    arguments (passed to sns.factorplot) to use when plotting the data corresponding to each
+    condition. If only one dictionary, will use the same for all. Otherwise, condition[i] will be
+    plotted with plot_kwargs[i]
+
     image_template_path: string. String to save the resulting plots at. Should contain {condition}
     (which will be filled with the corresponding condition title) and {plot_type} (which will be
     filled with "stimuli", showing the corresponding stimuli, and "predictions", showing the
@@ -437,22 +438,41 @@ def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_
         stimuli = _load_pkl_or_mat(stimuli, 'images')        
         stimuli = stimuli[0, :]
 
-    for cond, title in zip(conditions, condition_titles):
-        if isinstance(cond, basestring):
-            plot_condition = [cond == description for description in stimuli_descriptions]
-        else:
-            plot_condition = cond
+    if plot_kwargs is None:
+        plot_kwargs = [{} for i in conditions]
+    elif isinstance(plot_kwargs, dict):
+        plot_kwargs = [plot_kwargs for i in conditions]
+
+    for cond, title, kw in zip(conditions, condition_titles, plot_kwargs):
+        plot_df = _create_plot_df(stimuli_idx, stimulus_model_names, stimuli_descriptions, model_df)
         
-        plot_df = _create_plot_df(plot_condition, stimuli_idx, stimulus_model_names, model_df)
-        g = sns.factorplot(data=plot_df, y='predicted_responses', x='image', hue='language',
-                           col='voxel', col_wrap=3, legend_out=True)
+        if isinstance(cond, basestring):
+            plot_df = plot_df[plot_df.image_name==cond]
+            order = None
+        else: 
+            plot_df = plot_df[[img in ['%04d'%i for i in cond] for img in plot_df.image]]
+            order = ['%04d' % i for i in cond]
+            
+        # defualt plotting keywords
+        if 'hue' not in kw:
+            kw['hue'] = 'language'
+        if 'col' not in kw:
+            kw['col'] = 'voxel'
+        if 'col_wrap' not in kw:
+            kw['col_wrap'] = 3
+        
+        g = sns.factorplot(data=plot_df, y='predicted_responses', x='image',
+                           legend_out=True, size=8, order=order, **kw)
         g.fig.suptitle(title)
         g.fig.subplots_adjust(top=.9, right=.9)
-        g.savefig(image_template_path.format(plot_type="predictions", condition=title))
+        g.set_xticklabels(rotation=45)
+        g.savefig(image_template_path.format(plot_type="predictions",
+                                             condition=title.replace(' ','_')))
 
-        fig = _plot_stimuli(plot_condition, stimuli_idx, stimuli)
+        fig = _plot_stimuli(cond, stimuli_idx, stimuli, stimuli_descriptions)
         fig.suptitle(title)
-        fig.savefig(image_template_path.format(plot_type="stimuli", condition=title))
+        fig.savefig(image_template_path.format(plot_type="stimuli",
+                                               condition=title.replace(' ','_')))
 
 
 if __name__ == '__main__':
@@ -470,9 +490,13 @@ if __name__ == '__main__':
     parser.add_argument("stimuli_idx", nargs='+', type=int,
                         help="list of ints. Which indices in the stimuli to run.")
     conditions = ['grating_ori', 'grating_contrast', 'plaid_contrast', 'circular_contrast',
-                  [180, 181, 182, 84, 183], range(131, 138)]
-    condition_titles = ['orientations', 'gratings', 'plaid', 'circular', 'sparse', 'size']
+                  [180, 181, 182, 84, 183], range(131, 138), range(69, 100), range(100, 131),
+                  range(131, 158)+[180, 181, 182, 84, 183]]
+    condition_titles = ['orientations', 'gratings', 'plaid', 'circular', 'sparse', 'size',
+                        'horizontal sweep', 'vertical sweep','full']
+    plot_kwargs = [{}, {}, {}, {}, {}, {}, {}, {},
+                   {'hue': 'image_name', 'col': 'language', 'col_wrap': None}]
     args = parser.parse_args()
     visualize_model_comparison(conditions, condition_titles, args.model_df_path,
                                args.stimulus_model_names, args.stimuli_descriptions, args.stimuli,
-                               args.stimuli_idx)
+                               args.stimuli_idx, plot_kwargs)

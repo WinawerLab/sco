@@ -56,6 +56,8 @@ def compare_with_Kay2013(image_base_path, stimuli_idx, voxel_idx=None, subject='
     # if there's just one value and not a list
     if not hasattr(stimuli_idx, '__iter__'):
         stimuli_idx = [stimuli_idx]
+    stimuli_idx = np.asarray(stimuli_idx)
+    voxel_idx = np.asarray(voxel_idx)
     if voxel_idx is not None:
         if not hasattr(voxel_idx, '__iter__'):
             voxel_idx = [voxel_idx]
@@ -75,11 +77,12 @@ def compare_with_Kay2013(image_base_path, stimuli_idx, voxel_idx=None, subject='
         stimulus_image_filenames = glob.glob(image_base_path + os.sep + "*")
         # imghdr.what(img) returns something if img is an image file (it returns a stirng
         # specifying whta type of image it is). If it's not an image file, it returns None.
-        stimulus_image_filenames = [img for img in stimulus_image_filenames
-                                    if imghdr.what(img)]
-        kwargs.update({'stimulus_image_filenames': stimulus_image_filenames[stimuli_idx]})
+        stimulus_image_filenames = np.asarray([img for img in stimulus_image_filenames
+                                               if imghdr.what(img)])
+        stimulus_image_filenames = stimulus_image_filenames[stimuli_idx]
+        kwargs.update({'stimulus_image_filenames': stimulus_image_filenames})
         # here, stimuli_names can simply be the filenames we're using
-        stimuli_names = stimulus_image_filenames[stimuli_idx]
+        stimuli_names = [os.path.split(fn)[-1] for fn in stimulus_image_filenames]
         # and we use the default sco_chain (with the possible exception of anat_chain, see above)
         sco_chain = (('calc_anatomy', anat_chain),
                      ('calc_stimulus', calc_stimulus),

@@ -50,7 +50,7 @@ def calc_stimulus_default_parameters(stimulus_image_filenames=None,
     d2p = normalized_pixels_per_degree
     asz = normalized_stimulus_aperture
     # We need either stimulus_image_filenames or stimulus_images to be defined.
-    if not stimulus_image_filenames:
+    if stimulus_image_filenames is None:
         assert stimulus_images is not None, "If stimulus_image_filenames is not defined, stimulus_images must be!"
         n = len(stimulus_images)
     else:

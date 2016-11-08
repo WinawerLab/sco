@@ -299,7 +299,7 @@ def _load_pkl_or_mat(path, mat_field):
     return path
 
 
-def _create_plot_df(stimuli_idx, stimulus_model_names, stimuli_descriptions, model_df):
+def _create_plot_df(stimuli_idx, model_df, stimuli_descriptions=None):
     """create dataframe stimuli associated with condition to plot from
 
     condition can be either a boolean array, in which case we grab the values from stimuli_idx
@@ -322,11 +322,16 @@ def _create_plot_df(stimuli_idx, stimulus_model_names, stimuli_descriptions, mod
     plot_df['language'] = plot_df['language'].apply(lambda x: x.replace('_language', ''))
     plot_df['image'] = plot_df['image'].apply(lambda x: x.replace('_image_', ''))
 
-    plot_df['subimage'] = plot_df['image'].apply(lambda x: re.search(r'[0-9]*_sub([0-9]*)', x).groups()[0])
-    plot_df['image'] = plot_df['image'].apply(lambda x: re.search(r'([0-9]*)_sub[0-9]*', x).groups()[0])
+    # right now, this only works when they all have subimages or when none of them do. Should
+    # probably fix this eventually.
+    if 'sub' in plot_df['image'].iloc[0]:
+        plot_df['subimage'] = plot_df['image'].apply(lambda x: re.search(r'[0-9]*_sub([0-9]*)', x).groups()[0])
+        plot_df['image'] = plot_df['image'].apply(lambda x: re.search(r'([0-9]*)_sub[0-9]*', x).groups()[0])
 
-    mapping = dict(('%04d' % k, v) for k, v in zip(stimuli_idx, stimuli_descriptions))
-    plot_df['image_name'] = plot_df.image.map(mapping)
+    if stimuli_descriptions is not None:
+        mapping = dict(('%04d' % k, v) for k, v in zip(stimuli_idx, stimuli_descriptions))
+        plot_df['image_name'] = plot_df.image.map(mapping)
+        
     return plot_df
 
 

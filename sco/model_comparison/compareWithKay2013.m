@@ -222,12 +222,20 @@ end
 
 function modelTable = generateVoxelPredictions(stimuli, modelTable, voxelIdx, stimuliNames)
 % The parameters are [R C S G N C] where
-%   R is the row index of the center of the 2D Gaussian (pRF_pixel_centers_image_###_dim0)
-%   C is the column index of the center of the 2D Gaussian (pRF_pixel_centers_image_###_dim1)
-%   S is the standard deviation of the 2D Gaussian (pRF_pixel_sizes)
+%   R is the row index of the center of the 2D Gaussian (pRF_pixel_centers_image_####_dim0/2)
+%   C is the column index of the center of the 2D Gaussian (pRF_pixel_centers_image_####_dim1/2)
+%   S is the standard deviation of the 2D Gaussian (pRF_pixel_sizes_image_####/2)
 %   G is a gain parameter (Kay2013_response_gain)
 %   N is the exponent of the power-law nonlinearity (Kay2013_output_nonlinearity)
 %   C is a parameter that controls the strength of second-order contrast (Kay2013_SOC_constant)
+    
+% the image-related parameters (R, C, and S) are all divided by two
+% because the MATLAB code operates on images that are 90x90, whereas
+% the python code operates on images that are 180x180 (both are
+% 180x180 at first, but the MATLAB code downsamples the images when
+% they go through the applymultiscalegaborfilters call). Thus the
+% division by two is necessary in order to make sure the pRFs
+% correspond to the same part of the image.
 
     % resolution of the pre-processed stimuli; this is taken from
     % Kendrick's socmodel_example, because after the gabor filters
@@ -242,9 +250,9 @@ function modelTable = generateVoxelPredictions(stimuli, modelTable, voxelIdx, st
     modelfun = @(pp,dd) pp(4)*(socfun(dd,gaufun(pp),restrictrange(pp(6),0,1)).^pp(5));
     
     for idx=1:length(stimuliNames)
-        params = [floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%s_dim0(modelTable.voxel==%d)', stimuliNames{idx}, voxelIdx))),
-                  floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%s_dim1(modelTable.voxel==%d)', stimuliNames{idx}, voxelIdx))),
-                  eval(sprintf('modelTable.pRF_pixel_sizes_image_%s(modelTable.voxel==%d)', stimuliNames{idx}, voxelIdx)),
+        params = [floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%s_dim0(modelTable.voxel==%d)/2', stimuliNames{idx}, voxelIdx))),
+                  floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%s_dim1(modelTable.voxel==%d)/2', stimuliNames{idx}, voxelIdx))),
+                  eval(sprintf('modelTable.pRF_pixel_sizes_image_%s(modelTable.voxel==%d)/2', stimuliNames{idx}, voxelIdx)),
                   modelTable.Kay2013_response_gain(modelTable.voxel==voxelIdx),
                   modelTable.Kay2013_output_nonlinearity(modelTable.voxel==voxelIdx),
                   modelTable.Kay2013_SOC_constant(modelTable.voxel==voxelIdx)];

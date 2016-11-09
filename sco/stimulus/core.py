@@ -17,7 +17,8 @@ import warnings
 warnings.filterwarnings('ignore', category=UserWarning, message='.*From scipy 0.13.0.*')
 
 @calculates()
-def calc_stimulus_default_parameters(stimulus_image_filenames,
+def calc_stimulus_default_parameters(stimulus_image_filenames=None,
+                                     stimulus_images=None,
                                      stimulus_edge_value=0.5,
                                      stimulus_aperture_edge_width=None,
                                      stimulus_pixels_per_degree=24,
@@ -48,39 +49,43 @@ def calc_stimulus_default_parameters(stimulus_image_filenames,
     mxe = max_eccentricity
     d2p = normalized_pixels_per_degree
     asz = normalized_stimulus_aperture
-    n = len(stimulus_image_filenames)
+    if stimulus_image_filenames is None and stimulus_images is None:
+        raise ValueError('Either stimulus_image_filenames or stimulus_images must be given!')
+    elif stimulus_image_filenames is None:
+        n = len(stimulus_images)
+    else:
+        n = len(stimulus_image_filenames)
     # First, fill out lengths:
     if hasattr(mxe, '__iter__'):
         if len(mxe) != n:
             raise ValueError('len(max_eccentricity) != len(stimulus_images)')
     else:
-        mxe = [mxe for i in stimulus_image_filenames]
+        mxe = [mxe for i in range(n)]
     if hasattr(d2p, '__iter__'):
         if len(d2p) != n:
             raise ValueError('len(normalized_pixels_per_degree) != len(stimulus_images)')
     else:
-        d2p = [d2p for i in stimulus_image_filenames]
+        d2p = [d2p for i in range(n)]
     if hasattr(asz, '__iter__'):
         if len(asz) != n:
             raise ValueError('len(normalized_stimulus_aperture) != len(stimulus_images)')
     else:
-        asz = [asz for i in stimulus_image_filenames]
+        asz = [asz for i in range(n)]
     if hasattr(stimulus_edge_value, '__iter__'):
         if len(stimulus_edge_value) != n:
             raise ValueError('len(stimulus_edge_value) != len(stimulus_images)')
     else:
-        stimulus_edge_value = [stimulus_edge_value for i in stimulus_image_filenames]
+        stimulus_edge_value = [stimulus_edge_value for i in range(n)]
     if hasattr(stimulus_pixels_per_degree, '__iter__'):
         if len(stimulus_pixels_per_degree) != n:
             raise ValueError('len(stimulus_pixels_per_degree) != len(stimulus_images)')
     else:
-        stimulus_pixels_per_degree = [stimulus_pixels_per_degree for i in stimulus_image_filenames]
+        stimulus_pixels_per_degree = [stimulus_pixels_per_degree for i in range(n)]
     if hasattr(stimulus_aperture_edge_width, '__iter__'):
         if len(stimulus_aperture_edge_width) != n:
             raise ValueError('len(stimulus_aperture_edge_width) != len(stimulus_images)')
     else:
-        stimulus_aperture_edge_width = [stimulus_aperture_edge_width
-                                        for i in stimulus_image_filenames]
+        stimulus_aperture_edge_width = [stimulus_aperture_edge_width for i in range(n)]
     # Now fix the params that depend on each other:
     (mxe, d2p, asz) = [[None if x == 0 else x for x in xx] for xx in [mxe, d2p, asz]]
     mxe = [m     if m is not None           else \
@@ -103,10 +108,12 @@ def calc_stimulus_default_parameters(stimulus_image_filenames,
             'stimulus_aperture_edge_width': np.asarray(stimulus_aperture_edge_width),
             'normalized_stimulus_aperture': np.asarray(asz),
             'normalized_pixels_per_degree': np.asarray(d2p),
-            'max_eccentricity':             np.asarray(mxe)}
+            'max_eccentricity':             np.asarray(mxe),
+            'stimulus_images':              stimulus_images,
+            'stimulus_image_filenames':     stimulus_image_filenames}
 
 @calculates('stimulus_images', filenames='stimulus_image_filenames')
-def import_stimulus_images(filenames, stimulus_gamma=None):
+def import_stimulus_images(filenames, stimulus_images=None, stimulus_gamma=None):
     '''
     import_stimulus_images is a calculator that expects the 'stimulus_image_filenames' value and 
     converts this, which it expects to be a list of image filenames (potentially containing 
@@ -140,8 +147,11 @@ def import_stimulus_images(filenames, stimulus_gamma=None):
     elif not hasattr(stimulus_gamma, '__call__'):
         raise ValueError('Given stimulus_gamma argument has neither iter nor call attribute')
     # Now load the images...
-    ims = filenames if hasattr(filenames, '__iter__') else [filenames]
-    ims = [(img_as_float(data.load(im)) if isinstance(im, basestring) else im) for im in ims]
+    if stimulus_images is not None:
+        ims = [img_as_float(im) for im in stimulus_images]
+    else:
+        ims = filenames if hasattr(filenames, '__iter__') else [filenames]
+        ims = [(img_as_float(data.load(im)) if isinstance(im, basestring) else im) for im in ims]
     ims = [stimulus_gamma(np.mean(im, axis=2) if len(im.shape) > 2 else im)    for im in ims]
     # If the stimulus images are different sizes, this will be an array with
     # dtype=object. Otherwise it will be normal
@@ -180,7 +190,7 @@ def image_apply_aperture(im, radius, center=None, fill_value=0.5, edge_width=10,
                 for x in range(final_im.shape[0]) for xx in [(x - final_center[0])**2]
                 for y in range(final_im.shape[1]) for yy in [(y - final_center[1])**2]
                 if xx + yy <= erad2]
-    f2i = float(im.shape[0]) / float(final_sz[0])
+    f2i = float(2 * radius) / float(final_sz[0])
     image_xy = [(x,y)
                 for xy in final_xy
                 for (dx,dy) in [(xy[0] - final_center[0], xy[1] - final_center[1])]

@@ -17,11 +17,11 @@ from   ..normalization       import _turn_param_into_array
 def calc_contrast_default_parameters(pRF_v123_labels, gabor_orientations=8,
                                      Kay2013_normalization_r=1.0, Kay2013_normalization_s=.5):
     '''
-    calc_contrast_default_parameters is a calculator that requires no arguments but sets the following
-    to a default if they are not provided:
-    * gabor_orientations (set to 8 by default)
-    * Kay2013_normalization_r (set to 1 by default)
-    * Kay2013_normalization_s (set to .5 by default)
+    calc_contrast_default_parameters is a calculator that requires no arguments but sets the
+    following to a default if they are not provided:
+      * gabor_orientations (set to 8 by default)
+      * Kay2013_normalization_r (set to 1 by default)
+      * Kay2013_normalization_s (set to .5 by default)
     If gabor_orientations is a list, then it is taken to be a list of the orientations (in radians),
     and these orientations are used; if it is an integer, then evenly spaced orientations are used:
     pi*k/n where k is in [0, n-1] and n is gabor_orientations.
@@ -39,8 +39,10 @@ def calc_contrast_default_parameters(pRF_v123_labels, gabor_orientations=8,
     # That's all this needs to do for now. We want gabor_orientations to be an array, because that
     # makes things easier.
     return {'gabor_orientations':      np.asarray(gabor_orientations),
-            'Kay2013_normalization_r': _turn_param_into_array(Kay2013_normalization_r, pRF_v123_labels),
-            'Kay2013_normalization_s': _turn_param_into_array(Kay2013_normalization_s, pRF_v123_labels)}
+            'Kay2013_normalization_r': _turn_param_into_array(Kay2013_normalization_r,
+                                                              pRF_v123_labels),
+            'Kay2013_normalization_s': _turn_param_into_array(Kay2013_normalization_s,
+                                                              pRF_v123_labels)}
 
 @calculates('stimulus_contrast_functions',
             d2p='normalized_pixels_per_degree',

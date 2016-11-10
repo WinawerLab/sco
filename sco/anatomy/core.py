@@ -196,7 +196,8 @@ def calc_voxel_selector(voxel_idx, pRF_centers, pRF_voxel_indices, pRF_polar_ang
             'pRF_hemispheres':   pRF_hemispheres[voxel_idx]}
 
 @calculates('pRF_sizes')
-def calc_Kay2013_pRF_sizes(pRF_eccentricity, Kay2013_pRF_sigma_slope, Kay2013_output_nonlinearity):
+def calc_Kay2013_pRF_sizes(pRF_eccentricity, Kay2013_pRF_sigma_slope, Kay2013_output_nonlinearity,
+                           pRF_v123_labels):
     '''
     calculate_pRF_sizes_Kay2013 is a calculator object that requires the pRF_eccentricity,
     Kay2013_pRF_sigma_slope, and Kay2013_output_nonlinearity parameters; it yields a list of pRF
@@ -207,12 +208,14 @@ def calc_Kay2013_pRF_sizes(pRF_eccentricity, Kay2013_pRF_sigma_slope, Kay2013_ou
     -0.05)
     '''
     # #TODO Note that the above text may be wrong now; we have to rethink the pRF size.
-    sig0 = [(0.5 + sig_slope * e) for (e, sig_slope) in
-            zip(pRF_eccentricity, Kay2013_pRF_sigma_slope)]
-    sig = sig0
+    sig0 = [(0.5 + sig_slope*e) for (e,sig_slope) in zip(pRF_eccentricity, Kay2013_pRF_sigma_slope)]
+    sig1 = sig0 / np.sqrt(Kay2013_output_nonlinearity)
+    m = {1: 1.243, 2: 1.313, 3: 1.618}
+    b = {1: 0.282, 2: 0.336, 3: -0.321}
+    sig2 = np.asarray([(s - b[lab])/m[lab] for (s,lab) in zip(sig1, pRF_v123_labels)])
     #sig = [(s0 - 0.23) / (0.16 / np.sqrt(nonlin) - 0.05) for (e, nonlin, s0) in
     #       zip(pRF_eccentricity, Kay2013_output_nonlinearity, sig0)]
-    return {'pRF_sizes': np.asarray(sig)}
+    return {'pRF_sizes': sig2}
 
 
 @calculates('exported_predictions_filename', 'exported_image_ordering_filename')

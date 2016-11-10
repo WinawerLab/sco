@@ -5,9 +5,11 @@
 #
 # by William F. Broderick
 
+import re
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 from sco.model_comparison import (create_model_dataframe, compare_with_Kay2013, _create_plot_df)
 
 def generate_stimuli(img_folder, freqs):
@@ -25,9 +27,9 @@ def generate_stimuli(img_folder, freqs):
 def main(model_df_path="./sco_freq_prefs.csv", subject='test-sub', subject_dir=None,
          img_folder="~/Desktop/freq_pref_imgs"):
     img_folder = os.path.expanduser(img_folder)
-    freqs = np.asarray(range(10))
+    freqs = np.asarray(range(5,65,5))
     generate_stimuli(img_folder, freqs+1)
-    results, stimulus_model_names = compare_with_Kay2013(img_folder, freqs, range(3), subject,
+    results, stimulus_model_names = compare_with_Kay2013(img_folder, range(len(freqs)), range(3), subject,
                                                          subject_dir)
     model_df = create_model_dataframe(results, stimulus_model_names, model_df_path)
 

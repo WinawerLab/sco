@@ -109,8 +109,8 @@ def calc_stimulus_default_parameters(stimulus_image_filenames=None,
             'normalized_stimulus_aperture': np.asarray(asz),
             'normalized_pixels_per_degree': np.asarray(d2p),
             'max_eccentricity':             np.asarray(mxe),
-            'stimulus_images':              np.asarray(stimulus_images),
-            'stimulus_image_filenames':     np.asarray(stimulus_image_filenames)}
+            'stimulus_images':              stimulus_images,
+            'stimulus_image_filenames':     stimulus_image_filenames}
 
 @calculates('stimulus_images', filenames='stimulus_image_filenames')
 def import_stimulus_images(filenames, stimulus_images=None, stimulus_gamma=None):

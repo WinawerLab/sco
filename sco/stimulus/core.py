@@ -157,7 +157,8 @@ def import_stimulus_images(filenames, stimulus_images=None, stimulus_gamma=None)
     # dtype=object. Otherwise it will be normal
     return {'stimulus_images': np.asarray(ims), 'stimulus_gamma':  stimulus_gamma}
 
-def image_apply_aperture(im, radius, center=None, fill_value=0.5, edge_width=10, crop=True):
+def image_apply_aperture(im, radius,
+                         center=None, fill_value=0.5, edge_width=10, crop=True):
     '''
     image_apply_aperture(im, rad) yields an image that has been given a circular aperture centered
     at the middle of the image im with the given radius rad in pixels. The following options may be
@@ -174,10 +175,10 @@ def image_apply_aperture(im, radius, center=None, fill_value=0.5, edge_width=10,
     '''
     im = np.asarray(im)
     # First, figure out the final image size
-    crop = 2*(radius + edge_width) if crop is True else crop
-    final_sz = crop if isinstance(crop, (tuple, list)) else (crop, crop)
-    final_sz = [int(round(x)) for x in final_sz]
-    final_im = np.full(final_sz, fill_value)
+    crop      = 2*radius if crop is True else crop
+    final_sz  = crop if isinstance(crop, (tuple, list)) else (crop, crop)
+    final_sz  = [int(round(x)) for x in final_sz]
+    final_im  = np.full(final_sz, fill_value)
     # figure out the centers
     center       = (0.5*im.shape[0],       0.5*im.shape[1])       if center is None else center
     final_center = (0.5*final_im.shape[0], 0.5*final_im.shape[1])
@@ -237,8 +238,9 @@ def calc_normalized_stimulus_images(imgs, edge_val, deg2px, normsz, normdeg2px, 
       * normalized_pixels_per_degree (15), the number of pixels per degree in the normralized image
     '''
     # Zoom each image so that the pixels per degree is right:
-    imgs = [ndi.zoom(im, (float(nd2p)/float(d2p)), cval=ev)
-            for (im, d2p, nd2p, ev) in zip(imgs, deg2px, normdeg2px, edge_val)]
+    imgs = [ndi.zoom(im, zoom_ratio, cval=ev) if zoom_ratio != 1 else im
+            for (im, d2p, nd2p, ev) in zip(imgs, deg2px, normdeg2px, edge_val)
+            for zoom_ratio in [float(nd2p)/float(d2p)]]
     # Then apply the aperture
     imgs = [image_apply_aperture(im, rad, fill_value=ev, edge_width=ew)
             for (im, rad, ev, ew) in zip(imgs, normsz, edge_val, edge_width)]

@@ -33,7 +33,7 @@ def _get_pRF_pixel_size(pRF_views, normalized_stimulus_images, normalized_pixels
 
 # Keys from the results dict that correspond to model parameters and so that we want to save in the
 # output dataframe
-MODEL_DF_KEYS = ['pRF_centers', 'pRF_hemispheres', 'pRF_voxel_indices', 'SOC_responses', 
+MODEL_DF_KEYS = ['pRF_centers', 'pRF_hemispheres', 'pRF_voxel_indices', 'SOC_responses',
                  'pRF_eccentricity', 'pRF_v123_labels', 'predicted_responses', 'pRF_sizes',
                  'pRF_polar_angle', 'Kay2013_output_nonlinearity', 'Kay2013_pRF_sigma_slope',
                  'Kay2013_SOC_constant', 'Kay2013_normalization_r', 'Kay2013_normalization_s',
@@ -449,7 +449,7 @@ def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_
         plot_kwargs = [plot_kwargs for i in conditions]
 
     for cond, title, kw in zip(conditions, condition_titles, plot_kwargs):
-        plot_df = _create_plot_df(stimuli_idx, stimulus_model_names, stimuli_descriptions, model_df)
+        plot_df = _create_plot_df(stimuli_idx, model_df, stimuli_descriptions)
         
         if isinstance(cond, basestring):
             plot_df = plot_df[plot_df.image_name==cond]

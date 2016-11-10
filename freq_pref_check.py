@@ -35,7 +35,6 @@ def main(model_df_path="./sco_freq_prefs.csv", subject='test-sub', subject_dir=N
         # This takes in the eccentricity, size, and area, but we don't use any of them, since we
         # just want to use 1 cpd (for testing) and ignore everything else. And this must be floats.
         return {1.0: 1.0}
-    kwargs = {'pRF_frequency_preference_function': freq_pref}
     results, stimulus_model_names = compare_with_Kay2013(img_folder, range(len(freqs)), range(3),
                                                          subject, subject_dir,
                                                          pRF_frequency_preference_function=freq_pref,

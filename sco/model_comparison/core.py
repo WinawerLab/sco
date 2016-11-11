@@ -299,7 +299,7 @@ def _load_pkl_or_mat(path, mat_field):
     return path
 
 
-def _create_plot_df(stimuli_idx, model_df, stimuli_descriptions=None):
+def _create_plot_df(model_df, stimuli_idx=None, stimuli_descriptions=None):
     """create dataframe stimuli associated with condition to plot from
 
     condition can be either a boolean array, in which case we grab the values from stimuli_idx
@@ -449,7 +449,7 @@ def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_
         plot_kwargs = [plot_kwargs for i in conditions]
 
     for cond, title, kw in zip(conditions, condition_titles, plot_kwargs):
-        plot_df = _create_plot_df(stimuli_idx, model_df, stimuli_descriptions)
+        plot_df = _create_plot_df(model_df, stimuli_idx, stimuli_descriptions)
         
         if isinstance(cond, basestring):
             plot_df = plot_df[plot_df.image_name==cond]

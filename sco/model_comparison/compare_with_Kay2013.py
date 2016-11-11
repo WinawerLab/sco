@@ -27,7 +27,8 @@ from ..core import calc_chain
 
 def compare_with_Kay2013(image_base_path, stimuli_idx, voxel_idx=None, subject='test-sub',
                          subject_dir='/home/billbrod/Documents/SCO-test-data/Freesurfer_subjects',
-                         **kwargs):
+                         stimulus_pixels_per_degree=53, normalized_pixels_per_degree=12,
+                         stimulus_aperture_edge_width=0, max_eccentricity=7.5, **kwargs):
     """Run python SCO and Matlab SOC on the same batch of images
 
     Arguments
@@ -147,13 +148,12 @@ def compare_with_Kay2013(image_base_path, stimuli_idx, voxel_idx=None, subject='
         return {3.0: 1.0}
     if 'pRF_frequency_preference_function' not in kwargs:
         kwargs['pRF_frequency_preference_function'] = freq_pref
-    if 'stimulus_pixels_per_degree' not in kwargs:
-        kwargs['stimulus_pixels_per_degree'] = 53
-    if 'normalized_pixels_per_degree' not in kwargs:
-        kwargs['normalized_pixels_per_degree'] = 12
     # And this runs it. To make sure it has the same size as the the images used in Kendrick's
     # code, we set the normalized_stimulus_aperture, normalized_aperture_edge_width, and
     # normalized_pixels_per_degree values.
-    results = sco_chain(subject=subject, max_eccentricity=7.5, normalized_stimulus_aperture=7.5*12,
-                        stimulus_aperture_edge_width=0, pRF_blob_stds=2, gabor_orientations=8, **kwargs)
+    results = sco_chain(subject=subject, max_eccentricity=max_eccentricity,
+                        normalized_stimulus_aperture=max_eccentricity*normalized_pixels_per_degree,
+                        stimulus_pixels_per_degree=stimulus_pixels_per_degree,
+                        normalized_pixels_per_degree=normalized_pixels_per_degree,
+                        stimulus_aperture_edge_width=stimulus_aperture_edge_width, **kwargs)
     return results, stimuli_names

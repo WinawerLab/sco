@@ -186,11 +186,10 @@ def image_apply_aperture(im, radius,
     interp = RectBivariateSpline(range(im.shape[0]), range(im.shape[1]), im)
     # prepare to interpolate: find the row/col values for the pixels into which we interpolate
     rad2 = radius**2
-    erad2 = (radius + edge_width)**2
     final_xy = [(x,y)
                 for x in range(final_im.shape[0]) for xx in [(x - final_center[0])**2]
                 for y in range(final_im.shape[1]) for yy in [(y - final_center[1])**2]
-                if xx + yy <= erad2]
+                if xx + yy <= rad2]
     f2i = float(2 * radius) / float(final_sz[0])
     image_xy = [(x,y)
                 for xy in final_xy
@@ -204,13 +203,14 @@ def image_apply_aperture(im, radius,
     for ((x,y),z) in zip(final_xy.T, z): final_im[x,y] = z
     # now, take care of the edge
     if edge_width is 0: return final_im
+    erad2 = (radius - edge_width)**2
     for r in range(final_im.shape[0]):
         for c in range(final_im.shape[1]):
             r0 = float(r) - final_center[0]
             c0 = float(c) - final_center[1]
             d0 = r0*r0 + c0*c0
-            if d0 > rad2 and d0 <= erad2:
-                d0 = np.sqrt(d0) - radius
+            if d0 > erad2 and d0 <= rad2:
+                d0 = np.sqrt(d0) - radius + edge_width
                 w = 0.5*(1.0 + np.cos(d0 * np.pi / edge_width))
                 final_im[r,c] = w*final_im[r,c] + (1.0 - w)*fill_value
     # That's it!

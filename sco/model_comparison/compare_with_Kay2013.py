@@ -149,10 +149,11 @@ def compare_with_Kay2013(image_base_path, stimuli_idx, voxel_idx=None, subject='
         kwargs['pRF_frequency_preference_function'] = freq_pref
     if 'stimulus_pixels_per_degree' not in kwargs:
         kwargs['stimulus_pixels_per_degree'] = 53
+    if 'normalized_pixels_per_degree' not in kwargs:
+        kwargs['normalized_pixels_per_degree'] = 12
     # And this runs it. To make sure it has the same size as the the images used in Kendrick's
     # code, we set the normalized_stimulus_aperture, normalized_aperture_edge_width, and
     # normalized_pixels_per_degree values.
     results = sco_chain(subject=subject, max_eccentricity=7.5, normalized_stimulus_aperture=7.5*12,
-                        normalized_pixels_per_degree=12, stimulus_aperture_edge_width=0,
-                        pRF_blob_stds=2, gabor_orientations=8, **kwargs)
+                        stimulus_aperture_edge_width=0, pRF_blob_stds=2, gabor_orientations=8, **kwargs)
     return results, stimuli_names

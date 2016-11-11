@@ -25,6 +25,15 @@ def generate_stimuli(img_folder, freqs):
         plt.imsave(img_folder+img_name.format(fr), np.sin(fr*2*np.pi*x))
 
 
+def make_plot(model_df, freqs):
+    plot_df = _create_plot_df(freqs, model_df)
+    plot_df = plot_df[plot_df.language == 'python']
+    plot_df['cycles_per_image'] = plot_df['image'].apply(lambda x: int(re.search(r'freq_([0-9]+)', x).groups()[0]))
+
+    g = sns.factorplot(data=plot_df, x='cycles_per_image', y='predicted_responses')
+
+    return g, plot_df
+        
 def main(model_df_path="./sco_freq_prefs.csv", subject='test-sub', subject_dir=None,
          img_folder="~/Desktop/freq_pref_imgs"):
     img_folder = os.path.expanduser(img_folder)
@@ -38,13 +47,10 @@ def main(model_df_path="./sco_freq_prefs.csv", subject='test-sub', subject_dir=N
     results, stimulus_model_names = compare_with_Kay2013(img_folder, range(len(freqs)), range(3),
                                                          subject, subject_dir,
                                                          pRF_frequency_preference_function=freq_pref,
-                                                         stimulus_pixels_per_degree=212)
+                                                         stimulus_pixels_per_degree=106,
+                                                         normalized_pixels_per_degree=24)
     model_df = create_model_dataframe(results, stimulus_model_names, model_df_path)
 
-    plot_df = _create_plot_df(freqs, model_df)
-    plot_df = plot_df[plot_df.language == 'python']
-    plot_df['cycles_per_image'] = plot_df['image'].apply(lambda x: int(re.search(r'freq_([0-9]+)', x).groups()[0]))
-
-    g = sns.factorplot(data=plot_df, x='cycles_per_image', y='predicted_responses')
+    g, plot_df = make_plot(model_df, freqs)
 
     return model_df, results, plot_df

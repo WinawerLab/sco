@@ -52,22 +52,22 @@ def make_plot(model_df, img_size_in_pixels, img_size_in_degrees):
     plot_df = plot_df[plot_df.language == 'python']
     # in the naive case, we assume none of the image was cut out of the aperture, and so the number
     # of cycles per image is given by the frequency of the generating sine wave.
-    plot_df['cycles_per_image'] = plot_df['image'].apply(lambda x: int(re.search(r'freq_([0-9]+)', x).groups()[0]))
+    plot_df['cycles_per_full_image'] = plot_df['image'].apply(lambda x: int(re.search(r'freq_([0-9]+)', x).groups()[0]))
     # we try to grab the pixels per degree, if it's there.
-    try:
-        plot_df['pix_per_deg'] = plot_df['image'].apply(lambda x: float(re.search(r'pix_per_deg_([\.0-9]+)', x).groups()[0]))
-        plot_df['cycles_per_image'] = plot_df.apply(lambda x: x['cycles_per_image']*(x['pix_per_deg']/(img_size_in_pixels/img_size_in_degrees)), axis=1)
-    except AttributeError:
-        pass
-    plot_df['cycles_per_degree'] = plot_df['cycles_per_image'].astype(float)/img_size_in_degrees
+    # try:
+    plot_df['pix_per_deg'] = plot_df['image'].apply(lambda x: float(re.search(r'pix_per_deg_([\.0-9]+)', x).groups()[0]))
+    plot_df['cycles_per_norm_image'] = plot_df.apply(lambda x: x['cycles_per_full_image']*(x['pix_per_deg']/(img_size_in_pixels/img_size_in_degrees)), axis=1)
+    # except AttributeError:
+    #     pass
+    plot_df['cycles_per_degree'] = plot_df['cycles_per_norm_image'].astype(float)/img_size_in_degrees
     # want to make this look good
     plot_df['cycles_per_degree'] = plot_df['cycles_per_degree'].map(lambda x: "{:.02f}".format(x))
-    try:
-        plot_df['preferred_frequency'] = plot_df['image'].apply(lambda x: float(re.search(r'freq_pref_([\.0-9]+)', x).groups()[0]))
-        g = sns.factorplot(data=plot_df, x='preferred_frequency', y='predicted_responses', size=8,
-                           hue='cycles_per_degree')
-    except AttributeError:
-        g = sns.factorplot(data=plot_df, x='cycles_per_degree', y='predicted_responses', size=8)
+    # try:
+    plot_df['preferred_frequency'] = plot_df['image'].apply(lambda x: float(re.search(r'freq_pref_([\.0-9]+)', x).groups()[0]))
+    g = sns.factorplot(data=plot_df, x='preferred_frequency', y='predicted_responses', size=8,
+                       hue='cycles_per_degree')
+    # except AttributeError:
+    #     g = sns.factorplot(data=plot_df, x='cycles_per_degree', y='predicted_responses', size=8)
     
 
     return g, plot_df
@@ -80,16 +80,18 @@ def check_pref_across_frequencies(img_folder, freqs, output_img_path, model_df_p
     def freq_pref(e, s, l):
         # This takes in the eccentricity, size, and area, but we don't use any of them, since we
         # just want to use 1 cpd (for testing) and ignore everything else. And this must be floats.
-        return {1.0: 1.0}
+        return {float(preferred_freq): 1.0}
     results, stimulus_model_names = compare_with_Kay2013(
         img_folder, range(len(freqs)), range(3), pRF_frequency_preference_function=freq_pref,
         max_eccentricity=max_eccentricity, **kwargs)
+    stimulus_model_names = ["freq_pref_{:02f}_pix_per_deg_{:02f}".format(stimulus_pixels_per_degree,
+                                                                         preferred_freq)]
     model_df = create_model_dataframe(results, stimulus_model_names, model_df_path)
 
-    g, plot_df = make_plot(model_df, img_size, 2*max_eccentricity)
-    g.savefig(output_img_path)
+    # g, plot_df = make_plot(model_df, img_size, 2*max_eccentricity)
+    # g.savefig(output_img_path)
     
-    return model_df, results, plot_df, g
+    return model_df, results#, plot_df, g
 
 
 def check_pref_across_degrees_per_pixel(img_folder, output_img_path, model_df_path,
@@ -120,10 +122,10 @@ def check_pref_across_degrees_per_pixel(img_folder, output_img_path, model_df_pa
     model_df = pd.concat(model_df, axis=1).T.groupby(level=0).first().T
     model_df.to_csv(model_df_path, index_label='voxel')
 
-    g, plot_df = make_plot(model_df, img_size, 2*max_eccentricity)
-    g.savefig(output_img_path)
+    # g, plot_df = make_plot(model_df, img_size, 2*max_eccentricity)
+    # g.savefig(output_img_path)
     
-    return model_df, results, plot_df, g
+    return model_df, results#, plot_df, g
 
 
 def check_response_across_prefs(img_folder, output_img_path, model_df_path,
@@ -178,13 +180,13 @@ def main(model_df_path="./sco_freq_prefs.csv", subject='test-sub', subject_dir=N
                   # stimulus_aperture_edge_width to 20 to get some smoothness between the image and
                   # the surrounding area.
                   stimulus_aperture_edge_width=20, max_eccentricity=max_eccentricity)
-    model_df_paf, results_paf, plot_df_paf, g_paf = check_pref_across_frequencies(
-        img_folder, freqs, os.path.splitext(output_img_path)[0]+"_pref_across_freqs.svg",
-        os.path.splitext(model_df_path)[0]+"_pref_across_freqs.csv", img_size=img_res, **model_kwargs)
-    model_df, results, plot_df, g = check_pref_across_degrees_per_pixel(
-        img_folder, os.path.splitext(output_img_path)[0]+"_pref_across_d2p.svg",
-        os.path.splitext(model_df_path)[0]+"_pref_across_d2p.csv", np.array([29]), img_size=img_res,
-        **model_kwargs)
+    # model_df_paf, results_paf, plot_df_paf, g_paf = check_pref_across_frequencies(
+    #     img_folder, freqs, os.path.splitext(output_img_path)[0]+"_pref_across_freqs.svg",
+    #     os.path.splitext(model_df_path)[0]+"_pref_across_freqs.csv", img_size=img_res, **model_kwargs)
+    # model_df, results, plot_df, g = check_pref_across_degrees_per_pixel(
+    #     img_folder, os.path.splitext(output_img_path)[0]+"_pref_across_d2p.svg",
+    #     os.path.splitext(model_df_path)[0]+"_pref_across_d2p.csv", np.array([29]), img_size=img_res,
+    #     **model_kwargs)
     model_df, results, plot_df, g = check_response_across_prefs(
         img_folder, os.path.splitext(output_img_path)[0]+"_resp_across_prefs.svg",
         os.path.splitext(model_df_path)[0]+"_resp_across_prefs.csv", np.array([14]), img_size=img_res,

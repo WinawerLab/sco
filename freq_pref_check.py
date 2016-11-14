@@ -203,3 +203,7 @@ def main(model_df_path="./sco_freq_prefs.csv", subject='test-sub', subject_dir=N
         **model_kwargs)
 
     return model_df, results#, plot_df, g
+
+
+if __name__ == '__main__':
+    main(subject_dir="/home/wfb229/Freesurfer_subjects", img_folder="/home/wfb229/freq_pref_imgs")

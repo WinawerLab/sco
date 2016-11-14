@@ -73,8 +73,9 @@ def make_plot(model_df, img_size_in_pixels, img_size_in_degrees):
     return g, plot_df
         
 
-def check_pref_across_frequencies(img_folder, freqs, output_img_path, model_df_path,
-                                  max_eccentricity=7.5, img_size=1000, **kwargs):
+def check_pref_across_frequencies(img_folder, output_img_path, model_df_path, preferred_freq, stimuli_idx,
+                                  stimulus_pixels_per_degree, max_eccentricity=7.5, img_size=1000,
+                                  **kwargs):
     """this runs the model with one preferred frequency across images with differing cycles per degree
     """
     def freq_pref(e, s, l):
@@ -82,10 +83,10 @@ def check_pref_across_frequencies(img_folder, freqs, output_img_path, model_df_p
         # just want to use 1 cpd (for testing) and ignore everything else. And this must be floats.
         return {float(preferred_freq): 1.0}
     results, stimulus_model_names = compare_with_Kay2013(
-        img_folder, range(len(freqs)), range(3), pRF_frequency_preference_function=freq_pref,
+        img_folder, stimuli_idx, range(3), pRF_frequency_preference_function=freq_pref,
         max_eccentricity=max_eccentricity, **kwargs)
-    stimulus_model_names = ["freq_pref_{:02f}_pix_per_deg_{:02f}".format(stimulus_pixels_per_degree,
-                                                                         preferred_freq)]
+    stimulus_model_names = ["freq_pref_{:02f}_pix_per_deg_{:02f}_".format(stimulus_pixels_per_degree,
+                                                                          preferred_freq) + name for name in stimulus_model_names]
     model_df = create_model_dataframe(results, stimulus_model_names, model_df_path)
 
     # g, plot_df = make_plot(model_df, img_size, 2*max_eccentricity)
@@ -94,29 +95,29 @@ def check_pref_across_frequencies(img_folder, freqs, output_img_path, model_df_p
     return model_df, results#, plot_df, g
 
 
-def check_pref_across_degrees_per_pixel(img_folder, output_img_path, model_df_path,
-                                        stimuli_idx, max_eccentricity=7.5, img_size=1000,
-                                        stimulus_pixels_per_degree=None, **kwargs):
+def check_pref_across_degrees_per_pixel(img_folder, output_img_path, model_df_path, preferred_freq,
+                                        stimuli_idx, stimulus_pixels_per_degree,
+                                        max_eccentricity=7.5, img_size=1000, **kwargs):
     """this runs the model with one preferred frequency on one image with differing pixels per degree
     """
-    def freq_pref(e, s, l):
-        # This takes in the eccentricity, size, and area, but we don't use any of them, since we
-        # just want to use 1 cpd (for testing) and ignore everything else. And this must be floats.
-        return {1.0: 1.0}
-    if stimulus_pixels_per_degree is None:
-        raise Exception("stimulus_pixels_per_degree must be set!")
     # we want to "zoom in", so we can decrease the stimulus pixels per degree, but not increase.
-    stimulus_pixels_per_degree = np.asarray([(i+1)*stimulus_pixels_per_degree/10 for i in range(10)])
+    stimulus_pixels_per_degree = np.asarray([(i+1)*stimulus_pixels_per_degree/2 for i in range(2)])
+    # stimulus_pixels_per_degree = np.asarray([(i+1)*stimulus_pixels_per_degree/10 for i in range(10)])
     model_df = []
     results = {}
     for d2p in stimulus_pixels_per_degree:
-        results[d2p], stimulus_model_names = compare_with_Kay2013(
-            img_folder, stimuli_idx, range(3), pRF_frequency_preference_function=freq_pref,
-            max_eccentricity=max_eccentricity, stimulus_pixels_per_degree=d2p, **kwargs)
+        model_df_tmp, results[d2p] = check_pref_across_frequencies(
+            img_folder, output_img_path, model_df_path, preferred_freq, stimuli_idx,
+            img_size=img_size, max_eccentricity=max_eccentricity, stimulus_pixels_per_degree=d2p,
+            **kwargs)
+        # results[d2p], stimulus_model_names = compare_with_Kay2013(
+        #     img_folder, stimuli_idx, range(3), pRF_frequency_preference_function=freq_pref,
+        #     max_eccentricity=max_eccentricity, stimulus_pixels_per_degree=d2p, **kwargs)
         # this will only have one value in it
-        assert len(stimulus_model_names)==1, "This should only have one value here, something went wrong"
-        stimulus_model_names[0] = "pix_per_deg_{:.02f}_".format(d2p) + stimulus_model_names[0]
-        model_df.append(create_model_dataframe(results[d2p], stimulus_model_names, model_df_path))
+        # assert len(stimulus_model_names)==1, "This should only have one value here, something went wrong"
+        # stimulus_model_names[0] = "pix_per_deg_{:.02f}_".format(d2p) + stimulus_model_names[0]
+        # model_df.append(create_model_dataframe(results[d2p], stimulus_model_names, model_df_path))
+        model_df.append(model_df_tmp)
     # This annoying bit of code combines the dataframes found here and drops all duplicate columns
     # (stackoverflow.com/questions/16938441/how-to-remove-duplicate-columns-from-a-dataframe-using-python-pandas)
     model_df = pd.concat(model_df, axis=1).T.groupby(level=0).first().T
@@ -132,40 +133,46 @@ def check_response_across_prefs(img_folder, output_img_path, model_df_path,
                                 stimuli_idx, max_eccentricity=7.5, img_size=1000, **kwargs):
     """this runs the model with several preferred frequencies on one image with one pixels per degree
     """
-    def freq_pref(e, s, l, freq):
-        # This takes in the eccentricity, size, and area, but we don't use any of them, since we
-        # just want to use 1 cpd (for testing) and ignore everything else. And this must be floats.
-        return {float(freq): 1.0}
-    def freq_pref_wrapper(freq):
-        return lambda e,s,l: freq_pref(e,s,l,freq)
+    # def freq_pref(e, s, l, freq):
+    #     # This takes in the eccentricity, size, and area, but we don't use any of them, since we
+    #     # just want to use 1 cpd (for testing) and ignore everything else. And this must be floats.
+    #     return {float(freq): 1.0}
+    # def freq_pref_wrapper(freq):
+    #     return lambda e,s,l: freq_pref(e,s,l,freq)
     model_df = []
     results = {}
-    for freq_iter in range(10):
+    # for freq_iter in range(10):
+    for freq_iter in range(2):
         freq = (freq_iter+1)/5.
-        freq_pref_func = freq_pref_wrapper(freq)
-        results[freq], stimulus_model_names = compare_with_Kay2013(
-            img_folder, stimuli_idx, range(3), pRF_frequency_preference_function=freq_pref_func,
-            max_eccentricity=max_eccentricity, **kwargs)
+        # freq_pref_func = freq_pref_wrapper(freq)
+        model_df_tmp, results[freq] = check_pref_across_degrees_per_pixel(
+            img_folder, output_img_path, model_df_path, freq, stimuli_idx,
+            max_eccentricity=max_eccentricity, img_size=img_size, **kwargs)
+        model_df.append(model_df_tmp)
+        # results[freq], stimulus_model_names = compare_with_Kay2013(
+        #     img_folder, stimuli_idx, range(3), pRF_frequency_preference_function=freq_pref_func,
+        #     max_eccentricity=max_eccentricity, **kwargs)
         # this will only have one value in it
-        assert len(stimulus_model_names)==1, "This should only have one value here, something went wrong"
-        stimulus_model_names[0] = "freq_pref_{:.02f}_".format(freq) + stimulus_model_names[0]
-        model_df.append(create_model_dataframe(results[freq], stimulus_model_names, model_df_path))
+        # assert len(stimulus_model_names)==1, "This should only have one value here, something went wrong"
+        # stimulus_model_names[0] = "freq_pref_{:.02f}_".format(freq) + stimulus_model_names[0]
+        # model_df.append(create_model_dataframe(results[freq], stimulus_model_names, model_df_path))
     # This annoying bit of code combines the dataframes found here and drops all duplicate columns
     # (stackoverflow.com/questions/16938441/how-to-remove-duplicate-columns-from-a-dataframe-using-python-pandas)
     model_df = pd.concat(model_df, axis=1).T.groupby(level=0).first().T
     model_df.to_csv(model_df_path, index_label='voxel')
 
-    g, plot_df = make_plot(model_df, img_size, 2*max_eccentricity)
-    g.savefig(output_img_path)
+    # g, plot_df = make_plot(model_df, img_size, 2*max_eccentricity)
+    # g.savefig(output_img_path)
     
-    return model_df, results, plot_df, g
+    return model_df, results#, plot_df, g
     
 
 def main(model_df_path="./sco_freq_prefs.csv", subject='test-sub', subject_dir=None,
          img_folder="~/Desktop/freq_pref_imgs", output_img_path="./sco_freq_prefs.svg",
          stimulus_pixels_per_degree=None, normalized_pixels_per_degree=12):
     img_folder = os.path.expanduser(img_folder)
-    shutil.rmtree(img_folder)
+    if os.path.isdir(img_folder):
+        shutil.rmtree(img_folder)
     img_res = 1000
     # 2*max_eccentricity is the size of the image in degrees
     max_eccentricity = 7.5
@@ -187,9 +194,12 @@ def main(model_df_path="./sco_freq_prefs.csv", subject='test-sub', subject_dir=N
     #     img_folder, os.path.splitext(output_img_path)[0]+"_pref_across_d2p.svg",
     #     os.path.splitext(model_df_path)[0]+"_pref_across_d2p.csv", np.array([29]), img_size=img_res,
     #     **model_kwargs)
-    model_df, results, plot_df, g = check_response_across_prefs(
-        img_folder, os.path.splitext(output_img_path)[0]+"_resp_across_prefs.svg",
-        os.path.splitext(model_df_path)[0]+"_resp_across_prefs.csv", np.array([14]), img_size=img_res,
+    # model_df, results, plot_df, g = check_response_across_prefs(
+    #     img_folder, os.path.splitext(output_img_path)[0]+"_resp_across_prefs.svg",
+    #     os.path.splitext(model_df_path)[0]+"_resp_across_prefs.csv", np.array([14]), img_size=img_res,
+    #     **model_kwargs)
+    model_df, results = check_response_across_prefs(
+        img_folder, output_img_path, model_df_path, np.array(range(2)), img_size=img_res,
         **model_kwargs)
 
-    return model_df, results, plot_df, g
+    return model_df, results#, plot_df, g

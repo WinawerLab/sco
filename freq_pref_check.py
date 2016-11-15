@@ -218,7 +218,6 @@ def check_full_space(freq_iter, model_df_path="./sco_freq_prefs_full.csv", subje
     stimulus_pixels_per_degree = float(img_res) / (2*max_eccentricity)
     stimulus_pixels_per_degree = np.asarray([(i+1)*stimulus_pixels_per_degree/10 for i in range(10)])
     model_kwargs = dict(subject=subject, subject_dir=subject_dir,
-                        stimulus_pixels_per_degree=stimulus_pixels_per_degree,
                         normalized_pixels_per_degree=12,
                         # in order to avoid having edge effects be very large, we set
                         # stimulus_aperture_edge_width to 20 to get some smoothness between the image and

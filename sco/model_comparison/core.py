@@ -331,10 +331,11 @@ def _create_plot_df(model_df, stimuli_idx=None, stimuli_descriptions=None):
     if stimuli_descriptions is not None:
         mapping = dict(('%04d' % k, v) for k, v in zip(stimuli_idx, stimuli_descriptions))
         plot_df['image_name'] = plot_df.image.map(mapping)
-        
+
     plot_df = plot_df.set_index('voxel')
     plot_df['v123_label'] = model_df['pRF_v123_labels']
-        
+    plot_df = plot_df.reset_index()
+
     return plot_df
 
 

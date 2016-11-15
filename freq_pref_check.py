@@ -235,8 +235,8 @@ def check_full_space(freq_iter, model_df_path="./sco_freq_prefs_full.csv", subje
             return {float(preferred_freq): 1.0}
         results, stimulus_model_names = compare_with_Kay2013(
             img_folder, stimuli_idx, range(3), pRF_frequency_preference_function=freq_pref,
-            **model_kwargs)
-        stimulus_model_names = ["freq_pref_{:02f}_pix_per_deg_{:02f}_".format(d2p, preferred_freq) + name for name in stimulus_model_names]
+            stimulus_pixels_per_degree=d2p, **model_kwargs)
+        stimulus_model_names = ["freq_pref_{:02f}_pix_per_deg_{:02f}_".format(preferred_freq, d2p) + name for name in stimulus_model_names]
         model_df.append(create_model_dataframe(results, stimulus_model_names, model_df_path))
 
     # This annoying bit of code combines the dataframes found here and drops all duplicate columns

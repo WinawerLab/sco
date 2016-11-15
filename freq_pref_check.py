@@ -224,9 +224,11 @@ def check_full_space(freq_iter, model_df_path="./sco_freq_prefs_full.csv", subje
                         # the surrounding area.
                         stimulus_aperture_edge_width=20, max_eccentricity=max_eccentricity)
     # we assume this comes from bash and thus starts at 1, not 0.
-    preferred_freq = (freq_iter)/5
+    preferred_freq = float(freq_iter)/5
+    print("Preferred frequency: %s" % preferred_freq)
     model_df = []
     for d2p in stimulus_pixels_per_degree:
+        print("pixels per degree: %s" % d2p)
         def freq_pref(e, s, l):
             # This takes in the eccentricity, size, and area, but we don't use any of them, since
             # we just want to use 1 cpd (for testing) and ignore everything else. And this must be

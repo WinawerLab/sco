@@ -332,6 +332,9 @@ def _create_plot_df(model_df, stimuli_idx=None, stimuli_descriptions=None):
         mapping = dict(('%04d' % k, v) for k, v in zip(stimuli_idx, stimuli_descriptions))
         plot_df['image_name'] = plot_df.image.map(mapping)
         
+    plot_df = plot_df.set_index('voxel')
+    plot_df['v123_label'] = model_df['pRF_v123_labels']
+        
     return plot_df
 
 
@@ -465,9 +468,11 @@ def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_
             kw['col'] = 'voxel'
         if 'col_wrap' not in kw:
             kw['col_wrap'] = 3
+        if 'size' not in kw:
+            kw['size'] = 8
         
         g = sns.factorplot(data=plot_df, y='predicted_responses', x='image',
-                           legend_out=True, size=8, order=order, **kw)
+                           legend_out=True, order=order, **kw)
         g.fig.suptitle(title)
         g.fig.subplots_adjust(top=.9, right=.9)
         g.set_xticklabels(rotation=45)

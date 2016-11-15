@@ -235,7 +235,7 @@ def check_full_space(freq_iter, model_df_path="./sco_freq_prefs_full.csv", subje
             return {float(preferred_freq): 1.0}
         results, stimulus_model_names = compare_with_Kay2013(
             img_folder, stimuli_idx, range(3), pRF_frequency_preference_function=freq_pref,
-            max_eccentricity=max_eccentricity, **model_kwargs)
+            **model_kwargs)
         stimulus_model_names = ["freq_pref_{:02f}_pix_per_deg_{:02f}_".format(d2p, preferred_freq) + name for name in stimulus_model_names]
         model_df.append(create_model_dataframe(results, stimulus_model_names, model_df_path))
 
@@ -253,10 +253,9 @@ def combine_dfs(template_string, save_string):
     df = []
     for match in glob.glob(template_string):
         df.append(pd.read_csv(match))
-        os.remove(match)
-    df = pd.concat(df)
+    df = pd.concat(df, axis=1)
     df.to_csv(save_string, index_label='voxel')
-
+    return df
 
 if __name__ == '__main__':
     import sys

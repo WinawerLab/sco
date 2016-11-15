@@ -70,7 +70,7 @@ def make_plot(model_df, img_size_in_pixels, img_size_in_degrees):
                            hue='cycles_per_degree')
     except AttributeError:
         g = sns.factorplot(data=plot_df, x='cycles_per_degree', y='predicted_responses', size=8)
-    
+    g.set_xticklabels(rotation=45)
 
     return g, plot_df
         
@@ -83,7 +83,7 @@ def check_pref_across_frequencies(img_folder, output_img_path, model_df_path, st
     def freq_pref(e, s, l):
         # This takes in the eccentricity, size, and area, but we don't use any of them, since we
         # just want to use 1 cpd (for testing) and ignore everything else. And this must be floats.
-        return {3.0: 1.0}
+        return {1.0: 1.0}
     results, stimulus_model_names = compare_with_Kay2013(
         img_folder, stimuli_idx, range(3), pRF_frequency_preference_function=freq_pref,
         max_eccentricity=max_eccentricity, **kwargs)
@@ -95,7 +95,7 @@ def check_pref_across_frequencies(img_folder, output_img_path, model_df_path, st
     return model_df, results, plot_df, g
 
 
-def check_pref_across_degrees_per_pixel(img_folder, output_img_path, model_df_path,
+def check_pref_across_pixels_per_degree(img_folder, output_img_path, model_df_path,
                                         stimuli_idx, stimulus_pixels_per_degree,
                                         max_eccentricity=7.5, img_size=1000, **kwargs):
     """this runs the model with one preferred frequency on one image with differing pixels per degree
@@ -107,7 +107,7 @@ def check_pref_across_degrees_per_pixel(img_folder, output_img_path, model_df_pa
     def freq_pref(e, s, l):
         # This takes in the eccentricity, size, and area, but we don't use any of them, since we
         # just want to use 1 cpd (for testing) and ignore everything else. And this must be floats.
-        return {3.0: 1.0}
+        return {1.0: 1.0}
     for d2p in stimulus_pixels_per_degree:
         results[d2p], stimulus_model_names = compare_with_Kay2013(
             img_folder, stimuli_idx, range(3), pRF_frequency_preference_function=freq_pref,
@@ -139,8 +139,7 @@ def check_response_across_prefs(img_folder, output_img_path, model_df_path,
         return lambda e,s,l: freq_pref(e,s,l,freq)
     model_df = []
     results = {}
-    # for freq_iter in range(10):
-    for freq_iter in range(2):
+    for freq_iter in range(10):
         freq = (freq_iter+1)/5.
         freq_pref_func = freq_pref_wrapper(freq)
         results[freq], stimulus_model_names = compare_with_Kay2013(
@@ -185,7 +184,7 @@ def main(model_df_path="./sco_freq_prefs.csv", subject='test-sub', subject_dir=N
         img_folder, os.path.splitext(output_img_path)[0]+"_pref_across_freqs.svg",
         os.path.splitext(model_df_path)[0]+"_pref_across_freqs.csv", np.array(range(30)),
         img_size=img_res, **model_kwargs)
-    model_df, results, plot_df, g = check_pref_across_degrees_per_pixel(
+    model_df, results, plot_df, g = check_pref_across_pixels_per_degree(
         img_folder, os.path.splitext(output_img_path)[0]+"_pref_across_d2p.svg",
         os.path.splitext(model_df_path)[0]+"_pref_across_d2p.csv", np.array([29]), img_size=img_res,
         **model_kwargs)
@@ -193,8 +192,6 @@ def main(model_df_path="./sco_freq_prefs.csv", subject='test-sub', subject_dir=N
         img_folder, os.path.splitext(output_img_path)[0]+"_resp_across_prefs.svg",
         os.path.splitext(model_df_path)[0]+"_resp_across_prefs.csv", np.array([14]), img_size=img_res,
         **model_kwargs)
-
-    return model_df, results, plot_df, g
 
 
 def check_full_space(freq_iter, model_df_path="./sco_freq_prefs_full.csv", subject='test-sub',
@@ -254,7 +251,9 @@ def combine_dfs(template_string, save_string):
     df = []
     for match in glob.glob(template_string):
         df.append(pd.read_csv(match))
-    df = pd.concat(df, axis=1)
+    # This annoying bit of code combines the dataframes found here and drops all duplicate columns
+    # (stackoverflow.com/questions/16938441/how-to-remove-duplicate-columns-from-a-dataframe-using-python-pandas)
+    df = pd.concat(df, axis=1).T.groupby(level=0).first().T
     df.to_csv(save_string, index_label='voxel')
     return df
 

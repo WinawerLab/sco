@@ -100,7 +100,15 @@ def compare_with_Kay2013(image_base_path, stimuli_idx, voxel_idx=None, subject='
         # have to convert from MATLAB's 1-indexing to python's 0-indexing), since each entry is a
         # single frame and thus easy to handle.
         stimulus_images = sio.loadmat(image_base_path)
-        stimulus_images = stimulus_images['images'][0, stimuli_idx]
+        if stimulus_images['images'].ndim == 2 and stimulus_images['images'].shape[0] == 1:
+            # then we need to unfold the stimulus_images; each stimulus is 3 dimensional (several
+            # two dimensional images), so if it's only two dimensional and the first dimension is
+            # 1, this is collapsed across that dimension (happens when not all stimuli are the same
+            # size).
+            stimulus_images = stimulus_images['images'][0, stimuli_idx]
+        else:
+            # else we can just grab the corresponding images
+            stimulus_images = stimulus_images['images'][stimuli_idx]
         # some of the stimuli have multiple frames associated with them; we want to predict all of
         # them separately, but remember that they were grouped together for later visualization. I
         # can't figure out how to get this loop into a list comprehension, so we'll have to deal

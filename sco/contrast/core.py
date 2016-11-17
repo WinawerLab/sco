@@ -66,6 +66,8 @@ def calc_stimulus_contrast_functions(imgs, d2p, orients, ev):
     # Now, the function that is called:
     def _stimulus_contrast_function(k, cpd):
         cache = _stimulus_contrast_cache[k]
+        # want to make sure that cpd is a float
+        cpd = float(cpd)
         if isinstance(cpd, set):
             return {x: _stimulus_contrast_function(k, x) for x in cpd}
         elif hasattr(cpd, '__iter__'):
@@ -133,9 +135,9 @@ def calc_divisive_normalization_functions(stimulus_contrast_functions,
             cache[(r, s)] = dict()
         cache = cache[(r, s)]
         if isinstance(cpd, set):
-            return {x: _divisive_normalization_function(func_idx, x) for x in cpd}
+            return {x: _divisive_normalization_function(func_idx, x, vox_id) for x in cpd}
         elif hasattr(cpd, '__iter__'):
-            return [_divisive_normalization_function(func_idx, x) for x in cpd]
+            return [_divisive_normalization_function(func_idx, x, vox_id) for x in cpd]
         elif cpd in cache:
             return cache[cpd]
         else:

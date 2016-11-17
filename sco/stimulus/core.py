@@ -109,8 +109,8 @@ def calc_stimulus_default_parameters(stimulus_image_filenames=None,
             'normalized_stimulus_aperture': np.asarray(asz),
             'normalized_pixels_per_degree': np.asarray(d2p),
             'max_eccentricity':             np.asarray(mxe),
-            'stimulus_images':              stimulus_images,
-            'stimulus_image_filenames':     stimulus_image_filenames}
+            'stimulus_images':              np.asarray(stimulus_images),
+            'stimulus_image_filenames':     np.asarray(stimulus_image_filenames)}
 
 @calculates('stimulus_images', filenames='stimulus_image_filenames')
 def import_stimulus_images(filenames, stimulus_images=None, stimulus_gamma=None):
@@ -215,6 +215,7 @@ def image_apply_aperture(im, radius,
                 final_im[r,c] = w*final_im[r,c] + (1.0 - w)*fill_value
     # That's it!
     return final_im
+
 
 @calculates('normalized_stimulus_images',
             imgs='stimulus_images',

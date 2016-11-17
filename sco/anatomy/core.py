@@ -101,7 +101,7 @@ def import_benson14_surface_from_freesurfer(subject):
             'rh_eccentricity_mgh': r_eccen_mgz,
             'rh_v123_labels_mgh':  r_label_mgz}
 
-@calculates('pRF_centers', 'pRF_voxel_indices',
+@calculates('pRF_centers', 'pRF_voxel_indices', 'pRF_hemispheres',
             'pRF_polar_angle', 'pRF_eccentricity', 'pRF_v123_labels')
 def calc_pRFs_from_freesurfer_retinotopy_volumes(polar_angle_mgh, eccentricity_mgh,
                                                  v123_labels_mgh, ribbon_mghs,
@@ -170,6 +170,30 @@ def calc_pRFs_from_freesurfer_retinotopy_surface(lh_polar_angle_mgh,
             'pRF_eccentricity':   eccs,
             'pRF_v123_labels':    labs,
             'pRF_hemispheres':    hemis}
+
+@calculates()
+def calc_voxel_selector(voxel_idx, pRF_centers, pRF_voxel_indices, pRF_polar_angle,
+                        pRF_eccentricity, pRF_v123_labels, pRF_hemispheres):
+    """
+    calc_voxel_selector takes in the various pRF arrays that are retrieved from the anatomical
+    image and retinotopy and limits them, selecting only some of the voxels. This is an optional
+    step, not included in the default chain, that allows the user to fit the model and predict
+    responses for only a subset of the voxels in the brain. This is helpful for debugging when one
+    wants to examine a small number of voxels and many images or when one knows exactly what voxel
+    they're interested in. As such, it should be inserted happen after
+    calc_pRFs_from_freesurfer_retinotopy and before calc_anatomy_default_parameters and
+    calc_Kay2013_pRF_sizes
+
+    As an argument, it takes voxel_idx, a list or array containing ints; we use it as an index into
+    the voxel-related arrays.
+    """
+    voxel_idx = np.asarray(voxel_idx)
+    return {'pRF_centers':       pRF_centers[voxel_idx],
+            'pRF_voxel_indices': pRF_voxel_indices[voxel_idx],
+            'pRF_polar_angle':   pRF_polar_angle[voxel_idx],
+            'pRF_eccentricity':  pRF_eccentricity[voxel_idx],
+            'pRF_v123_labels':   pRF_v123_labels[voxel_idx],
+            'pRF_hemispheres':   pRF_hemispheres[voxel_idx]}
 
 @calculates('pRF_sizes')
 def calc_Kay2013_pRF_sizes(pRF_eccentricity, Kay2013_pRF_sigma_slope, Kay2013_output_nonlinearity,

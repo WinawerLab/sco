@@ -345,20 +345,18 @@ areas V1, V2, and V3).
   its result for a given frequency, r, and s for speed. Created in
   `contrast.core.calc_divisive_normalization_functions`.
 
-* `pRF_pixel_centers`: n x m x 2 numpy array. Contains the x, y
-  positions of the centers of each voxel's pRF in the visual
-  field. Differs from `pRF_centers` because different images may have
-  different pixels per degree, so we have a separate value for each
-  image. Calculated in `pRF.core.calc_pRF_pixel_data`, based on
-  `pRF_centers`.
-  
-* `pRF_pixel_sizes`: n x m numpy array, giving the sizes (in
-  pixels) for the pRFs of each voxel. Differs from `pRF_sizes` because
-  different images may have different pixels per degree, so we have a
-  separate value for each image. Each entry gives the pRF size for a
-  given image in a given voxel. Calculated by
-  `pRF.core.calc_pRF_pixel_data` based on `pRF_sizes`.
-  
+* `pRF_views`: 1-dimensional numpy array of length n. Each entry is an
+  object of the PRFSpec class (defined in `pRF/core.py`), which has a
+  `__call__` method that can be passed an image or image stack and
+  will return a pair of vectors `(u, w)`, where `u` contains the
+  values in the pRF and `w` contains the weight of each value (if an
+  image stack is passed, then `u` is a matrix with m rows and each row
+  contains that image's values). You can also call it like
+  `prf_views[0](image, c=1.0)`, in which case it will return the
+  weighed second moment of the values in `u` around `c` times the
+  weighted mean (that is, it returns the `(x - c * xbar)` computation
+  over pRF; this gets used in the normalization module).
+
 * `pRF_frequency_preference_function`: a function that takes the
   eccentricity, pRF size, and visual label and returns a dictionary
   whose keys are frequencies (in cycles per degree) and whose values

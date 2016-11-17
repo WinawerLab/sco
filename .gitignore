@@ -93,3 +93,6 @@ scratch.ipynb
 
 #stimuli.mat, it's too big to include in the repo
 stimuli.mat
+
+# svg images
+*.svg

@@ -33,7 +33,7 @@ def _get_pRF_pixel_size(pRF_views, normalized_stimulus_images, normalized_pixels
 
 # Keys from the results dict that correspond to model parameters and so that we want to save in the
 # output dataframe
-MODEL_DF_KEYS = ['pRF_centers', 'pRF_hemispheres', 'pRF_voxel_indices', 'SOC_responses', 
+MODEL_DF_KEYS = ['pRF_centers', 'pRF_hemispheres', 'pRF_voxel_indices', 'SOC_responses',
                  'pRF_eccentricity', 'pRF_v123_labels', 'predicted_responses', 'pRF_sizes',
                  'pRF_polar_angle', 'Kay2013_output_nonlinearity', 'Kay2013_pRF_sigma_slope',
                  'Kay2013_SOC_constant', 'Kay2013_normalization_r', 'Kay2013_normalization_s',
@@ -299,7 +299,7 @@ def _load_pkl_or_mat(path, mat_field):
     return path
 
 
-def _create_plot_df(stimuli_idx, stimulus_model_names, stimuli_descriptions, model_df):
+def _create_plot_df(model_df, stimuli_idx=None, stimuli_descriptions=None):
     """create dataframe stimuli associated with condition to plot from
 
     condition can be either a boolean array, in which case we grab the values from stimuli_idx
@@ -322,11 +322,20 @@ def _create_plot_df(stimuli_idx, stimulus_model_names, stimuli_descriptions, mod
     plot_df['language'] = plot_df['language'].apply(lambda x: x.replace('_language', ''))
     plot_df['image'] = plot_df['image'].apply(lambda x: x.replace('_image_', ''))
 
-    plot_df['subimage'] = plot_df['image'].apply(lambda x: re.search(r'[0-9]*_sub([0-9]*)', x).groups()[0])
-    plot_df['image'] = plot_df['image'].apply(lambda x: re.search(r'([0-9]*)_sub[0-9]*', x).groups()[0])
+    # right now, this only works when they all have subimages or when none of them do. Should
+    # probably fix this eventually.
+    if 'sub' in plot_df['image'].iloc[0]:
+        plot_df['subimage'] = plot_df['image'].apply(lambda x: re.search(r'[0-9]*_sub([0-9]*)', x).groups()[0])
+        plot_df['image'] = plot_df['image'].apply(lambda x: re.search(r'([0-9]*)_sub[0-9]*', x).groups()[0])
 
-    mapping = dict(('%04d' % k, v) for k, v in zip(stimuli_idx, stimuli_descriptions))
-    plot_df['image_name'] = plot_df.image.map(mapping)
+    if stimuli_descriptions is not None:
+        mapping = dict(('%04d' % k, v) for k, v in zip(stimuli_idx, stimuli_descriptions))
+        plot_df['image_name'] = plot_df.image.map(mapping)
+
+    plot_df = plot_df.set_index('voxel')
+    plot_df['v123_label'] = model_df['pRF_v123_labels']
+    plot_df = plot_df.reset_index()
+
     return plot_df
 
 
@@ -444,7 +453,7 @@ def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_
         plot_kwargs = [plot_kwargs for i in conditions]
 
     for cond, title, kw in zip(conditions, condition_titles, plot_kwargs):
-        plot_df = _create_plot_df(stimuli_idx, stimulus_model_names, stimuli_descriptions, model_df)
+        plot_df = _create_plot_df(model_df, stimuli_idx, stimuli_descriptions)
         
         if isinstance(cond, basestring):
             plot_df = plot_df[plot_df.image_name==cond]
@@ -460,9 +469,11 @@ def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_
             kw['col'] = 'voxel'
         if 'col_wrap' not in kw:
             kw['col_wrap'] = 3
+        if 'size' not in kw:
+            kw['size'] = 8
         
         g = sns.factorplot(data=plot_df, y='predicted_responses', x='image',
-                           legend_out=True, size=8, order=order, **kw)
+                           legend_out=True, order=order, **kw)
         g.fig.suptitle(title)
         g.fig.subplots_adjust(top=.9, right=.9)
         g.set_xticklabels(rotation=45)

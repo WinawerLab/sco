@@ -56,7 +56,17 @@ function compareWithKay2013(knkutilsPath, stimuliPath, stimuliIdx, voxelIdx, mod
     if ischar(stimuliIdx)
         stimuliIdx = load(stimuliIdx);
     end
-    stimuli = images(stimuliIdx);
+    imgSize = size(images);
+    % then we need to unfold the stimulus_images; each stimulus is 3 dimensional (several
+    % two dimensional images), so if it's only two dimensional and the first dimension is
+    % 1, this is collapsed across that dimension (happens when not all stimuli are the same
+    % size).
+    if length(imgSize) == 2 && imgSize(1) == 1
+        stimuli = images(stimuliIdx);
+    else
+        % then we need to grab the corresponding stimuli
+        stimuli = images(stimuliIdx, :, :, :);
+    end
     clear images;
     
     stimuliNames = load(stimuliNamesPath);
@@ -96,6 +106,8 @@ function [stimuli, normAlreadyDoneFlag] = preprocessStimuli(stimuli, modelTable)
 % we can, divisive normalization (we apply divisive normalization here
 % if all voxels have the same divisive normalization parameters)
 
+% this doesn't work in the sweep images case, because it's not a
+% cell, change this around.
     stimuli = cat(3,stimuli{:});
     % resize the stimuli to 150 x 150 to reduce computational time.
     % use single-format to save memory.

@@ -100,6 +100,10 @@ will take the `predicted_responses` key from `results` and create a
 corresponding mgh image, which you can view using `freesurfer` or
 `nibabel`.
 
+## Makefile
+
+This repository contains a Makefile, which is used to create the
+images
 
 # Data pool
 

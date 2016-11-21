@@ -10,7 +10,7 @@ STIMULI_IDX_sweep = $(shell seq 0 33)
 # for testing:
 # STIMULI_IDX_full := $(shell seq 69 73)
 
-VOXEL_IDX = $(shell seq 0 2)
+VOXEL_IDX = $(shell seq 0 9)
 
 # KNK_PATH=/home/billbrod/Documents/Kendrick-socmodel/code/
 KNK_PATH=/Users/winawerlab/matlab/git/knkutils/
@@ -51,15 +51,18 @@ MATLAB_soc_model_params_%.csv : soc_model_params_%.csv voxel_idx.txt %_stim_idx.
 .PHONY : %_images
 # this will create several images, with names based on the default options in sco/model_comparison/core.py
 %_images : MATLAB_soc_model_params_%.csv %_stimuli.mat soc_model_params_%.csv
-	python2.7 sco/model_comparison/core.py $< soc_model_params_$*_image_names.mat sco/model_comparison/stimuliNames.mat $*_stimuli.mat $(STIMULI_IDX_$*)
+	python2.7 sco/model_comparison/core.py $* $< soc_model_params_$*_image_names.mat sco/model_comparison/stimuliNames.mat $*_stimuli.mat $(STIMULI_IDX_$*)
 
 .PHONY : cleantmps
 cleantmps :
 	-rm voxel_idx.txt
 	-rm stim_idx.txt
 
-.PHONY : fullclean
-fullclean : cleantmps
-	-rm soc_model_params_full.csv
-	-rm soc_model_params_full_image_names.mat
-	-rm MATLAB_soc_model_params_full.csv
+.PHONY : %clean
+%clean : cleantmps
+	-rm soc_model_params_$*.csv
+	-rm soc_model_params_$*_image_names.mat
+	-rm MATLAB_soc_model_params_$*.csv
+	-rm soc_model_params_$*_results_dict.pkl
+
+.PRECIOUS : soc_model_params_%.csv MATLAB_soc_model_params_%.csv

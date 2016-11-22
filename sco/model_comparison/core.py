@@ -18,11 +18,18 @@ from scipy import io as sio
 
 
 # We need to define these before our MODEL_DF_KEYS constant below
-def _get_pRF_pixel_centers(pRF_views, normalized_stimulus_images, normalized_pixels_per_degree):
+def _get_pRF_pixel_centers_row(pRF_views, normalized_stimulus_images, normalized_pixels_per_degree):
     pixel_centers = np.asarray([[list(view._params(im.shape, d2p))[0] for im, d2p in
                                  zip(normalized_stimulus_images, normalized_pixels_per_degree)]
                                 for view in pRF_views])
-    return pixel_centers
+    return pixel_centers[:, :, 0]
+
+
+def _get_pRF_pixel_centers_col(pRF_views, normalized_stimulus_images, normalized_pixels_per_degree):
+    pixel_centers = np.asarray([[list(view._params(im.shape, d2p))[0] for im, d2p in
+                                 zip(normalized_stimulus_images, normalized_pixels_per_degree)]
+                                for view in pRF_views])
+    return pixel_centers[:, :, 1]
 
 
 def _get_pRF_pixel_size(pRF_views, normalized_stimulus_images, normalized_pixels_per_degree):
@@ -39,8 +46,9 @@ MODEL_DF_KEYS = ['pRF_centers', 'pRF_hemispheres', 'pRF_voxel_indices', 'SOC_res
                  'pRF_polar_angle', 'Kay2013_output_nonlinearity', 'Kay2013_pRF_sigma_slope',
                  'Kay2013_SOC_constant', 'Kay2013_normalization_r', 'Kay2013_normalization_s',
                  'Kay2013_response_gain', 'pRF_frequency_preferences', 'voxel_idx',
-                 {'pRF_pixel_centers': _get_pRF_pixel_centers}, 'effective_pRF_sizes',
-                 {'pRF_pixel_sizes': _get_pRF_pixel_size}]
+                 {'pRF_pixel_centers_row': _get_pRF_pixel_centers_row}, 'effective_pRF_sizes',
+                 {'pRF_pixel_sizes': _get_pRF_pixel_size},
+                 {'pRF_pixel_centers_col': _get_pRF_pixel_centers_col}]
     
 # Keys from the results dict that correspond to model setup and so we want
 # to save them but not in the dataframe.
@@ -174,7 +182,7 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
         model_keys = keys
     else:
         model_keys = MODEL_DF_KEYS
-    _check_default_keys(results, model_keys)
+    _check_default_keys(results, model_keys+MODEL_SETUP_KEYS+IMAGES_KEYS+BRAIN_DATA_KEYS)
     for k in model_keys:
         if isinstance(k, dict):
             # we've already asserted that there's only one entry in k.
@@ -399,8 +407,8 @@ def _plot_stimuli(condition, stimuli_idx, stimuli, stimuli_descriptions, results
             circles = []
             for vox_idx in range(vox_num):
                 circles.append(plt.Circle(
-                    (int(model_df['pRF_pixel_centers_image_%s_dim1'%stimulus_model_names[stim_idx]][vox_idx]),
-                     int(model_df['pRF_pixel_centers_image_%s_dim0'%stimulus_model_names[stim_idx]][vox_idx])),
+                    (int(model_df['pRF_pixel_centers_col_image_%s'%stimulus_model_names[stim_idx]][vox_idx]),
+                     int(model_df['pRF_pixel_centers_row_image_%s'%stimulus_model_names[stim_idx]][vox_idx])),
                     int(results['effective_pRF_sizes'][vox_idx]*results['normalized_pixels_per_degree'][stim_idx]),
                     color=vox_colors[vox_idx], fill=False))
                 ax.add_artist(circles[-1])

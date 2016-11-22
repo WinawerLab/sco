@@ -399,8 +399,8 @@ def _plot_stimuli(condition, stimuli_idx, stimuli, stimuli_descriptions, results
             circles = []
             for vox_idx in range(vox_num):
                 circles.append(plt.Circle(
-                    (int(model_df['pRF_pixel_centers_image_%s_dim0'%stimulus_model_names[stim_idx]][vox_idx]),
-                     int(model_df['pRF_pixel_centers_image_%s_dim1'%stimulus_model_names[stim_idx]][vox_idx])),
+                    (int(model_df['pRF_pixel_centers_image_%s_dim1'%stimulus_model_names[stim_idx]][vox_idx]),
+                     int(model_df['pRF_pixel_centers_image_%s_dim0'%stimulus_model_names[stim_idx]][vox_idx])),
                     int(results['effective_pRF_sizes'][vox_idx]*results['normalized_pixels_per_degree'][stim_idx]),
                     color=vox_colors[vox_idx], fill=False))
                 ax.add_artist(circles[-1])

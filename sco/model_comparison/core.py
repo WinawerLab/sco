@@ -9,6 +9,7 @@ import warnings
 import os
 import inspect
 import re
+import pickle
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,11 +18,18 @@ from scipy import io as sio
 
 
 # We need to define these before our MODEL_DF_KEYS constant below
-def _get_pRF_pixel_centers(pRF_views, normalized_stimulus_images, normalized_pixels_per_degree):
+def _get_pRF_pixel_centers_row(pRF_views, normalized_stimulus_images, normalized_pixels_per_degree):
     pixel_centers = np.asarray([[list(view._params(im.shape, d2p))[0] for im, d2p in
                                  zip(normalized_stimulus_images, normalized_pixels_per_degree)]
                                 for view in pRF_views])
-    return pixel_centers
+    return pixel_centers[:, :, 0]
+
+
+def _get_pRF_pixel_centers_col(pRF_views, normalized_stimulus_images, normalized_pixels_per_degree):
+    pixel_centers = np.asarray([[list(view._params(im.shape, d2p))[0] for im, d2p in
+                                 zip(normalized_stimulus_images, normalized_pixels_per_degree)]
+                                for view in pRF_views])
+    return pixel_centers[:, :, 1]
 
 
 def _get_pRF_pixel_size(pRF_views, normalized_stimulus_images, normalized_pixels_per_degree):
@@ -38,8 +46,9 @@ MODEL_DF_KEYS = ['pRF_centers', 'pRF_hemispheres', 'pRF_voxel_indices', 'SOC_res
                  'pRF_polar_angle', 'Kay2013_output_nonlinearity', 'Kay2013_pRF_sigma_slope',
                  'Kay2013_SOC_constant', 'Kay2013_normalization_r', 'Kay2013_normalization_s',
                  'Kay2013_response_gain', 'pRF_frequency_preferences', 'voxel_idx',
-                 {'pRF_pixel_centers': _get_pRF_pixel_centers},
-                 {'pRF_pixel_sizes': _get_pRF_pixel_size}]
+                 {'pRF_pixel_centers_row': _get_pRF_pixel_centers_row}, 'effective_pRF_sizes',
+                 {'pRF_pixel_sizes': _get_pRF_pixel_size},
+                 {'pRF_pixel_centers_col': _get_pRF_pixel_centers_col}]
     
 # Keys from the results dict that correspond to model setup and so we want
 # to save them but not in the dataframe.
@@ -57,7 +66,7 @@ BRAIN_DATA_KEYS = ['v123_labels_mgh', 'polar_angle_mgh', 'ribbon_mghs', 'eccentr
 
 
 def _check_default_keys(results, keys=None):
-    if keys is not None:
+    if keys is None:
         keys = (MODEL_DF_KEYS + MODEL_SETUP_KEYS + IMAGES_KEYS + BRAIN_DATA_KEYS)
     for k in results:
         if k not in keys:
@@ -173,7 +182,7 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
         model_keys = keys
     else:
         model_keys = MODEL_DF_KEYS
-    _check_default_keys(results, model_keys)
+    _check_default_keys(results, model_keys+MODEL_SETUP_KEYS+IMAGES_KEYS+BRAIN_DATA_KEYS)
     for k in model_keys:
         if isinstance(k, dict):
             # we've already asserted that there's only one entry in k.
@@ -292,7 +301,8 @@ def _load_pkl_or_mat(path, mat_field):
     if os.path.splitext(path)[1] == ".mat":
         path = sio.loadmat(path)[mat_field]
     elif os.path.splitext(path)[1] == ".pkl":
-        path = np.loads(path)
+        with open(path) as f:
+            path = pickle.load(f)
     else:
         raise Exception("Don't know how to handle extensions %s" %
                         os.path.splitext(path)[1])
@@ -339,7 +349,8 @@ def _create_plot_df(model_df, stimuli_idx=None, stimuli_descriptions=None):
     return plot_df
 
 
-def _plot_stimuli(condition, stimuli_idx, stimuli, stimuli_descriptions, subflag=False):
+def _plot_stimuli(condition, stimuli_idx, stimuli, stimuli_descriptions, results=None,
+                  model_df=None, stimulus_model_names=None, subflag=False):
     """plot stimuli associated with condition
 
     condition can be either a boolean array, in which case we grab the values from stimuli_idx
@@ -360,27 +371,54 @@ def _plot_stimuli(condition, stimuli_idx, stimuli, stimuli_descriptions, subflag
         # assume it's just the index numbers directly
         tmp_idx = np.asarray(condition)
     fig = plt.figure(figsize=[10, 10])
-    if not subflag:
+    if results is None:
+        if not subflag:
+            for i, idx in enumerate(tmp_idx):
+                ax = fig.add_subplot(np.ceil(np.sqrt(len(tmp_idx))), np.ceil(np.sqrt(len(tmp_idx))),
+                                     i+1)
+                plt.imshow(stimuli[idx][:, :, 0], cmap='gray', vmin=0, vmax=255)
+                plt.title((idx, 0))
+                ax.xaxis.set_visible(False)
+                ax.yaxis.set_visible(False)
+        else:
+            for idx in range(stimuli[tmp_idx[subflag]].shape[2]):
+                ax = fig.add_subplot(np.ceil(np.sqrt(stimuli[tmp_idx[subflag]].shape[2])),
+                                     np.ceil(np.sqrt(stimuli[tmp_idx[subflag]].shape[2])), idx+1)
+                plt.imshow(stimuli[tmp_idx[subflag]][:, :, idx], cmap='gray', vmin=0, vmax=255)
+                plt.title((tmp_idx[subflag], idx))
+                ax.xaxis.set_visible(False)
+                ax.yaxis.set_visible(False)
+    else:
+        norm_stim = results['normalized_stimulus_images']
+        vox_num = model_df.shape[0]
+        vox_colors = sns.palettes.color_palette('Set1', vox_num)
         for i, idx in enumerate(tmp_idx):
             ax = fig.add_subplot(np.ceil(np.sqrt(len(tmp_idx))), np.ceil(np.sqrt(len(tmp_idx))),
                                  i+1)
-            plt.imshow(stimuli[idx][:, :, 0], cmap='gray', vmin=0, vmax=255)
-            plt.title((idx, 0))
+            # because of how np.where works, this will return a tuple with one entry: an array of
+            # length 1. For this to work, we need the index to be an integer, so we just grab the
+            # value. np.squeeze will do that as best it can. If there's more than one value here
+            # somehow, an error will be thrown when we try to show the image.
+            stim_idx = np.squeeze(np.where(stimulus_model_names=='%04d_sub00' % idx))
+            plt.imshow(norm_stim[stim_idx, :, :], cmap='gray', vmin=0, vmax=255)
+            plt.title(stimulus_model_names[stim_idx])
             ax.xaxis.set_visible(False)
             ax.yaxis.set_visible(False)
-    else:
-        for idx in range(stimuli[tmp_idx[subflag]].shape[2]):
-            ax = fig.add_subplot(np.ceil(np.sqrt(stimuli[tmp_idx[subflag]].shape[2])),
-                                 np.ceil(np.sqrt(stimuli[tmp_idx[subflag]].shape[2])), idx+1)
-            plt.imshow(stimuli[tmp_idx[subflag]][:, :, idx], cmap='gray', vmin=0, vmax=255)
-            plt.title((tmp_idx[subflag], idx))
-            ax.xaxis.set_visible(False)
-            ax.yaxis.set_visible(False)
+            circles = []
+            for vox_idx in range(vox_num):
+                circles.append(plt.Circle(
+                    (int(model_df['pRF_pixel_centers_col_image_%s'%stimulus_model_names[stim_idx]][vox_idx]),
+                     int(model_df['pRF_pixel_centers_row_image_%s'%stimulus_model_names[stim_idx]][vox_idx])),
+                    int(results['effective_pRF_sizes'][vox_idx]*results['normalized_pixels_per_degree'][stim_idx]),
+                    color=vox_colors[vox_idx], fill=False))
+                ax.add_artist(circles[-1])
+        fig.legend(circles, ['vox %d' % i for i in range(vox_num)])
     return fig
 
 
 def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_model_names,
                                stimuli_descriptions, stimuli, stimuli_idx, plot_kwargs=None,
+                               draw_pRF_flag = False,
                                image_template_path="./SCO_model_comparison_{condition}_{plot_type}.svg"):
     """visualize the model comparisons
 
@@ -429,6 +467,14 @@ def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_
     corresponding predictions).
     """
     if isinstance(model_df, basestring):
+        # in this case, we also need to grab the results dict
+        if draw_pRF_flag:
+            results_path = os.path.splitext(model_df)[0] + "_results_dict.pkl"
+            # the model path may contain "MATLAB_", because it was run through matlab. But the
+            # results dictionary path never will, because it's saved after the python run.
+            results_path = results_path.replace("MATLAB_", "")
+            with open(results_path) as f:
+                results = pickle.load(f)
         model_df = pd.read_csv(model_df)
 
     if isinstance(stimulus_model_names, basestring):
@@ -436,7 +482,7 @@ def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_
 
     if stimuli_idx is not None:
         stimuli_idx = np.asarray(stimuli_idx)
-        
+
     if isinstance(stimuli_descriptions, basestring):
         stimuli_descriptions = _load_pkl_or_mat(stimuli_descriptions, 'stimuliNames')
         if stimuli_idx is not None:
@@ -444,7 +490,7 @@ def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_
             stimuli_descriptions = np.asarray([i[0] for i in stimuli_descriptions])
 
     if isinstance(stimuli, basestring):
-        stimuli = _load_pkl_or_mat(stimuli, 'images')        
+        stimuli = _load_pkl_or_mat(stimuli, 'images')
         stimuli = stimuli[0, :]
 
     if plot_kwargs is None:
@@ -458,10 +504,10 @@ def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_
         if isinstance(cond, basestring):
             plot_df = plot_df[plot_df.image_name==cond]
             order = None
-        else: 
+        else:
             plot_df = plot_df[[img in ['%04d'%i for i in cond] for img in plot_df.image]]
             order = ['%04d' % i for i in cond]
-            
+
         # defualt plotting keywords
         if 'hue' not in kw:
             kw['hue'] = 'language'
@@ -471,19 +517,23 @@ def visualize_model_comparison(conditions, condition_titles, model_df, stimulus_
             kw['col_wrap'] = 3
         if 'size' not in kw:
             kw['size'] = 8
-        
+
         g = sns.factorplot(data=plot_df, y='predicted_responses', x='image',
                            legend_out=True, order=order, **kw)
         g.fig.suptitle(title)
         g.fig.subplots_adjust(top=.9, right=.9)
         g.set_xticklabels(rotation=45)
         g.savefig(image_template_path.format(plot_type="predictions",
-                                             condition=title.replace(' ','_')))
+                                             condition=title.replace(' ', '_')))
 
-        fig = _plot_stimuli(cond, stimuli_idx, stimuli, stimuli_descriptions)
+        if draw_pRF_flag:
+            fig = _plot_stimuli(cond, stimuli_idx, stimuli, stimuli_descriptions, results, model_df,
+                                stimulus_model_names)
+        else:
+            fig = _plot_stimuli(cond, stimuli_idx, stimuli, stimuli_descriptions)
         fig.suptitle(title)
         fig.savefig(image_template_path.format(plot_type="stimuli",
-                                               condition=title.replace(' ','_')))
+                                               condition=title.replace(' ', '_')))
 
 
 if __name__ == '__main__':
@@ -491,6 +541,7 @@ if __name__ == '__main__':
         description=("Visualize model predictions stored in model_df, comparing matlab and python "
                      "versions of the model. If called from command line, plots default selection "
                      "of images; for more control, see Compare_with_Kay2013.ipynb"))
+    parser.add_argument("mode", help="full or sweep. This tells this block how to plot the results.")
     parser.add_argument("model_df_path", help="string. Path where model dataframe is saved.")
     parser.add_argument("stimulus_model_names",
                         help=("string. Path where names of stimuli model made predictions for are"
@@ -500,14 +551,21 @@ if __name__ == '__main__':
     parser.add_argument("stimuli", help="string. Path to stimuli.mat")
     parser.add_argument("stimuli_idx", nargs='+', type=int,
                         help="list of ints. Which indices in the stimuli to run.")
-    conditions = ['grating_ori', 'grating_contrast', 'plaid_contrast', 'circular_contrast',
-                  [180, 181, 182, 84, 183], range(131, 138), range(69, 100), range(100, 131),
-                  range(131, 158)+[180, 181, 182, 84, 183]]
-    condition_titles = ['orientations', 'gratings', 'plaid', 'circular', 'sparse', 'size',
-                        'horizontal sweep', 'vertical sweep','full']
-    plot_kwargs = [{}, {}, {}, {}, {}, {}, {}, {},
-                   {'hue': 'image_name', 'col': 'language', 'col_wrap': None}]
     args = parser.parse_args()
+    if args.mode == 'full':
+        conditions = ['grating_ori', 'grating_contrast', 'plaid_contrast', 'circular_contrast',
+                      [180, 181, 182, 84, 183], range(131, 138), range(69, 100), range(100, 131),
+                      range(131, 158)+[180, 181, 182, 84, 183]]
+        condition_titles = ['orientations', 'gratings', 'plaid', 'circular', 'sparse', 'size',
+                            'horizontal sweep', 'vertical sweep','full']
+        plot_kwargs = [{}, {}, {}, {}, {}, {}, {}, {},
+                       {'hue': 'image_name', 'col': 'language', 'col_wrap': None}]
+        draw_pRF_flag = False
+    elif args.mode == 'sweep':
+        conditions = [args.stimuli_idx]
+        condition_titles = ['sweep']
+        plot_kwargs = [{}]
+        draw_pRF_flag = True
     visualize_model_comparison(conditions, condition_titles, args.model_df_path,
                                args.stimulus_model_names, args.stimuli_descriptions, args.stimuli,
-                               args.stimuli_idx, plot_kwargs)
+                               args.stimuli_idx, plot_kwargs, draw_pRF_flag)

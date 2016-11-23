@@ -39,7 +39,7 @@ def main(image_base_path, stimuli_idx, voxel_idx, subject, model_df_path="./soc_
         if isinstance(v, neuropythy.freesurfer.subject.Subject):
             continue
         # we can't pickle functions or lambdas
-        if _check_uncallable(k, v):
+        if _check_uncallable(v):
             save_results[k] = v
     with open(os.path.splitext(model_df_path)[0] + "_results_dict.pkl", 'w') as f:
         pickle.dump(save_results, f)
@@ -47,20 +47,20 @@ def main(image_base_path, stimuli_idx, voxel_idx, subject, model_df_path="./soc_
     model_df = create_model_dataframe(results, stimulus_model_names, model_df_path)
     return model_df, results
 
-def _check_uncallable(k, x):
+def _check_uncallable(x):
     # if this is an iterable, we want to call this again (we don't know the structure of this
     # iterable, so x[0] might be another iterable).
     if hasattr(x, '__iter__'):
         # we can have an array that just contains None, in which case v[0] will throw an
         # exception
         try:
-            _check_uncallable(k, x[0])
+            return _check_uncallable(x[0])
         except IndexError:
             return False
         # if this is a dictionary, it may return a keyerror, in which case we want to check the
         # first value.
         except KeyError:
-            _check_uncallable(k, x.values()[0])
+            return _check_uncallable(x.values()[0])
     else:
         if not hasattr(x, '__call__'):
             return True

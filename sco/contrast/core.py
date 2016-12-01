@@ -79,9 +79,13 @@ def calc_stimulus_contrast_functions(imgs, d2p, orients, ev):
             im = imgs[k]
             cpp = cpd / d2ps[k]
             c = evs[k]
-            kerns = [(kn.real, kn.imag)
+            # because of how the gabors get truncated, the mean of the real part is not exactly 0
+            # (which is what we want). In order to correct this, we subtract the means and then
+            # ensure that the power of the kernels is still 1.
+            kerns = [(kn.real-np.mean(kn.real), kn.imag-np.mean(kn.imag))
                      for th in orients
                      for kn in [gabor_kernel(cpp, theta=th)]]
+            kerns = [kern / np.sum([k ** 2 for k in kern]) for kern in kerns]
             # The filtered orientations
             filtered_orientations = {
                 th: np.sum([ndi.convolve(im, kern_part, mode='constant', cval=c)**2

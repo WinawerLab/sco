@@ -194,6 +194,12 @@ it as an array (with every entry the same) for ease of use.
   value specifies the file name of one image to be used as a stimulus
   for the model. User-specified with no defaults. Used in
   `stimulus.core.import_stimulus_images`.
+  
+* `img_already_rescaled`: boolean, default False. We assume the images
+  that the model is getting (either via `stimulus_images` or
+  `stimulus_image_filenames`) lie between 0 and 255 and need to be
+  rescaled to lie between 0 and 1. If they already lie between 0 and
+  1, this flag should be set to True.
 
 * `stimulus_aperture_edge_width`: integer or 1-dimensional array of m
   integers. User-defined, can be set as a single integer (in which

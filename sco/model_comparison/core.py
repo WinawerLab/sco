@@ -376,7 +376,7 @@ def _plot_stimuli(condition, stimuli_idx, stimuli, stimuli_descriptions, results
             for i, idx in enumerate(tmp_idx):
                 ax = fig.add_subplot(np.ceil(np.sqrt(len(tmp_idx))), np.ceil(np.sqrt(len(tmp_idx))),
                                      i+1)
-                plt.imshow(stimuli[idx][:, :, 0], cmap='gray', vmin=0, vmax=255)
+                plt.imshow(stimuli[idx][:, :, 0], cmap='gray', vmin=0, vmax=1)
                 plt.title((idx, 0))
                 ax.xaxis.set_visible(False)
                 ax.yaxis.set_visible(False)
@@ -384,7 +384,7 @@ def _plot_stimuli(condition, stimuli_idx, stimuli, stimuli_descriptions, results
             for idx in range(stimuli[tmp_idx[subflag]].shape[2]):
                 ax = fig.add_subplot(np.ceil(np.sqrt(stimuli[tmp_idx[subflag]].shape[2])),
                                      np.ceil(np.sqrt(stimuli[tmp_idx[subflag]].shape[2])), idx+1)
-                plt.imshow(stimuli[tmp_idx[subflag]][:, :, idx], cmap='gray', vmin=0, vmax=255)
+                plt.imshow(stimuli[tmp_idx[subflag]][:, :, idx], cmap='gray', vmin=0, vmax=1)
                 plt.title((tmp_idx[subflag], idx))
                 ax.xaxis.set_visible(False)
                 ax.yaxis.set_visible(False)
@@ -400,7 +400,7 @@ def _plot_stimuli(condition, stimuli_idx, stimuli, stimuli_descriptions, results
             # value. np.squeeze will do that as best it can. If there's more than one value here
             # somehow, an error will be thrown when we try to show the image.
             stim_idx = np.squeeze(np.where(stimulus_model_names=='%04d_sub00' % idx))
-            plt.imshow(norm_stim[stim_idx, :, :], cmap='gray', vmin=0, vmax=255)
+            plt.imshow(norm_stim[stim_idx, :, :], cmap='gray', vmin=0, vmax=1)
             plt.title(stimulus_model_names[stim_idx])
             ax.xaxis.set_visible(False)
             ax.yaxis.set_visible(False)

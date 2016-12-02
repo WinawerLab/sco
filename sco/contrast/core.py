@@ -88,9 +88,9 @@ def calc_stimulus_contrast_functions(imgs, d2p, orients, ev):
             kerns = [kern / np.sum([k ** 2 for k in kern]) for kern in kerns]
             # The filtered orientations
             filtered_orientations = {
-                th: np.sum([ndi.convolve(im, kern_part, mode='constant', cval=c)**2
-                            for kern_part in re_im_kern],
-                           axis=0)
+                th: np.sqrt(np.sum([ndi.convolve(im, kern_part, mode='constant', cval=c)**2
+                                    for kern_part in re_im_kern],
+                                   axis=0))
                 for (th, re_im_kern) in zip(orients, kerns)}
             # now, collapse them down to a single filtered image
             # filtered = np.sum(filtered_orientations.values(), axis=0)
@@ -146,13 +146,12 @@ def calc_divisive_normalization_functions(stimulus_contrast_functions,
             return cache[cpd]
         else:
             func       = stimulus_contrast_functions[func_idx]
-            im0        = normalized_stimulus_images[func_idx]
-            imsmooth   = ndi.convolve(im0,
-                                      np.abs(gabor_kernel(cpp)),
-                                      mode='constant',
-                                      cval=ev)
             filtered   = func(cpd)
-            normalized = np.sum([(v**r)/(s**r + imsmooth**r)
+            # for the denominator in our normalization step, we sum over all orientations. this is
+            # the step used in Kay2013a, but it's not clear whether this is ultimately the step we
+            # want to use.
+            imPOP = np.mean(filtered.values(), axis=0)
+            normalized = np.sum([(v**r)/(s**r + imPOP**r)
                                  for v in filtered.itervalues()],
                                 axis=0)
             normalized.setflags(write=False)

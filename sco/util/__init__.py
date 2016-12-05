@@ -95,7 +95,7 @@ def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n
             fig = plotter.figure()
             plotter.imshow(img)
             plotter.axis('equal')
-            plotter.asix('off')
+            plotter.axis('off')
             return fig
     else:
         raise ValueError('unrecognized method: %s' % method)

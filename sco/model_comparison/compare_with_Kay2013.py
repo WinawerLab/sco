@@ -128,17 +128,9 @@ def compare_with_Kay2013(image_base_path, stimuli_idx, voxel_idx=None, subject='
         stimulus_images = np.asarray(tmp)
         if 'stimulus_images' not in kwargs:
             kwargs.update({'stimulus_images': stimulus_images})
-        # in this case, we already have the stimulus images, so we don't need the sco chain to do
-        # the importing of them.
-        # We need to modify the stimulus chain that's part of sco_chain because we don't need the
-        # import_stimulus_images step.
-        stim_chain = (
-            ('calc_stimulus_default_parameters', stimulus_core.calc_stimulus_default_parameters),
-            ('calc_normalized_stimulus', stimulus_core.calc_normalized_stimulus_images))
-        # This is our modified chain.
+        kwargs.update({'stimulus_image_filenames': None})
         sco_chain = (('calc_anatomy', anat_chain),
-                     # need to call calc_chain on this to make it ready to go.
-                     ('calc_stimulus', calc_chain(stim_chain)),
+                     ('calc_stimulus', calc_stimulus),
                      ('calc_contrast', calc_contrast),
                      ('calc_pRF', calc_pRF),
                      ('calc_normalization', calc_normalization))

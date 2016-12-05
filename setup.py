@@ -25,4 +25,6 @@ setup(
                       'nibabel>=2.0',
                       'pysistence>=0.4',
                       'decorator>=4.0',
-                      'neuropythy>=0.1'])
+                      'neuropythy>=0.1',
+                      'pandas>=0.18.1',
+                      'seaborn>0.7.1'])

@@ -65,4 +65,6 @@ cleantmps :
 	-rm MATLAB_soc_model_params_$*.csv
 	-rm soc_model_params_$*_results_dict.pkl
 
+# this way these won't be deleted as unnecessary intermediates. These
+# take a while to make, so we don't want to do that.
 .PRECIOUS : soc_model_params_%.csv MATLAB_soc_model_params_%.csv

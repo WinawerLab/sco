@@ -20,6 +20,9 @@ def create_stimuli(stimuli_path, save_template_string):
         tmp = (stimuli[j+1]/255. - .5) - (stimuli[j]/255. - .5)
         new_stimuli['vert_sweep'].append((tmp+.5)*255.)
     new_stimuli['horiz_sweep'].append(stimuli[99])
+    # and one blank stimuli
+    tmp = (stimuli[i]/255. - .5) - (stimuli[i]/255. - .5)
+    new_stimuli['horiz_sweep'].append((tmp+.5)*255.)
     new_stimuli['vert_sweep'].append(stimuli[130])
     new_stimuli['horiz_sweep'].extend(new_stimuli['vert_sweep'])
     # extend is always in place, so this will work, but it just will be in horiz_sweep, which is a

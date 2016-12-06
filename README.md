@@ -11,14 +11,10 @@ The Standard Cortical Observer Python library.
 
 ## Dependencies ####################################################################################
 
-The neuropythy library depends on two other libraries, all freely available:
- * [numpy](http://numpy.scipy.org/) >= 1.2
- * [scipy](http://www.scipy.org/) >= 0.7.0
- * [scikit-image](https://github.com/scikit-image/scikit-image)
- * [nibabel](https://github.com/nipy/nibabel) >= 1.2
- * [neuropythy](https://github.com/noahbenson/neuropythy) >= 0.1
- * [pysistence](https://pythonhosted.org/pysistence/) >= 0.4.0
- * [decorator](https://github.com/micheles/decorator) >= 4.0.0
+The neuropythy library depends on several libraries, all freely
+available and listed in the requirements file. In order to install,
+type `pip install -r requirements.txt`. If you wish to use the
+included Jupyter notebooks, make sure to also install `jupyter`.
 
 ## License #########################################################################################
 This README file is part of the SCO Python library.

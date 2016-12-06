@@ -23,7 +23,7 @@ SUBJ_DIR=/Volumes/server/Freesurfer_subjects
 # for our stimuli, we use the pictures from Kay2013, which Kendrick
 # provides on his website.
 full_stimuli.mat : 
-	wget -q http://kendrickkay.net/socmodel/stimuli.mat
+	wget -q http://kendrickkay.net/socmodel/stimuli.mat -O ./full_stimuli.mat
         # we need to do this to get the stimuli.mat into the format we want
 	matlab -nodesktop -nodisplay -r "load('$@','images'); save('$@','images'); quit"
 

@@ -4,6 +4,7 @@
 # By Noah C. Benson
 
 import numpy                 as     np
+import numpy.matlib          as     npml
 from   scipy                 import ndimage as ndi
 
 from   skimage.filters       import gabor_kernel
@@ -44,6 +45,30 @@ def calc_contrast_default_parameters(pRF_v123_labels, gabor_orientations=8,
             'Kay2013_normalization_s': _turn_param_into_array(Kay2013_normalization_s,
                                                               pRF_v123_labels)}
 
+def scaled_gabor_kernel(cpp, theta=0, zero_mean=True, **kwargs):
+    '''
+    scaled_gabor_kernel(...) is identical to gabor_kernel(...) except that the resulting kernel is
+    scaled such that the response of the kernel to a grating of identical frequency and angle and
+    min/max values of -/+ 1 is 1.
+    scaled_gabor_kernel has one additional argument, zero_mean=True, which specifies that the kernel
+    should (or should not) be given a zero mean value. The gabor_kernel function alone does not do
+    this, but scaled_gabor_kernel does this by default, unless zero_mean is set to False.
+    '''
+    kern = gabor_kernel(cpp, theta=theta, **kwargs)
+    # First, zero-mean them
+    if zero_mean:
+        kern = (kern.real - np.mean(kern.real)) + 1j*(kern.imag - np.mean(kern.imag))
+    # Next, make the max response grating
+    (n,m) = kern.shape
+    (cn,cm) = [0.5*(q - 1) for q in [n,m]]
+    (costh, sinth) = (np.cos(theta), np.sin(theta))
+    mtx = (2*np.pi*cpp) * np.asarray(
+        [[costh*(col - cm) + sinth*(row - cn) for col in range(m)]
+         for row in range(n)])
+    return np.asarray(
+        (kern.real/np.sum(np.abs(kern.real * np.cos(mtx))))
+        + 1j*(kern.imag/np.sum(np.abs(kern.imag * np.sin(mtx)))))
+
 @calculates('stimulus_contrast_functions',
             d2p='normalized_pixels_per_degree',
             imgs='normalized_stimulus_images',
@@ -80,8 +105,8 @@ def calc_stimulus_contrast_functions(imgs, d2p, orients, ev):
             cpp = cpd / d2ps[k]
             c = evs[k]
             kerns = [(kn.real, kn.imag)
-                     for th in orients
-                     for kn in [gabor_kernel(cpp, theta=th)]]
+                     for th  in orients
+                     for kn  in [scaled_gabor_kernel(cpp, theta=th)]]
             # The filtered orientations
             filtered_orientations = {
                 th: np.sum([ndi.convolve(im, kern_part, mode='constant', cval=c)**2

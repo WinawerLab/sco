@@ -109,9 +109,9 @@ def calc_stimulus_contrast_functions(imgs, d2p, orients, ev):
                      for kn  in [scaled_gabor_kernel(cpp, theta=th)]]
             # The filtered orientations
             filtered_orientations = {
-                th: np.sum([ndi.convolve(im, kern_part, mode='constant', cval=c)**2
-                            for kern_part in re_im_kern],
-                           axis=0)
+                th: np.sqrt(np.sum([ndi.convolve(im, kern_part, mode='constant', cval=c)**2
+                                    for kern_part in re_im_kern],
+                                   axis=0))
                 for (th, re_im_kern) in zip(orients, kerns)}
             # now, collapse them down to a single filtered image
             # filtered = np.sum(filtered_orientations.values(), axis=0)

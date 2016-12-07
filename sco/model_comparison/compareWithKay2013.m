@@ -269,8 +269,8 @@ function modelTable = generateVoxelPredictions(stimuli, modelTable, voxelIdx, st
     modelfun = @(pp,dd) pp(4)*(socfun(dd,gaufun(pp),restrictrange(pp(6),0,1)).^pp(5));
     
     for idx=1:length(stimuliNames)
-        params = [floor(eval(sprintf('modelTable.pRF_pixel_centers_row_image_%s(modelTable.voxel==%d)/2', stimuliNames{idx}, voxelIdx))),
-                  floor(eval(sprintf('modelTable.pRF_pixel_centers_col_image_%s(modelTable.voxel==%d)/2', stimuliNames{idx}, voxelIdx))),
+        params = [eval(sprintf('modelTable.pRF_pixel_centers_row_image_%s(modelTable.voxel==%d)/2', stimuliNames{idx}, voxelIdx)),
+                  eval(sprintf('modelTable.pRF_pixel_centers_col_image_%s(modelTable.voxel==%d)/2', stimuliNames{idx}, voxelIdx)),
                   eval(sprintf('modelTable.pRF_pixel_sizes_image_%s(modelTable.voxel==%d)/2', stimuliNames{idx}, voxelIdx)),
                   modelTable.Kay2013_response_gain(modelTable.voxel==voxelIdx),
                   modelTable.Kay2013_output_nonlinearity(modelTable.voxel==voxelIdx),

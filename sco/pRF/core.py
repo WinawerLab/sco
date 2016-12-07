@@ -197,7 +197,7 @@ class PRFSpec(object):
         if c is None:
             return (u, w)
         elif stackq:
-            return np.asarray([np.dot(w, (uu - c*np.dot(w, uu))) for uu in u])
+            return np.asarray([np.dot(w, (uu - c*np.dot(w, uu))**2) for uu in u])
         else:
             return np.dot(w, (u - c*np.dot(w, u))**2)
 

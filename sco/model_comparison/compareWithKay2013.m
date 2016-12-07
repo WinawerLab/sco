@@ -56,8 +56,28 @@ function compareWithKay2013(knkutilsPath, stimuliPath, stimuliIdx, voxelIdx, mod
     if ischar(stimuliIdx)
         stimuliIdx = load(stimuliIdx);
     end
-    stimuli = images(stimuliIdx);
-    clear images;
+    imgSize = size(images);
+    % then we need to unfold the stimulus_images; each stimulus is 3
+    % dimensional (several two dimensional images), so if it's only
+    % two dimensional and the first dimension is 1, this is collapsed
+    % across that dimension (happens when not all stimuli are the same
+    % size). It's a bunch of cells, so the second line is necessary to
+    % get it into the 3d matrix we want.
+    if length(imgSize) == 2 && imgSize(1) == 1
+        stimuli = images(stimuliIdx);
+    else
+        % then we need to grab the corresponding stimuli
+        stimuli = images(stimuliIdx, :, :, :);
+        % we wrangle this into the same shape, a 1d cell array, as
+        % above, so the cat call works.
+        tmp = cell(1,size(stimuli,1));
+        for ii=1:size(stimuli,1)
+            tmp{ii} = squeeze(images(ii,:,:,:));
+        end
+        stimuli = tmp;
+    end
+    stimuli = cat(3,stimuli{:});
+    clear images tmp;
     
     stimuliNames = load(stimuliNamesPath);
     stimuliNames = stimuliNames.image_names;
@@ -96,7 +116,6 @@ function [stimuli, normAlreadyDoneFlag] = preprocessStimuli(stimuli, modelTable)
 % we can, divisive normalization (we apply divisive normalization here
 % if all voxels have the same divisive normalization parameters)
 
-    stimuli = cat(3,stimuli{:});
     % resize the stimuli to 150 x 150 to reduce computational time.
     % use single-format to save memory.
     temp = zeros(150,150,size(stimuli,3),'single');
@@ -222,8 +241,8 @@ end
 
 function modelTable = generateVoxelPredictions(stimuli, modelTable, voxelIdx, stimuliNames)
 % The parameters are [R C S G N C] where
-%   R is the row index of the center of the 2D Gaussian (pRF_pixel_centers_image_####_dim0/2)
-%   C is the column index of the center of the 2D Gaussian (pRF_pixel_centers_image_####_dim1/2)
+%   R is the row index of the center of the 2D Gaussian (pRF_pixel_centers_row_image_####/2)
+%   C is the column index of the center of the 2D Gaussian (pRF_pixel_centers_col_image_####/2)
 %   S is the standard deviation of the 2D Gaussian (pRF_pixel_sizes_image_####/2)
 %   G is a gain parameter (Kay2013_response_gain)
 %   N is the exponent of the power-law nonlinearity (Kay2013_output_nonlinearity)
@@ -250,8 +269,8 @@ function modelTable = generateVoxelPredictions(stimuli, modelTable, voxelIdx, st
     modelfun = @(pp,dd) pp(4)*(socfun(dd,gaufun(pp),restrictrange(pp(6),0,1)).^pp(5));
     
     for idx=1:length(stimuliNames)
-        params = [floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%s_dim0(modelTable.voxel==%d)/2', stimuliNames{idx}, voxelIdx))),
-                  floor(eval(sprintf('modelTable.pRF_pixel_centers_image_%s_dim1(modelTable.voxel==%d)/2', stimuliNames{idx}, voxelIdx))),
+        params = [floor(eval(sprintf('modelTable.pRF_pixel_centers_row_image_%s(modelTable.voxel==%d)/2', stimuliNames{idx}, voxelIdx))),
+                  floor(eval(sprintf('modelTable.pRF_pixel_centers_col_image_%s(modelTable.voxel==%d)/2', stimuliNames{idx}, voxelIdx))),
                   eval(sprintf('modelTable.pRF_pixel_sizes_image_%s(modelTable.voxel==%d)/2', stimuliNames{idx}, voxelIdx)),
                   modelTable.Kay2013_response_gain(modelTable.voxel==voxelIdx),
                   modelTable.Kay2013_output_nonlinearity(modelTable.voxel==voxelIdx),

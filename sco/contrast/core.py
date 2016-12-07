@@ -167,13 +167,12 @@ def calc_divisive_normalization_functions(stimulus_contrast_functions,
             return cache[cpd]
         else:
             func       = stimulus_contrast_functions[func_idx]
-            im0        = normalized_stimulus_images[func_idx]
-            imsmooth   = ndi.convolve(im0,
-                                      np.abs(gabor_kernel(cpp)),
-                                      mode='constant',
-                                      cval=ev)
             filtered   = func(cpd)
-            normalized = np.sum([(v**r)/(s**r + imsmooth**r)
+            # for the denominator in our normalization step, we sum over all orientations. this is
+            # the step used in Kay2013a, but it's not clear whether this is ultimately the step we
+            # want to use.
+            imPOP = np.mean(filtered.values(), axis=0)
+            normalized = np.sum([(v**r)/(s**r + imPOP**r)
                                  for v in filtered.itervalues()],
                                 axis=0)
             normalized.setflags(write=False)

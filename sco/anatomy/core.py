@@ -216,7 +216,8 @@ def calc_Kay2013_pRF_sizes(pRF_eccentricity, Kay2013_pRF_sigma_slope, Kay2013_ou
     sig2 = sig1
     #sig = [(s0 - 0.23) / (0.16 / np.sqrt(nonlin) - 0.05) for (e, nonlin, s0) in
     #       zip(pRF_eccentricity, Kay2013_output_nonlinearity, sig0)]
-    return {'pRF_sizes': sig2}
+    return {'pRF_sizes': sig2,
+            'effective_pRF_sizes': sig0}
 
 
 @calculates('exported_predictions_filename', 'exported_image_ordering_filename')

@@ -113,7 +113,8 @@ def calc_stimulus_default_parameters(stimulus_image_filenames=None,
             'stimulus_image_filenames':     stimulus_image_filenames}
 
 @calculates('stimulus_images', filenames='stimulus_image_filenames')
-def import_stimulus_images(filenames, stimulus_images=None, stimulus_gamma=None):
+def import_stimulus_images(filenames, stimulus_images=None, stimulus_gamma=None,
+                           img_already_rescaled=False):
     '''
     import_stimulus_images is a calculator that expects the 'stimulus_image_filenames' value and 
     converts this, which it expects to be a list of image filenames (potentially containing 
@@ -148,10 +149,16 @@ def import_stimulus_images(filenames, stimulus_images=None, stimulus_gamma=None)
         raise ValueError('Given stimulus_gamma argument has neither iter nor call attribute')
     # Now load the images...
     if stimulus_images is not None:
-        ims = [img_as_float(im) for im in stimulus_images]
+        ims = [np.asarray(im, dtype=np.float64) for im in stimulus_images]
     else:
         ims = filenames if hasattr(filenames, '__iter__') else [filenames]
-        ims = [(img_as_float(data.load(im)) if isinstance(im, basestring) else im) for im in ims]
+        ims = [np.asarray(data.load(im), dtype=np.float64) for im in ims]
+    # we assume our image lies between 0 and 1 for most of the code, so we ensure that's the
+    # case. We allow users to tell us that the image has already been rescaled to lie between 0 and
+    # 1. If not, we assume the max possible value is 255 (this is a reasonable assumption for
+    # images, they should always either lie between 0 and 1 or 0 and 255).
+    if not img_already_rescaled:
+        ims = [im/255. for im in ims]
     ims = [stimulus_gamma(np.mean(im, axis=2) if len(im.shape) > 2 else im)    for im in ims]
     # If the stimulus images are different sizes, this will be an array with
     # dtype=object. Otherwise it will be normal

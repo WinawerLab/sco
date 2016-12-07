@@ -11,14 +11,10 @@ The Standard Cortical Observer Python library.
 
 ## Dependencies ####################################################################################
 
-The neuropythy library depends on two other libraries, all freely available:
- * [numpy](http://numpy.scipy.org/) >= 1.2
- * [scipy](http://www.scipy.org/) >= 0.7.0
- * [scikit-image](https://github.com/scikit-image/scikit-image)
- * [nibabel](https://github.com/nipy/nibabel) >= 1.2
- * [neuropythy](https://github.com/noahbenson/neuropythy) >= 0.1
- * [pysistence](https://pythonhosted.org/pysistence/) >= 0.4.0
- * [decorator](https://github.com/micheles/decorator) >= 4.0.0
+The neuropythy library depends on several libraries, all freely
+available and listed in the requirements file. In order to install,
+type `pip install -r requirements.txt`. If you wish to use the
+included Jupyter notebooks, make sure to also install `jupyter`.
 
 ## License #########################################################################################
 This README file is part of the SCO Python library.
@@ -100,6 +96,70 @@ will take the `predicted_responses` key from `results` and create a
 corresponding mgh image, which you can view using `freesurfer` or
 `nibabel`.
 
+## Makefile
+
+This repository contains a Makefile, which is used to quickly create
+the images comparing the python and matlab implementations of the
+model and the dataframes containing the parameters and predictions for
+further visualizations. In order to use, first make sure `matlab`,
+`python2.7`, and `make` (GNU make, should be included on all UNIX
+systems; may be more difficult if you're on a Windows machine) are
+both in your path. Then open the Makefile in the text editor of your
+choice and make sure that `KNK_PATH` points to the directory
+containing Kendrick
+Kay's [knkutils](https://github.com/kendrickkay/knkutils) package,
+`SUBJ_DIR` points to your Freesurfer subject directory, and `SUBJ` is
+a valid subject contained within that directory. You may also change
+`VOXEL_IDX` if you want to include more or fewer voxels (you can type
+the voxels directly, e.g., `VOXEL_IDX = 0 1 2` or you can use bash's
+`seq` syntax, e.g., `VOXEL_IDX = $(shell seq min max)` where min is
+the index of the smallest number you want to include and max is the
+largest; note that adding more voxels will make generating predictions
+take more time). Then navigate to the directory containing the
+Makefile (the base directory of the project) on your terminal and type
+`make full_images` (to generate predictions for all images contained
+in the `stimuli.mat` from Kay2013a) or `make sweep_images` (to
+generate predictions for horizontal and vertical sweeping bars). Note
+that you don't need to have `stimuli.mat` downloaded, the Makefile
+will do so for you.
+
+Your terminal will show you which commands are being run and after
+they have all completed, the base directory will contain several svg
+files (which can be opened in a browser) summarizing your results. At
+this point you can also fire up the Jupyter notebook
+`Compare_with_Kay2013.ipynb` and run several of the code blocks in
+order to further explore these results (the relevant sections are
+"Comparison with MATLAB results" for `full_images` and "pRF check" for
+`sweep_images`).
+
+## Spatial frequency preference check
+
+The script `freq_pref_check.py` is included in order to make it easy
+to examine if the spatial frequency preference function of the python
+implementation of the model are working as expected. It's explored in
+the jupyter notebook `Compare_with_Kay2013.ipynb` in the "Spatial
+frequency preference" section. There are two main ways to explore it:
+exploring each relevant factor individually (in which case you can
+make the relevant calls directly from the notebook) or exploring the
+full space of all relevant factors. In that case, it's suggested that
+you use the function `check_full_space` in that script, which is the
+function that will be run when the script is called from the command
+line and is designed to be used as an array job on a computing
+cluster. To do so, make sure the arguments `subject_dir`,
+`img_folder`, and `model_df_path` in the `if __name__ == '__main__'`
+block are correctly set, as is the conversion from `freq_iter` to
+`preferred_freq` in `check_full_space` (by default, this will check
+preferred spatial frequencies of .2, .4, .6, etc). Note that as
+currently implemented, low preferred spatial frequencies will take
+much longer to run than high ones. Then submit this to your computing
+cluster, calling the script with one argument, an integer that runs
+from 1 to 10. (e.g., submit as an array job with argument `-t 1-10`). 
+
+After all the model dataframes have been saved, copy them somewhere
+you can use and run the section "Full space" under "Spatial frequency
+preference" in the jupyter notebook. It will load in all of the
+dataframes and combine them in a way that allows you to visualize the
+model behavior.
 
 # Data pool
 
@@ -130,6 +190,12 @@ it as an array (with every entry the same) for ease of use.
   value specifies the file name of one image to be used as a stimulus
   for the model. User-specified with no defaults. Used in
   `stimulus.core.import_stimulus_images`.
+  
+* `img_already_rescaled`: boolean, default False. We assume the images
+  that the model is getting (either via `stimulus_images` or
+  `stimulus_image_filenames`) lie between 0 and 255 and need to be
+  rescaled to lie between 0 and 1. If they already lie between 0 and
+  1, this flag should be set to True.
 
 * `stimulus_aperture_edge_width`: integer or 1-dimensional array of m
   integers. User-defined, can be set as a single integer (in which

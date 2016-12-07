@@ -48,7 +48,7 @@ MODEL_DF_KEYS = ['pRF_centers', 'pRF_hemispheres', 'pRF_voxel_indices', 'SOC_res
                  'Kay2013_response_gain', 'pRF_frequency_preferences', 'voxel_idx',
                  {'pRF_pixel_centers_row': _get_pRF_pixel_centers_row}, 'effective_pRF_sizes',
                  {'pRF_pixel_sizes': _get_pRF_pixel_size},
-                 {'pRF_pixel_centers_col': _get_pRF_pixel_centers_col}]
+                 {'pRF_pixel_centers_col': _get_pRF_pixel_centers_col}, 'pRF_blob_stds']
     
 # Keys from the results dict that correspond to model setup and so we want
 # to save them but not in the dataframe.
@@ -56,7 +56,7 @@ MODEL_SETUP_KEYS = ['max_eccentricity', 'normalized_pixels_per_degree', 'stimulu
                     'gabor_orientations', 'stimulus_pixels_per_degree', 'subject',
                     'stimulus_contrast_functions', 'normalized_stimulus_aperture',
                     'pRF_frequency_preference_function', 'stimulus_aperture_edge_width',
-                    'normalized_contrast_functions', 'pRF_blob_stds']
+                    'normalized_contrast_functions']
 
 # Keys that show the stimulus images in some form.
 IMAGES_KEYS = ['stimulus_images', 'normalized_stimulus_images', 'stimulus_image_filenames']
@@ -241,8 +241,9 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
         # else we just use the values as is.
         img_format_string = "%s_image_%s"
     for k, v in model_df_dict.iteritems():
-        if len(v.shape) == 1:
-            # This is case 1, and we grab the value as is
+        if len(v.shape) == 1 or len(v.shape)==0:
+            # This is case 1, and we grab the value as is (or there's only one value, so it's the
+            # same for all)
             tmp_dict[k] = v
         elif len(v.shape) == 2:
             if v.shape[0] == voxel_num:

@@ -374,18 +374,29 @@ def _plot_stimuli(condition, stimuli_idx, stimuli, stimuli_descriptions, results
     fig = plt.figure(figsize=[10, 10])
     if results is None:
         if not subflag:
+            # we want to check whether vmax should be 1 or 255. to do that, we just check if any
+            # values in the first image we're using are greater than 1 (if vmax is supposed to be
+            # 255, each image should have values greater than 1)
+            if np.any(stimuli[tmp_idx[0]]>1):
+                vmax = 255
+            else:
+                vmax = 1
             for i, idx in enumerate(tmp_idx):
                 ax = fig.add_subplot(np.ceil(np.sqrt(len(tmp_idx))), np.ceil(np.sqrt(len(tmp_idx))),
                                      i+1)
-                plt.imshow(stimuli[idx][:, :, 0], cmap='gray', vmin=0, vmax=1)
+                plt.imshow(stimuli[idx][:, :, 0], cmap='gray', vmin=0, vmax=vmax)
                 plt.title((idx, 0))
                 ax.xaxis.set_visible(False)
                 ax.yaxis.set_visible(False)
         else:
+            if np.any(stimuli[tmp_idx[subflag[0]]]>1):
+                vmax = 255
+            else:
+                vmax = 1
             for idx in range(stimuli[tmp_idx[subflag]].shape[2]):
                 ax = fig.add_subplot(np.ceil(np.sqrt(stimuli[tmp_idx[subflag]].shape[2])),
                                      np.ceil(np.sqrt(stimuli[tmp_idx[subflag]].shape[2])), idx+1)
-                plt.imshow(stimuli[tmp_idx[subflag]][:, :, idx], cmap='gray', vmin=0, vmax=1)
+                plt.imshow(stimuli[tmp_idx[subflag]][:, :, idx], cmap='gray', vmin=0, vmax=vmax)
                 plt.title((tmp_idx[subflag], idx))
                 ax.xaxis.set_visible(False)
                 ax.yaxis.set_visible(False)
@@ -393,6 +404,10 @@ def _plot_stimuli(condition, stimuli_idx, stimuli, stimuli_descriptions, results
         norm_stim = results['normalized_stimulus_images']
         vox_num = model_df.shape[0]
         vox_colors = sns.palettes.color_palette('Set1', vox_num)
+        if np.any(norm_stim>1):
+            vmax = 255
+        else:
+            vmax = 1
         for i, idx in enumerate(tmp_idx):
             ax = fig.add_subplot(np.ceil(np.sqrt(len(tmp_idx))), np.ceil(np.sqrt(len(tmp_idx))),
                                  i+1)
@@ -401,7 +416,7 @@ def _plot_stimuli(condition, stimuli_idx, stimuli, stimuli_descriptions, results
             # value. np.squeeze will do that as best it can. If there's more than one value here
             # somehow, an error will be thrown when we try to show the image.
             stim_idx = np.squeeze(np.where(stimulus_model_names=='%04d_sub00' % idx))
-            plt.imshow(norm_stim[stim_idx, :, :], cmap='gray', vmin=0, vmax=1)
+            plt.imshow(norm_stim[stim_idx, :, :], cmap='gray', vmin=0, vmax=vmax)
             plt.title(stimulus_model_names[stim_idx])
             ax.xaxis.set_visible(False)
             ax.yaxis.set_visible(False)

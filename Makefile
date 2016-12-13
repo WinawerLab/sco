@@ -34,36 +34,23 @@ sweep_stimuli.mat : full_stimuli.mat
 soc_model_params_%.csv : %_stimuli.mat
 	python2.7 model_comparison_script.py $< $(SUBJ) $@ $(STIMULI_IDX_$*) -v $(VOXEL_IDX) -s $(SUBJ_DIR)
 
-voxel_idx.txt :
-	#  we don't need to increment these voxel indices because this
-	#  refers to actual values in the dataframe / table
-	echo $(VOXEL_IDX) > $@
 
-%_stim_idx.txt :
-	echo $(STIMULI_IDX_$*) > $@
-	# for stimuli indices, we need to increment them by one to
-	# turn them from python into matlab indices.
-	python2.7 sco/model_comparison/py_to_matlab.py -p2m $@
 
-MATLAB_soc_model_params_%.csv : soc_model_params_%.csv voxel_idx.txt %_stim_idx.txt 
-	matlab -nodesktop -nodisplay -r "cd $(shell pwd)/sco/model_comparison; compareWithKay2013('$(KNK_PATH)', '$(shell pwd)/$*_stimuli.mat', '$(shell pwd)/$*_stim_idx.txt', '$(shell pwd)/voxel_idx.txt', '$(shell pwd)/$<', '$(shell pwd)/soc_model_params_$*_image_names.mat', '$(shell pwd)/$@'); quit;"
+Kay2013_comparison/MATLAB_soc_model_params_%.csv : Kay2013_comparison/soc_model_params_%.csv
+        # we increment the stimuli index and not the voxel index,
+        # because the voxel indices refer to a column in the
+        # dataframe/table, while the stimuli indices will actually be
+        # used to grab something from an array in matlab
+	matlab -nodesktop -nodisplay -r "cd $(shell pwd)/sco/model_comparison; compareWithKay2013('$(KNK_PATH)', '$(shell pwd)/Kay2013_comparison/$*_stimuli.mat', [$(STIMULI_IDX_$*)]+1, [$(VOXEL_IDX)], '$(shell pwd)/$<', '$(shell pwd)/Kay2013_comparison/soc_model_params_$*_image_names.mat', '$(shell pwd)/$@'); quit;"
 
 .PHONY : %_images
 # this will create several images, with names based on the default options in sco/model_comparison/core.py
 %_images : MATLAB_soc_model_params_%.csv %_stimuli.mat soc_model_params_%.csv
 	python2.7 sco/model_comparison/core.py $* $< soc_model_params_$*_image_names.mat sco/model_comparison/stimuliNames.mat $*_stimuli.mat $(STIMULI_IDX_$*)
 
-.PHONY : cleantmps
-cleantmps :
-	-rm voxel_idx.txt
-	-rm stim_idx.txt
 
 .PHONY : %clean
-%clean : cleantmps
-	-rm soc_model_params_$*.csv
-	-rm soc_model_params_$*_image_names.mat
-	-rm MATLAB_soc_model_params_$*.csv
-	-rm soc_model_params_$*_results_dict.pkl
+%clean : 
 
 # this way these won't be deleted as unnecessary intermediates. These
 # take a while to make, so we don't want to do that.

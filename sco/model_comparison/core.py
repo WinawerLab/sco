@@ -189,13 +189,16 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
             k, tmp_func = k.items()[0]
             tmp_args = inspect.getargspec(tmp_func).args
             value = tmp_func(*[results.get(i) for i in tmp_args])
-        else:
-            value = results[k]
-        try:
-            # they should all be arrays, but just in case.
+            # they should all be arrays, but just in case.            
             model_df_dict[k] = np.asarray(value)
-        except KeyError:
-            warnings.warn("Results dict does not contain key %s, skipping" % k)
+        else:
+            try:
+                value = results[k]
+                # they should all be arrays, but just in case.
+                model_df_dict[k] = np.asarray(value)
+            except KeyError:
+                warnings.warn("Results dict does not contain key %s, skipping" % k)
+                
     # We assume that we have four types of variables here, as defined by their shape:
     #
     # 1. One-dimensional. For these, we simply want their values to be one of the columns of our
@@ -290,7 +293,9 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
     # infer voxel label from the indices directly.
     if 'voxel_idx' in model_df.columns:
         model_df = model_df.rename(columns={'voxel_idx': 'voxel'})
-        model_df = model_df.set_index('voxel')
+    else:
+        model_df['voxel'] = range(model_df.shape[0])
+    model_df = model_df.set_index('voxel')
     # Finally, we save model_df as a csv for easy importing / exporting
     model_df.to_csv(model_df_path, index_label='voxel')
     sio.savemat(os.path.splitext(model_df_path)[0] + "_image_names.mat",

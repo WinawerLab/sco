@@ -49,7 +49,7 @@ Metamer_images/Original_Brodatz :
 
 Metamer_images/Metamers : Metamer_images/Original_Brodatz
 	mkdir $@
-	matlab -nodesktop -nodisplay -r "createMetamers('$(TEXTURE_SYNTH_PATH)', '$(PYR_TOOLS_PATH)', '$</*.gif', '$@', [$(METAMER_IDX)], $(NUM_SCALES), $(NUM_ORIENTATIONS), $(SIZE_NEIGHBORHOOD), 20, 5); quit;"
+	matlab -nodesktop -nodisplay -r "createMetamers('$(TEXTURE_SYNTH_PATH)', '$(PYR_TOOLS_PATH)', '$(KNK_PATH)','$</*.gif', '$@', [$(METAMER_IDX)], $(NUM_SCALES), $(NUM_ORIENTATIONS), $(SIZE_NEIGHBORHOOD), 20, 5); quit;"
 
 # this will also create soc_model_params_%_image_names.mat in the same call
 Kay2013_comparison/soc_model_params_%.csv : Kay2013_comparison/%_stimuli.mat

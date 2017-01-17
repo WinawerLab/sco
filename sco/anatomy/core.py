@@ -120,7 +120,7 @@ def calc_pRFs_from_freesurfer_retinotopy_volumes(polar_angle_mgh, eccentricity_m
     [hem, pRF_voxel_indices] = [np.asarray([r[i] for r in tmp]) for i in [0,1]]
     # Pull out the angle/eccen data
     angs0 = np.asarray([angle[i,j,k] for (i,j,k) in pRF_voxel_indices])
-    angs  = 180.0/np.pi * (90.0 - angs0*hem)
+    angs  = np.pi/180. * (90.0 - angs0*hem)
     eccs  = np.asarray([eccen[i,j,k] for (i,j,k) in pRF_voxel_indices])
     labs  = np.asarray([label[i,j,k] for (i,j,k) in pRF_voxel_indices])
     # Filter by eccentricity...
@@ -160,7 +160,7 @@ def calc_pRFs_from_freesurfer_retinotopy_surface(lh_polar_angle_mgh,
                            np.where(eccs < max_eccentricity)[0])
     idcs  = idcs[vals]
     hemis = np.concatenate([[1 for a in lang], [-1 for a in rang]], axis=0)[vals]
-    angs  = 180.0/np.pi * (90.0 - angs0[vals]*hemis)
+    angs  = np.pi/180. * (90.0 - angs0[vals]*hemis)
     eccs  = eccs[vals]
     labs  = labs[vals]
     # and pull out the rest of the data based on these:

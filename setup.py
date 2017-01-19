@@ -27,4 +27,4 @@ setup(
                       'decorator>=4.0',
                       'neuropythy>=0.1',
                       'pandas>=0.18.1',
-                      'seaborn>0.7.1'])
+                      'seaborn>=0.7.1'])

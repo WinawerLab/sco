@@ -10,12 +10,14 @@ STIMULI_IDX_full = $(shell seq 69 224)
 # small enough that you don't need to use something else for testing)
 STIMULI_IDX_sweep = $(shell seq 0 33)
 
+VOXEL_IDX = $(shell seq 0 3)
 
-VOXEL_IDX = $(shell seq 0 9)
-METAMER_IDX = $(shell seq 1 112)
+BRODATZ_METAMER_IDX = $(shell seq 1 112)
+FREEMAN2013_METAMER_IDX = $(shell seq 1 15)
 NUM_SCALES=4
 NUM_ORIENTATIONS=4
 SIZE_NEIGHBORHOOD=7
+METAMER_SEEDS = $(shell seq 1 5)
 
 # KNK_PATH=/home/billbrod/Documents/Kendrick-socmodel/code/
 KNK_PATH=/Users/winawerlab/matlab/git/knkutils/
@@ -41,15 +43,20 @@ Kay2013_comparison/full_stimuli.mat : Kay2013_comparison
 Kay2013_comparison/sweep_stimuli.mat : Kay2013_comparison/full_stimuli.mat
 	python2.7 pRF_check.py $< Kay2013_comparison/{}_stimuli.mat
 
+# primarily using Freeman 2013 stimuli now, so this might not be relevant.
 Metamer_images/Original_Brodatz :
 	wget -q http://multibandtexture.recherche.usherbrooke.ca/images/Original_Brodatz.zip -O ./Original_Brodatz.zip
 	unzip ./Original_Brodatz.zip -d Metamer_images
 	mv Metamer_images/Original\ Brodatz Metamer_images/Original_Brodatz
 	rm Original_Brodatz.zip
 
-Metamer_images/Metamers : Metamer_images/Original_Brodatz
+Metamer_images/Brodatz_metamers : Metamer_images/Original_Brodatz
 	mkdir $@
-	matlab -nodesktop -nodisplay -r "createMetamers('$(TEXTURE_SYNTH_PATH)', '$(PYR_TOOLS_PATH)', '$(KNK_PATH)','$</*.gif', '$@', [$(METAMER_IDX)], $(NUM_SCALES), $(NUM_ORIENTATIONS), $(SIZE_NEIGHBORHOOD), 20, 5); quit;"
+	matlab -nodesktop -nodisplay -r "createMetamers('$(TEXTURE_SYNTH_PATH)', '$(PYR_TOOLS_PATH)', '$(KNK_PATH)','$</*.gif', '$@', [$(BRODATZ_METAMER_IDX)], $(NUM_SCALES), $(NUM_ORIENTATIONS), $(SIZE_NEIGHBORHOOD), 20, 5); quit;"
+
+Metamer_images/Freeman2013_metamers : Metamer_images/Freeman2013_stimuli
+	mkdir $@
+	matlab -nodesktop -nodisplay -r "createMetamers('$(TEXTURE_SYNTH_PATH)', '$(PYR_TOOLS_PATH)', '$(KNK_PATH)','$</tex-320x320-im*-smp1.png', '$@', [$(FREEMAN2013_METAMER_IDX)], $(NUM_SCALES), $(NUM_ORIENTATIONS), $(SIZE_NEIGHBORHOOD), 20, [$(METAMER_SEEDS)]); quit;"
 
 # this will also create soc_model_params_%_image_names.mat in the same call
 Kay2013_comparison/soc_model_params_%.csv : Kay2013_comparison/%_stimuli.mat

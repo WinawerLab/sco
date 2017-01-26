@@ -96,3 +96,7 @@ stimuli.mat
 
 # svg images
 *.svg
+
+# the directories containing outputs
+Kay2013_comparison/
+Metamer_images/

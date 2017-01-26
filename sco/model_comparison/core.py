@@ -41,13 +41,13 @@ def _get_pRF_pixel_size(pRF_views, normalized_stimulus_images, normalized_pixels
 
 # Keys from the results dict that correspond to model parameters and so that we want to save in the
 # output dataframe
-MODEL_DF_KEYS = ['pRF_centers', 'pRF_hemispheres', 'pRF_voxel_indices', 'SOC_responses',
-                 'pRF_eccentricity', 'pRF_v123_labels', 'predicted_responses', 'pRF_sizes',
-                 'pRF_polar_angle', 'Kay2013_output_nonlinearity', 'Kay2013_pRF_sigma_slope',
-                 'Kay2013_SOC_constant', 'Kay2013_normalization_r', 'Kay2013_normalization_s',
-                 'Kay2013_response_gain', 'pRF_frequency_preferences', 'voxel_idx',
-                 {'pRF_pixel_centers_row': _get_pRF_pixel_centers_row}, 'effective_pRF_sizes',
-                 {'pRF_pixel_sizes': _get_pRF_pixel_size},
+MODEL_DF_KEYS = ['pRF_centers', 'pRF_hemispheres', 'pRF_voxel_indices', 'pRF_vertex_indices',
+                 'SOC_responses', 'pRF_eccentricity', 'pRF_v123_labels', 'predicted_responses',
+                 'pRF_sizes', 'pRF_polar_angle', 'Kay2013_output_nonlinearity',
+                 'Kay2013_pRF_sigma_slope', 'Kay2013_SOC_constant', 'Kay2013_normalization_r',
+                 'Kay2013_normalization_s', 'Kay2013_response_gain', 'pRF_frequency_preferences',
+                 'voxel_idx', {'pRF_pixel_centers_row': _get_pRF_pixel_centers_row},
+                 'effective_pRF_sizes', {'pRF_pixel_sizes': _get_pRF_pixel_size},
                  {'pRF_pixel_centers_col': _get_pRF_pixel_centers_col}, 'pRF_blob_stds']
     
 # Keys from the results dict that correspond to model setup and so we want
@@ -189,13 +189,16 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
             k, tmp_func = k.items()[0]
             tmp_args = inspect.getargspec(tmp_func).args
             value = tmp_func(*[results.get(i) for i in tmp_args])
-        else:
-            value = results[k]
-        try:
-            # they should all be arrays, but just in case.
+            # they should all be arrays, but just in case.            
             model_df_dict[k] = np.asarray(value)
-        except KeyError:
-            warnings.warn("Results dict does not contain key %s, skipping" % k)
+        else:
+            try:
+                value = results[k]
+                # they should all be arrays, but just in case.
+                model_df_dict[k] = np.asarray(value)
+            except KeyError:
+                warnings.warn("Results dict does not contain key %s, skipping" % k)
+                
     # We assume that we have four types of variables here, as defined by their shape:
     #
     # 1. One-dimensional. For these, we simply want their values to be one of the columns of our
@@ -290,7 +293,9 @@ def create_model_dataframe(results, image_names, model_df_path="./soc_model_para
     # infer voxel label from the indices directly.
     if 'voxel_idx' in model_df.columns:
         model_df = model_df.rename(columns={'voxel_idx': 'voxel'})
-        model_df = model_df.set_index('voxel')
+    else:
+        model_df['voxel'] = range(model_df.shape[0])
+    model_df = model_df.set_index('voxel')
     # Finally, we save model_df as a csv for easy importing / exporting
     model_df.to_csv(model_df_path, index_label='voxel')
     sio.savemat(os.path.splitext(model_df_path)[0] + "_image_names.mat",
@@ -345,6 +350,9 @@ def _create_plot_df(model_df, stimuli_idx=None, stimuli_descriptions=None):
 
     plot_df = plot_df.set_index('voxel')
     plot_df['v123_label'] = model_df['pRF_v123_labels']
+    plot_df['pRF_centers_dim0'] = model_df['pRF_centers_dim0']
+    plot_df['pRF_centers_dim1'] = model_df['pRF_centers_dim1']
+    plot_df['pRF_hemispheres'] = model_df['pRF_hemispheres']
     plot_df = plot_df.reset_index()
 
     return plot_df

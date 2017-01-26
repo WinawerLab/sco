@@ -16,6 +16,18 @@ available and listed in the requirements file. In order to install,
 type `pip install -r requirements.txt`. If you wish to use the
 included Jupyter notebooks, make sure to also install `jupyter`.
 
+If you wish to compare the output of this model to the output of
+Kendrick Kay's MATLAB implementation, you will need
+his [knkutils](https://github.com/kendrickkay/knkutils).
+
+If you wish to see how this model handles Eero Simoncelli's texture
+metamers, you will need
+his [textureSynth](https://github.com/billbrod/textureSynth) (note
+that this is actually billbrod's fork of the textureSynth code,
+because a small change was needed)
+and
+[matlabPyrTools](https://github.com/LabForComputationalVision/matlabPyrTools).
+
 ## License #########################################################################################
 This README file is part of the SCO Python library.
 

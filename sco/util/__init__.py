@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import matplotlib.tri    as tri
 import numpy             as np
 import pandas as pd
-import metamers
 
 def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n_stds=1,
                    size_gain=1, method='triangulation', subplot=None):

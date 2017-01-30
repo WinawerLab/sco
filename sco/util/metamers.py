@@ -13,26 +13,36 @@
 
 import re
 
-def search_for_mets(x):
-    tmp = re.search(r'(V[12]Met(Scaled)?).*', x)
+def search_for_mets(x, re_exp=r'(V[12]Met(Scaled)?).*'):
+    """find the metamer type in the filename
+    """
+    tmp = re.search(re_exp, x)
     if tmp is None:
         return "original"
     else:
         return tmp.groups()[0].replace('MetScaled', 'SclMet').replace('Met', '-metamer')
 
-def search_for_noise_seed(x):
-    tmp = re.search(r'im[0-9]+-smp1-([0-9]+).*png', x)
+def search_for_noise_seed(x, re_exp=r'im[0-9]+-smp1-([0-9]+).*png'):
+    """find the noise seed in the filename
+    """
+    tmp = re.search(re_exp, x)
     if tmp is None:
         return None
     else:
         return tmp.groups()[0]
 
-def create_met_df(df, col_name='image'):
+def create_met_df(df, col_name='image', type_regex=r'(V[12]Met(Scaled)?).*',
+                  seed_regex=r'im[0-9]+-smp1-([0-9]+).*png', name_regex=r'(im[0-9]+)-smp1.*png'):
     """for each image, determine its type, name, and seed
+
+    These are all based on regex matching with the image name, so the assumption is that images
+    have been named in a straightforward manner. If you used createMetamers.m / Makefile to create
+    your stimuli, then the default values should work. Otherwise, you'll have to set them by
+    hand.
     """
     if 'language' in df.columns:
         df = df[df.language=='python']
-    df['image_type'] = df[col_name].apply(search_for_mets)
-    df['image_name'] = df[col_name].apply(lambda x: re.search(r'(im[0-9]+)-smp1.*png', x).groups()[0])
-    df['image_seed'] = df[col_name].apply(search_for_noise_seed)
+    df['image_type'] = df[col_name].apply(search_for_mets, args=(type_regex,))
+    df['image_name'] = df[col_name].apply(lambda x: re.search(name_regex, x).groups()[0])
+    df['image_seed'] = df[col_name].apply(search_for_noise_seed, args=(seed_regex,))
     return df

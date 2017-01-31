@@ -68,8 +68,11 @@ def main(images, output_dir, model_name='full', **kwargs):
 
     images = [os.path.split(i)[1] for i in images]
     model_df = create_model_dataframe(results, images, '%s/model_df_%s.csv' % (output_dir, model_name))
-    plot_df = _create_plot_df(model_df)
+    # extra_cols is a list of strings corresponding to columns in model_df that you would also like
+    # to add to the plot_df
+    plot_df = _create_plot_df(model_df, extra_cols=['Kay2013_output_nonlinearity', 'Kay2013_SOC_constant'])
     plot_df = create_met_df(plot_df)
     SNR_df = create_SNR_df(plot_df, bootstrap_num=bootstrap_num, sample_num=sample_num,
-                           file_name='%s/SNR_df_%s.csv' % (output_dir, model_name))
+                           file_name='%s/SNR_df_%s.csv' % (output_dir, model_name),
+                           extra_cols=['Kay2013_output_nonlinearity', 'Kay2013_SOC_constant'])
     return results, model_df, plot_df, SNR_df

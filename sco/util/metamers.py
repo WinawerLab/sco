@@ -14,7 +14,7 @@
 import re
 import os
 import neuropythy
-from . import save_results_dict, create_SNR_df
+from .core import save_results_dict, create_SNR_df
 from ..model_comparison import create_model_dataframe, _create_plot_df
 from .. import calc_surface_sco
 

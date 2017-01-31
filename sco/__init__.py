@@ -18,7 +18,8 @@ from sco.anatomy       import (calc_anatomy,         volumes_anatomy_chain,
                                export_predicted_response_surface)
 from sco.model_comparison import create_model_dataframe
 
-from sco.util          import (cortical_image)
+# need to drop this in order to avoid circular imports
+# from sco.util          import (cortical_image)
 
 # Version information...
 _version_major = 0

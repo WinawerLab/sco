@@ -13,12 +13,13 @@
 TEMPLATE_SUBMISSION_SCRIPT = """
 #!/bin/bash
 #PBS -l nodes=1:ppn=1
-#PBS -l walltime=5:00:00
+#PBS -l walltime=7:00:00
 #PBS -l mem=12GB
 #PBS -N {job_name}
 #PBS -M {username}
 #PBS -j oe
 #PBS -m ae
+#PBS -o {output_dir}/scripts
  
 module purge
 module load anaconda/2.3.0

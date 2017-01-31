@@ -14,6 +14,7 @@ VOXEL_IDX = $(shell seq 0 3)
 
 BRODATZ_METAMER_IDX = $(shell seq 1 112)
 FREEMAN2013_METAMER_IDX = $(shell seq 1 15)
+IMAGENET_METAMER_IDX = $(shell seq 1 30)
 NUM_SCALES=4
 NUM_ORIENTATIONS=4
 SIZE_NEIGHBORHOOD=7
@@ -57,6 +58,10 @@ Metamer_images/Brodatz_metamers : Metamer_images/Original_Brodatz
 Metamer_images/Freeman2013_metamers : Metamer_images/Freeman2013_stimuli
 	mkdir $@
 	matlab -nodesktop -nodisplay -r "createMetamers('$(TEXTURE_SYNTH_PATH)', '$(PYR_TOOLS_PATH)', '$(KNK_PATH)','$</tex-320x320-im*-smp1.png', '$@', [$(FREEMAN2013_METAMER_IDX)], $(NUM_SCALES), $(NUM_ORIENTATIONS), $(SIZE_NEIGHBORHOOD), 20, [$(METAMER_SEEDS)]); quit;"
+
+Metamer_images/ImageNet_metamers : Metamer_images/ImageNet
+	mkdir $@
+	matlab -nodesktop -nodisplay -r "createMetamers('$(TEXTURE_SYNTH_PATH)', '$(PYR_TOOLS_PATH)', '$(KNK_PATH)','$</im*', '$@', [$(IMAGENET_METAMER_IDX)], $(NUM_SCALES), $(NUM_ORIENTATIONS), $(SIZE_NEIGHBORHOOD), 20, [$(METAMER_SEEDS)]); quit;"
 
 # this will also create soc_model_params_%_image_names.mat in the same call
 Kay2013_comparison/soc_model_params_%.csv : Kay2013_comparison/%_stimuli.mat

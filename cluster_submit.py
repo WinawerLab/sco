@@ -14,7 +14,7 @@ TEMPLATE_SUBMISSION_SCRIPT = """
 #!/bin/bash
 #PBS -l nodes=1:ppn=1
 #PBS -l walltime=7:00:00
-#PBS -l mem=12GB
+#PBS -l mem=23GB
 #PBS -N {job_name}
 #PBS -M {username}
 #PBS -j oe

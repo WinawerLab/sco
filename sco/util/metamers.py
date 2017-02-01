@@ -14,6 +14,7 @@
 import re
 import os
 import neuropythy
+import pandas as pd
 from .core import save_results_dict, create_SNR_df
 from ..model_comparison import create_model_dataframe, _create_plot_df
 from .. import calc_surface_sco
@@ -52,6 +53,32 @@ def create_met_df(df, col_name='image', type_regex=r'(V[12]Met(Scaled)?).*',
     df['image_seed'] = df[col_name].apply(search_for_noise_seed, args=(seed_regex,))
     return df
 
+def create_image_df(results):
+    """given the results dict, return all the images, annotated in a dataframe (for easy facetting)
+    
+    currently, this only works for metamers, because it tries to find the image_seed, image_type,
+    and image_name, which all are defined in a metamer-specific way. however, in the future it may
+    be useful to make this more general; I need to see another usecase before how to do so becomes
+    clear.
+
+    note that this can take a while to run.
+    """
+    def make_df(img, norm_img, idx, filename):
+        t = pd.DataFrame(img).unstack()
+        t2 = pd.DataFrame(norm_img).unstack()
+        tmp = pd.concat([t, t2], axis=1).reset_index()
+        tmp = tmp.rename(columns={0: 'value', 1: 'norm_value'})
+        tmp['image_idx'] = idx
+        tmp['filename'] = filename
+        tmp['image_seed'] = search_for_noise_seed(filename)
+        tmp['image_type'] = search_for_mets(filename)
+        tmp['image_name'] = re.search(r'(im[0-9]+)-smp1.*png', filename).groups()[0]
+        return tmp
+    
+    filenames = [os.path.split(name)[1] for name in results['stimulus_image_filenames']]
+    image_df = pd.concat([make_df(img, norm_img, i, f) for i, (img, norm_img, f) in enumerate(zip(results['stimulus_images'], results['normalized_stimulus_images'], filenames))])
+    image_df['image_seed'] = image_df['image_seed'].replace({None: '1'})
+    return image_df
 
 def main(images, output_dir, model_name='full', **kwargs):
     """Run the SCO model on metamers

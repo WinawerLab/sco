@@ -51,6 +51,11 @@ def main(model_names, image_dir, output_dir='~/SCO_metamer_data', job_name="SCO"
     always be modified to add more. I think json could actually be used to accomplish this
     (http://stackoverflow.com/questions/18006161/how-to-pass-dictionary-as-command-line-argument-to-python-script),
     but I'm not sure it's worth the work.
+
+    Note that if you're using this for metamer (main use right now), make sure that type_regex,
+    seed_regex, and name_regex are all set correctly (see metamers.main for examples) and include
+    these either in the metamers.main call in the if main block or in the SCO_KWARGS dictionary
+    above.
     
     Arguments
     ==============

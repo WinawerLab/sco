@@ -37,7 +37,7 @@ def search_for_noise_seed(x, re_exp=r'im[0-9]+-smp1-([0-9]+).*png'):
         return tmp.groups()[0]
 
 def create_met_df(df, col_name='image', type_regex=r'(V[12]Met(Scaled)?).*',
-                  seed_regex=r'im[0-9]+-smp1-([0-9]+).*png', name_regex=r'(im[0-9]+)-smp1.*png'):
+                  seed_regex=r'im[0-9]+.*-([0-9]+).*png', name_regex=r'(im[0-9]+).*png'):
     """for each image, determine its type, name, and seed
 
     These are all based on regex matching with the image name, so the assumption is that images
@@ -55,6 +55,14 @@ def create_met_df(df, col_name='image', type_regex=r'(V[12]Met(Scaled)?).*',
 
 def main(images, output_dir, model_name='full', **kwargs):
     """Run the SCO model on metamers
+
+    NOTE that you will likely need to set type_regex, seed_regex, and name_regex so they correctly
+    parse the names of your files. The defaults will work if your original files are named
+    'im##.png', where ## can be any number of digits, and you used createMetamers.m to create your
+    metamers. This results in metamers being called V1Met-im##-#.png, V2Met-im##-#.png, and
+    V2MetScaled-img##-#.png, where the final -# specifies the random seed. If your filenames are
+    formatted differently, you'll need to set these regex expression by hand (can be done
+    SCO_KWARGS or if main block in cluster_submit.py).
     """
     if 'subject_path' in kwargs:
         neuropythy.freesurfer.add_subject_path(os.path.expanduser(kwargs.pop('subject_path')))
@@ -62,6 +70,10 @@ def main(images, output_dir, model_name='full', **kwargs):
     max_eccentricity = kwargs.get('max_eccentricity', 7.5)
     bootstrap_num = kwargs.get('bootstrap_num', 100)
     sample_num = kwargs.get('sample_num', 50)
+    type_regex = kwargs.get('type_regex', r'(V[12]Met(Scaled)?).*')
+    seed_regex = kwargs.get('seed_regex', r'im[0-9]+.*-([0-9]+).*png')
+    name_regex = kwargs.get('name_regex', r'(im[0-9]+).*png')
+    print("Running %s" % model_name)
     results = calc_surface_sco(subject=subject, stimulus_image_filenames=images,
                                max_eccentricity=max_eccentricity, **kwargs)
     save_results_dict(results, '%s/results_%s.pkl' % (output_dir, model_name))
@@ -71,7 +83,8 @@ def main(images, output_dir, model_name='full', **kwargs):
     # extra_cols is a list of strings corresponding to columns in model_df that you would also like
     # to add to the plot_df
     plot_df = _create_plot_df(model_df, extra_cols=['Kay2013_output_nonlinearity', 'Kay2013_SOC_constant'])
-    plot_df = create_met_df(plot_df)
+    plot_df = create_met_df(plot_df, type_regex=type_regex, seed_regex=seed_regex,
+                            name_regex=name_regex)
     SNR_df = create_SNR_df(plot_df, bootstrap_num=bootstrap_num, sample_num=sample_num,
                            file_name='%s/SNR_df_%s.csv' % (output_dir, model_name),
                            extra_cols=['Kay2013_output_nonlinearity', 'Kay2013_SOC_constant'])

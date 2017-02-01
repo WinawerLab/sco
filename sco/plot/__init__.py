@@ -1,0 +1,531 @@
+# plot/__init__.py
+#
+# various functions to help plot SCO model performance.
+#
+# by William F Broderick and Noah Benson
+
+import matplotlib
+import itertools
+import matplotlib.pyplot as plt
+import matplotlib.tri    as tri
+import numpy             as np
+import seaborn as sns
+import pandas as pd
+
+def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n_stds=1,
+                   size_gain=1, method='triangulation', subplot=None):
+    '''
+    cortical_image(datapool) yields an array of figures that reconstruct the cortical images for the
+    given sco results datapool. The image is always sized such that the width and height span 
+    2 * max_eccentricity degrees (where max_eccentricity is stored in the datapool). The following
+    options may be given:
+      * visual_area (default: 1) must be 1, 2, or 3 and specifies whether to construct the cortical
+        image according to V1, V2, or V3.
+      * image_number (default: None) specifies which image to construct a cortical image of. If this
+        is given as None, then a list of all images in the datapool is returned; otherwise only the
+        figure for the image number specified is returned.
+      * image_size (default: 200) specifies the width and height of the image in pixels (only for
+        method equal to 'pRF_projection'.
+      * n_stds (default: 1) specifies how many standard deviations should be used with each pRF when
+        projecting the values from the cortical surface back into the image.
+      * size_gain (default: 1) specifies a number to multiply the pRF size by when projecting into
+        the image.
+      * method (default: 'triangulation') should be either 'triangulation' or 'pRF_projection'. The
+        former makes the plot by constructing the triangulation of the pRF centers and filling the
+        triangles in while the latter creates an image matrix and projects the pRF predicted
+        responses into the relevant pRFs.
+    '''
+    # if not given an image number, we want to iterate through all images:
+    if image_number is None:
+        return np.asarray([cortical_image(datapool, visual_area=visual_area, image_number=ii,
+                                          image_size=image_size, n_stds=n_stds, method=method,
+                                          subplot=subplot)
+                           for ii in range(len(datapool['stimulus_images']))])
+    if subplot is None:
+        plotter = plt
+        fig = plotter.figure()
+    else:
+        plotter = subplot
+        fig = subplot
+    if method == 'triangulation':
+        # deal with pyplot's interactive mode
+        maxecc = float(datapool['max_eccentricity'][image_number])
+        labs   = datapool['pRF_v123_labels']
+        (x,y)   = datapool['pRF_centers'].T
+        z       = datapool['predicted_responses'][image_number]
+
+        (x,y,z) = np.transpose([(xx,yy,zz)
+                                for (xx,yy,zz,l) in zip(x,y,z,labs)
+                                if l == visual_area])
+
+        plotter.tripcolor(tri.Triangulation(x,y), z, cmap='jet', shading='gouraud')
+        plotter.axis('equal')
+        plotter.axis('off')
+        return fig
+    
+    elif method == 'pRF_projection':
+        # otherwise, we operate on a single image:    
+        r      = datapool['predicted_responses']
+        maxecc = float(datapool['max_eccentricity'][image_number])
+        sigs   = datapool['pRF_sizes']
+        labs   = datapool['pRF_v123_labels']
+    
+        (x,y) = datapool['pRF_centers'].T
+        z = r[image_number]
+    
+        (x,y,z,sigs) = np.transpose([(xx,yy,zz,ss)
+                                     for (xx,yy,zz,ss,l) in zip(x,y,z,sigs,labs)
+                                     if l == visual_area])
+    
+        img        = np.zeros((image_size, image_size, 2))
+        img_center = (float(image_size)*0.5, float(image_size)*0.5)
+        img_scale  = (img_center[0]/maxecc, img_center[1]/maxecc)
+        for (xx,yy,zz,ss) in zip(x,y,z,sigs):
+            ss = ss * img_scale[0] * size_gain
+            exp_const = -0.5/(ss * ss)
+            row = yy*img_scale[0] + img_center[0]
+            col = xx*img_scale[1] + img_center[1]
+            if row < 0 or col < 0 or row >= image_size or col >= image_size: continue
+            r0 = max([0,          int(round(row - ss))])
+            rr = min([image_size, int(round(row + ss))])
+            c0 = max([0,          int(round(col - ss))])
+            cc = min([image_size, int(round(col + ss))])
+            (mesh_xs, mesh_ys) = np.meshgrid(np.asarray(range(c0,cc), dtype=np.float) - col,
+                                             np.asarray(range(r0,rr), dtype=np.float) - row)
+            gaus = np.exp(exp_const * (mesh_xs**2 + mesh_ys**2))
+            img[r0:rr, c0:cc, 0] += zz
+            img[r0:rr, c0:cc, 1] += gaus
+            img = np.flipud(img[:,:,0] / (img[:,:,1] + (1.0 - img[:,:,1].astype(bool))))
+            fig = plotter.figure()
+            plotter.imshow(img)
+            plotter.axis('equal')
+            plotter.axis('off')
+            return fig
+    else:
+        raise ValueError('unrecognized method: %s' % method)
+
+def img_plotter(val, **kwargs):
+    """simple function to plot images from a dataframe
+
+    will plot `val`, assumes x and y are called `level_1` and `level_2`, respectively (which
+    happens when they are constructed by unstacking a dataframe, as
+    `sco.util.metamers.create_image_df` does)
+    """
+    ax = plt.gca()
+    _ = kwargs.pop('color')
+    try:
+        data = kwargs.pop('data')
+    except KeyError:
+        return
+    cmap = kwargs.pop('cmap', 'gray')
+    # Because images may be different shapes, there may be paddings of NaN, which we want to drop
+    ax.imshow(data.pivot('level_1', 'level_0', val).dropna((0,1), how='all'), cmap=cmap, **kwargs)
+
+def cortical_image_plotter(x, y, z, **kwargs):
+    plt.tripcolor(matplotlib.tri.Triangulation(x, y), z, shading='gouraud', **kwargs)
+
+def plot_predicted_responses(plot_df, plot_restrictions={}, plot_value='predicted_responses', facet_col=None, facet_row=None, 
+                             xlabels=False, ylabels=False, **kwargs):
+    """
+    plot_value: column in plot_df which contains the values to plot, defaults to `predicted_responses`
+
+    plot_restrictions: dictionary, optional. keys must be columns in plot_df, values are the value(s) you want to plot
+
+    facet_col, facet_row: strings, optional. how you want to split up the facetgrid
+
+    xlabels, ylabels: boolean optional. whether you want to include labels on x and y axes. False by default
+
+    **kwargs: will be passed to sns.FacetGrid
+    """
+    tmp_df = plot_df.copy()
+    for k,v in plot_restrictions.iteritems():
+        if isinstance(v, basestring) or not hasattr(v, '__iter__'):
+            v = [v]
+        if k in tmp_df.columns:
+            tmp_df = tmp_df[(tmp_df[k].isin(v))]
+    size = kwargs.pop('size', 2.3)
+    margin_titles = kwargs.pop('margin_titles', True)
+    aspect = kwargs.pop('aspect', 1.25)    
+    min_val, max_val = tmp_df[plot_value].min(), tmp_df[plot_value].max()
+    cmap = kwargs.pop('cmap', 'gray')
+    # this annoying bit will make sure there's not a None in the variables we're facetting on
+    tmp_df[facet_col] = tmp_df[facet_col].replace({None: [i for i in tmp_df[facet_col].unique() if i is not None][0]})
+    tmp_df[facet_row] = tmp_df[facet_row].replace({None: [i for i in tmp_df[facet_row].unique() if i is not None][0]})    
+    with sns.axes_style('whitegrid', {'axes.grid': False, 'axes.linewidth':0.}):
+        g = sns.FacetGrid(tmp_df, col=facet_col, row=facet_row, size=size, margin_titles=margin_titles, aspect=aspect,
+                          **kwargs)
+        g.map(cortical_image_plotter, 'pRF_centers_dim0', 'pRF_centers_dim1', plot_value, 
+              vmin=min_val, vmax=max_val, cmap=cmap)
+        g.set(yticks=[], xticks=[])
+    if not xlabels:
+        g.set_xlabels('')
+    if not ylabels:
+        g.set_ylabels('')
+    make_colorbar(g.fig, cmap, vmin=min_val, vmax=max_val)
+    for ax in g.fig.axes[:-1]:
+        ax.set_aspect('equal')
+    return g
+
+# create a "basic version" that both of these call and also create one that plots the difference
+# between models.
+
+def plot_images(image_df, image_value, img_restrictions={}, facet_col=None, facet_row=None, **kwargs):
+    """
+    image_value: column in image_df which contains the values to plot
+
+    img_restrictions: dictionary, optional. keys must be columns in image_df, values are the value(s) you want to plot
+
+    facet_col, facet_row: strings, optional. how you want to split up the facetgrid
+
+    **kwargs: will be passed to sns.FacetGrid
+    """
+    tmp_df = image_df.copy()
+    for k,v in img_restrictions.iteritems():
+        if isinstance(v, basestring) or not hasattr(v, '__iter__'):
+            v = [v]
+        if k in tmp_df.columns:
+            tmp_df = tmp_df[(tmp_df[k].isin(v))]
+    size = kwargs.pop('size', 2.3)
+    if facet_col not in image_df.columns:
+        facet_col = None
+    if facet_row not in image_df.columns:
+        facet_row = None
+    margin_titles = kwargs.pop('margin_titles', True)
+    min_val, max_val = tmp_df[image_value].min(), tmp_df[image_value].max()
+    cmap = kwargs.pop('cmap', 'gray')
+    with sns.axes_style('whitegrid', {'axes.grid': False, 'axes.linewidth':0.}):
+        g = sns.FacetGrid(tmp_df, col=facet_col, row=facet_row, size=size, margin_titles=margin_titles, **kwargs)
+        g.map_dataframe(img_plotter, image_value, vmin=min_val, vmax=max_val, cmap=cmap)
+        g.set(yticks=[], xticks=[])
+    make_colorbar(g.fig, cmap, vmin=min_val, vmax=max_val)
+    return g
+
+def _hemi_check(hemi):
+    try:
+        hemi_dict = {'R':'R', 'RH': 'R', 'L': 'L', 'LH': 'L'}
+        return hemi_dict[hemi.upper()]
+    except KeyError:
+        raise Exception("Don't know what to do with hemi %s" % hemi)
+
+def _flat_cortex_pivot_table(hemi, mesh, model_df, df_to_pivot, piv_val='predicted_responses',
+                             piv_idx=['model', 'image_type']):
+    """
+    This is a separate function because we only need to run it once per hemisphere.
+    
+    hemi: the hemisphere to create the pivot table for, either 'L'/'LH'/'l'/'lh' or 'R'/'RH'/'r'/'rh'
+
+    mesh: a neuropythy projected mesh, constructed by calling e.g., 
+          subject.LH.projection(method='equirectangular')
+
+    df_to_pivot: "long form" dataframe containing the values you want to map onto the cortex. Probably 
+                 plot_overall_df or SNR_overall_df
+
+    piv_val: the name of the column in df_to_pivot that you want to use as values (and so will be plotted)
+             on the cortex
+
+    piv_idx: str or list of strs, the name(s) of the column(s) in df_to_pivot you want to use as indexes in
+             the pivot table. These will probably be something like 'model' or 'image_type'
+    """
+    hemi = _hemi_check(hemi)
+    hemi_df = model_df[model_df['pRF_vertex_indices'].isin(mesh.vertex_labels) & model_df['pRF_hemispheres'].isin([hemi])]
+    piv = df_to_pivot[df_to_pivot['voxel'].isin(hemi_df['voxel'])]
+    piv = piv.pivot_table(values=piv_val, columns='voxel', index=piv_idx, aggfunc=np.mean)
+    return hemi_df, piv
+
+def _flat_cortex_shape_data(mesh, piv, piv_idx_vals, hemi_df):
+    """
+    based on export_predicted_response_surface, need to get this in right shape for plotting
+
+    mesh: a neuropythy projected mesh, constructed by calling e.g., 
+          subject.LH.projection(method='equirectangular')
+
+    piv: a pivot table (as created by _flat_cortex_pivot_table) containing the values you want to
+         shape
+         
+    piv_idx_vals: str or tuple of strings, the specific values you want to grab from piv.
+    """
+    preds = np.full((mesh.coordinates.shape[1]), 0., dtype=np.float32)
+    idx = np.array([np.where(mesh.vertex_labels==i)[0] for i in hemi_df['pRF_vertex_indices'].values]).flatten()
+    preds[idx] = piv.loc[piv_idx_vals].values
+    return preds
+
+class MidpointNormalize(matplotlib.colors.Normalize):
+    def __init__(self, vmin=None, vmax=None, midpoint=None, clip=False):
+        self.midpoint = midpoint
+        matplotlib.colors.Normalize.__init__(self, vmin, vmax, clip)
+
+    def __call__(self, value, clip=None):
+        # I'm ignoring masked values and all kinds of edge cases to make a
+        # simple example...
+        x, y = [self.vmin, self.midpoint, self.vmax], [0, 0.5, 1]
+        return np.ma.masked_array(np.interp(value, x, y))
+
+def _flat_cortex_make_cmap(mesh, plot_val, vmin=None, vmax=None,
+                          v123_cmaps = {1: matplotlib.cm.Reds, 2: matplotlib.cm.Reds, 3: matplotlib.cm.Reds}):
+
+    """This will only plot the corresponding values on V1, V2, and V3 (as specified by mesh property 
+
+    'benson14_visual_area'). The other parts of the cortex will just show the sulci / gyri pattern.
+
+    mesh: a neuropythy projected mesh, constructed by calling e.g., 
+          subject.LH.projection(method='equirectangular')
+
+    plot_val: numpy array or string. if an array: must be the same shape as mesh.coordinates for 
+               the corresponding hemisphere, and contains the values you wish to make the colormap 
+               for. If a string: the name of a neuropythy mesh property that you wish to make the 
+               colormap for
+
+    v123_cmaps: dictionary, optional. Keys must be 1, 2, and 3 and values are the colormaps to use
+                for V1, V2, and V3.  by default, all three will be matplotlib.cm.Reds.
+    """
+
+    for k, v in v123_cmaps.iteritems():
+        if isinstance(v, basestring):
+            v123_cmaps[k] = plt.get_cmap(v)
+    
+    def _get_color_vals(properties_dict):
+        if properties_dict['curvature'] > 0:
+            blend_col = np.asarray(sns.xkcd_palette(['dark grey'])[0])
+        else:
+            blend_col = np.asarray(sns.xkcd_palette(['light grey'])[0])
+        if properties_dict['benson14_visual_area'] == 0 or properties_dict[prop_name] == 0:
+            return np.concatenate((99*blend_col/100, [.1]))
+        else:
+            return np.asarray(v123_cmaps[properties_dict['benson14_visual_area']](norm(properties_dict[prop_name])))
+    
+    if isinstance(plot_val, basestring):
+        if vmin is None:
+            vmin = float(mesh.prop(plot_val).min())
+        if vmax is None:
+            vmax = float(mesh.prop(plot_val).max())
+        nuniq = pd.Series(mesh.prop(plot_val)).nunique()
+        merge_dict = {}
+        prop_name = plot_val
+    else:
+        if vmin is None:
+            vmin = float(plot_val.min())
+        if vmax is None:
+            vmax = float(plot_val.max())
+        nuniq = pd.Series(plot_val).nunique()
+        merge_dict = {'summary_vals': plot_val}
+        prop_name = 'summary_vals'
+
+    if vmin < 0 and vmax > 0:
+        norm = MidpointNormalize(vmin, vmax, 0.)
+    else:
+        norm = matplotlib.colors.Normalize(vmin, vmax)
+        
+    map_colors = np.asarray(mesh.map_vertices(_get_color_vals, merge=merge_dict))
+    cmap=matplotlib.colors.ListedColormap(map_colors)
+
+    return map_colors, cmap, nuniq, v123_cmaps[1]
+
+def flat_cortex_plotter(x, y, color_idx, hemispheres, cmaps, **kwargs):
+
+    l_idx = hemispheres == 'L'
+    r_idx = hemispheres == 'R'
+
+    # we use these x_mod, y_mod to consistently plot these patches so they are oriented in the same way
+    # as the pysurfer cortex plots
+    xmax = None
+    if l_idx.any() and r_idx.any():
+        x_shift = x[l_idx].max() + abs(x[l_idx].min())
+        x_shift = x_shift + x_shift/10
+        r_cmap = cmaps[r_idx].unique()
+        if len(r_cmap) > 1:
+            raise Exception('Too many cmaps! Probably faceted wrong...')
+        plt.tripcolor(matplotlib.tri.Triangulation(-1*x[r_idx]+x_shift, -1*y[r_idx]), color_idx[r_idx], cmap=r_cmap[0], 
+                      shading='gouraud')
+        xmax = x_shift + x[r_idx].max() + x_shift/10
+        idx = l_idx
+        x_mod, y_mod = 1, 1
+    elif r_idx.any():
+        idx = r_idx
+        x_mod, y_mod = -1, -1
+    elif l_idx.any():
+        idx = l_idx
+        x_mod, y_mod = 1, 1
+    else:
+        raise Exception('Nothing to plot!')
+
+    cmap = cmaps[idx].unique()
+    if len(cmap) > 1:
+        raise Exception('Too many cmaps! Probably faceted wrong...')
+    plt.tripcolor(matplotlib.tri.Triangulation(x_mod*x[idx], y_mod*y[idx]), color_idx[idx], cmap=cmap[0], 
+                  shading='gouraud')
+    if xmax is None:
+        xmax = x[idx].max() + (x[idx].max() + abs(x[idx].min()))/10
+    xmin = x[idx].min() - (x[idx].max() + abs(x[idx].min()))/10
+    
+    ax = plt.gca()
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    ax.set_xlim((xmin, xmax))
+
+def make_colorbar(fig, cbar_cmap, nuniq=None, vmin=None, vmax=None, plot_vals=None):
+    """
+    either plot_vals or all of nuniq, vmin, vmax must be set
+    """
+    if plot_vals is not None:
+        vmin= plot_vals.min()
+        vmax = plot_vals.max()
+        nuniq = pd.Series(plot_vals).nunique()
+
+    if vmin < 0 and vmax > 0:
+        norm = MidpointNormalize(vmin, vmax, 0.)
+    else:
+        norm = matplotlib.colors.Normalize(vmin, vmax)
+    
+    cax, _ = matplotlib.colorbar.make_axes(fig.axes, shrink=.5)
+    cbar = matplotlib.colorbar.ColorbarBase(ax=cax,cmap=cbar_cmap, norm=norm)
+
+    if nuniq is not None and nuniq < 10:
+        ticker = matplotlib.ticker.LinearLocator(numticks=nuniq)
+    elif fig.get_figheight() < 4:
+        ticker = matplotlib.ticker.MaxNLocator(nbins=5)
+    else:
+        ticker = None
+    
+    if ticker is not None:
+        cbar.locator = ticker
+        cbar.update_ticks()
+
+    return cbar
+
+def plot_flat_cortex(model_df, meshes, data_df=None, plot_val='predicted_responses', hemi='both',
+                     facet_col='image_type', facet_row='model', facet_col_vals=None,
+                     facet_row_vals=None, v123_cmaps= {1: 'Reds', 2: 'Reds', 3: 'Reds'}, **kwargs):
+    """Plot the specified property on a flat cortex, averaging across specified categories
+
+    This function plots the property specified by `plot_val` on a flat cortex. `plot_val` can come
+    from either `data_df`, in which case it must be the name of one of the columns (e.g.,
+    'predicted_responses'), or from `meshes`, in which case it must be the name of a property of
+    the mesh (e.g., 'benson14_visual_area'). 
+
+    If `plot_val` is from the mesh, then only one subplot will be made. Otherwise, we will create a
+    seaborn FacetGrid, facetting along `facet_col` and `facet_row` (both of which must be columns
+    of `data_df`), with one subplot for every combination of the values of `facet_col` and
+    `facet_row` (e.g., if each have two values, four subplots are made). Within each subplot, each
+    voxel/vertex will have all of its `plot_val` values averaged together. 
+
+    For example, with the following options: `facet_col='image_type'`, `facet_row='model'`,
+    `plot_val='predicted_responses'`, let the unique values of `'image_type'` in `data_df` be
+    `'original'` and `'V1-metamer'` and the unique values of `'model'` be `'full'` and
+    `'dumb_V1'`. Then the first plot will show the predicted response of each voxel in the full
+    model, averaged together across all original images (and so on).
+
+    If you don't wish to plot all values of `facet_col` and `facet_row`, use `facet_col_vals` and
+    facet_row_vals` to specifiy a subset.
+
+    To change the colormaps used, set `v123_cmaps`.
+
+    Arguments
+    ==============
+    
+    model_df: dataframe summarizing model performance. must contain pRF_vertex_indices and 
+              pRF_hemispheres
+
+    meshes: a dictionary of neuropythy projected meshes. Keys should be 'L' and/or 'R'. constructed
+            by calling e.g., subject.LH.projection(method='equirectangular')
+
+    data_df: "long form" dataframe, optional. contains the values you want to project on the cortex 
+             (e.g., SNR_df, plot_overall_df). If None, it's assumed that `plot_val` is a property 
+             mesh and only one subplot will be made (thus, `facet_col` and `facet_row` will be 
+             ignored)
+
+    plot_val: str, optional. Default: 'predicted_responses'. what you want to plot. Must either be
+              a column in `data_df` or a property of the neuropythy mesh.
+
+    hemi: string, optional. the hemisphere to plot, either 'L'/'LH'/'l'/'lh' or 'R'/'RH'/'r'/'rh'
+          or 'both' (default). if 'both', then both will be in the same subplot
+
+    facet_col: str, optional. Default: 'model'. name of the column you want to display as the
+               column of the pivot table. Must be a column in `data_df`. Ignored if `plot_val` is a
+               property of the mesh
+    
+    facet_row: str, optional. Default: 'image_type'. name of the column you want to display as the
+               row of the pivot table. Must be a column in `data_df`. Ignored if `plot_val` is a 
+               property of the mesh
+
+    facet_col_vals: str or list of strs, optional. subset of facet_col that you want to visualize
+                    on your columns. Probably values of the model type ('full' and 'dumb_V1'). If
+                    None (default), will use all
+
+    facet_row_vals: str or list of strs, optional. subset of facet_row that you want to visualize
+                    on your rows. Probably values of the image type (e.g., 'original',
+                    'V1-metamer', etc). If None (default), will use all
+
+    v123_cmaps: dictionary, optional. Keys must be 1, 2, and 3 and values are the colormaps to use
+                for V1, V2, and V3.  by default, all three will be matplotlib.cm.Reds.
+
+    col/row_order can be specified in **kwargs
+    """
+
+    if hemi=='both':
+        hemi = ['L', 'R']
+    else:
+        hemi = [_hemi_check(hemi)]
+        
+    if data_df is not None and facet_col_vals is None:
+        facet_col_vals = data_df[facet_col].unique()
+    if isinstance(facet_col_vals, basestring):
+        facet_col_vals = [facet_col_vals]
+        
+    if data_df is not None and facet_row_vals is None:
+        facet_row_vals = data_df[facet_row].unique()
+    if isinstance(facet_row_vals, basestring):
+        facet_row_vals = [facet_row_vals]
+
+    vmin, vmax, nuniq, hemi_dfs, pivs = 0, 0, 0, {}, {}
+    if data_df is None or plot_val not in data_df.columns:
+        try:
+            for h in hemi:
+                vmin = min(vmin, meshes[h].prop(plot_val).min())
+                vmax = max(vmax, meshes[h].prop(plot_val).max())
+        except AttributeError:
+            raise Exception("Neither your mesh nor your data_df contains plot_val %s!" % plot_val)
+        vmin, vmax = float(vmin), float(vmax)
+        flat_cort_df = []
+        for h in hemi:
+            map_colors, cmap, nuniq_tmp, cbar_cmap = _flat_cortex_make_cmap(meshes[h], plot_val,
+                                                                            vmin=vmin, vmax=vmax, 
+                                                                            v123_cmaps= v123_cmaps)
+            nuniq = max(nuniq, nuniq_tmp)
+            flat_cort_df.append(pd.DataFrame(data={'hemi': h, 'color_map':cmap,
+                                                   'x_coords': meshes[h].coordinates[0,:],
+                                                   'y_coords': meshes[h].coordinates[1,:]}))
+        flat_cort_df = pd.concat(flat_cort_df)
+        flat_cort_df = flat_cort_df.reset_index().rename(columns={'index':'color_idx'})
+        g = sns.FacetGrid(flat_cort_df, aspect=len(hemi))
+        g.map(flat_cortex_plotter, 'x_coords', 'y_coords', 'color_idx', 'hemi', 'color_map')
+        make_colorbar(g.fig, cbar_cmap, nuniq, vmin, vmax)
+        return g, flat_cort_df
+    else:
+        # we do this first, because it will be the same for all facet_col, facet_row pairs
+        for h in hemi:
+            hemi_dfs[h], pivs[h] = _flat_cortex_pivot_table(h, meshes[h], model_df, data_df,
+                                                            plot_val, [facet_col, facet_row])
+            # that obnoxious second term means that we grab the entries in the corresponding pivot
+            # table that we're looking at in this call (the appropriate model, image_type pairs)
+            # and determine what their minimum values are (same for vmax)
+            vmin = min(vmin, pivs[h][pivs[h].index.isin([i for i in itertools.product(facet_col_vals, facet_row_vals)])].min().min())
+            vmax = max(vmax, pivs[h][pivs[h].index.isin([i for i in itertools.product(facet_col_vals, facet_row_vals)])].max().max())
+        vmin, vmax = float(vmin), float(vmax)
+
+        flat_cort_df = []
+        for h, c, r in itertools.product(hemi, facet_col_vals, facet_row_vals):
+            summary_vals = _flat_cortex_shape_data(meshes[h], pivs[h], (c, r), hemi_dfs[h])
+            map_colors, cmap, nuniq_tmp, cbar_cmap = _flat_cortex_make_cmap(meshes[h], summary_vals,
+                                                                            vmin=vmin, vmax=vmax, 
+                                                                            v123_cmaps= v123_cmaps)
+            nuniq = max(nuniq, nuniq_tmp)
+            flat_cort_df.append(pd.DataFrame(data={'hemi': h, 'facet_col': c, 'facet_row': r, 'summary_vals': summary_vals,
+                                                   'color_map':cmap, 'x_coords': meshes[h].coordinates[0,:],
+                                                   'y_coords': meshes[h].coordinates[1,:]}))
+        flat_cort_df = pd.concat(flat_cort_df)
+        flat_cort_df = flat_cort_df.reset_index().rename(columns={'index':'color_idx'})
+        g = sns.FacetGrid(flat_cort_df, col='facet_col', row='facet_row', aspect=len(hemi), **kwargs)
+        g.map(flat_cortex_plotter, 'x_coords', 'y_coords', 'color_idx', 'hemi', 'color_map')
+        g.set_titles("{col_name} | {row_name}")
+        make_colorbar(g.fig, cbar_cmap, nuniq, vmin, vmax)
+        return g, flat_cort_df

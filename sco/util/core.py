@@ -8,22 +8,27 @@ import pickle
 import neuropythy
 import pandas as pd
 
-def bootstrap_voxel_df(df, sample_num):
-    """sample the rows of `df` `sample_num` times with replacement
+def _bootstrap_voxel_df(df, extra_unique_cols=['image_name']):
+    """bootstrap the rows of `df`
     """
-    boot_idx=df[df.voxel==0].reset_index().sample(sample_num,replace=True).index
+    try:
+        df = df.groupby(['voxel']+extra_unique_cols).mean().reset_index()
+    except TypeError:
+        df = df.groupby(['voxel']+[extra_unique_cols]).mean().reset_index()
+    sample_num = df[df.voxel == 0].shape[0]
+    boot_idx = df[df.voxel == 0].reset_index().sample(sample_num, replace=True).index
     gb = df.groupby('voxel')
     resampled_df = gb.apply(lambda g: g.iloc[boot_idx])
     return resampled_df
 
-def create_bootstrap_df(bootstrap_num, plot_df, sample_num, bootstrap_val, diff_col):
+def _create_bootstrap_df(bootstrap_num, plot_df, bootstrap_val, diff_col, extra_unique_cols):
     """bootstrap `bootstrap_val` `bootstrap_num` times, getting the difference between each pair of
     `diff_col` values
     """
     bootstrap_df = []
-    df_dicts = dict((k, plot_df[plot_df[diff_col]==k]) for k in plot_df[diff_col].unique())
+    df_dicts = dict((k, plot_df[plot_df[diff_col] == k]) for k in plot_df[diff_col].unique())
     for i in range(bootstrap_num):
-        bootstrapped_dfs_dict = dict((k, bootstrap_voxel_df(df_dicts[k], sample_num).set_index(['voxel', 'image_name'])) for k in df_dicts.keys())
+        bootstrapped_dfs_dict = dict((k, _bootstrap_voxel_df(df_dicts[k], extra_unique_cols).set_index(['voxel', 'image_name'])) for k in df_dicts.keys())
 
         tmp_dfs = []
         for name1, name2 in itertools.combinations(bootstrapped_dfs_dict.keys(), 2):
@@ -38,23 +43,25 @@ def create_bootstrap_df(bootstrap_num, plot_df, sample_num, bootstrap_val, diff_
     return pd.concat(bootstrap_df).rename(columns=lambda x: x.replace('-metamer', ''))
 
 def create_SNR_df(plot_df, bootstrap_val='predicted_responses', diff_col='image_type',
-                  bootstrap_num=100, sample_num=50, file_name='SNR_df.csv', extra_cols=[]):
+                  extra_unique_cols=['image_name'], bootstrap_num=100, file_name='SNR_df.csv',
+                  extra_cols=[]):
     """Create a dataframe with bootstrapped signal-to-noise ratio values.
 
     the signal-to-noise ratio is a measure of the difference in a given value between
-    conditions. `plot_df` will be split into the unique values of `diff_col`, then sampled with
-    replacement `sample_num` times, taking the difference in the averages of `bootstrap_val`
-    between each pair of `diff_col` values. This will be done `bootstrap_num` times, then the
-    average over the standard deviation of these `bootstrap_num` values will be recorded as the
-    SNR. Each voxel will therefore have n choose 2 values, where `n = plot_df[diff_col].nunique()`,
-    one for each pair of `diff_col` values.
+    conditions. `plot_df` will be split into the unique values of `diff_col`, then averaged so
+    every combination of voxels and values of `extra_unique_cols` have one row, then bootstrapped,
+    taking the difference in the averages of `bootstrap_val` between each pair of `diff_col`
+    values. This will be done `bootstrap_num` times, then the average over the standard deviation
+    of these `bootstrap_num` values will be recorded as the SNR. Each voxel will therefore have n
+    choose 2 values, where `n = plot_df[diff_col].nunique()`, one for each pair of `diff_col`
+    values.
 
     This will also save the returned `SNR_df` at `file_name`, since this takes a while to run.
     
     extra_cols is a list of strings corresponding to columns in plot_df that you would also like
-    to add to the SNR_df    
-    """
-    bootstrap_df = create_bootstrap_df(bootstrap_num, plot_df, sample_num, bootstrap_val, diff_col)
+    to add to the SNR_df
+"""
+    bootstrap_df = _create_bootstrap_df(bootstrap_num, plot_df, bootstrap_val, diff_col, extra_unique_cols)
 
     gb = bootstrap_df.groupby('voxel')
 

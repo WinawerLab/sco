@@ -16,7 +16,7 @@ import os
 import neuropythy
 import numpy as np
 from sco.model_comparison import (create_model_dataframe, compare_with_Kay2013)
-
+from sco.util import save_results_dict
 
 def main(image_base_path, stimuli_idx, voxel_idx, subject, model_df_path="./soc_model_params.csv",
          subject_dir=None):
@@ -31,41 +31,11 @@ def main(image_base_path, stimuli_idx, voxel_idx, subject, model_df_path="./soc_
     results, stimulus_model_names = compare_with_Kay2013(image_base_path, np.asarray(stimuli_idx),
                                                          voxel_idx, subject,
                                                          subject_dir)
-    # we want to save the results dictionary but we can't pickle functions. We need to do this
-    # because our results dict contains both functions and arrays of functions.
-    save_results = dict()
-    for k, v in results.iteritems():
-        # we can't pickle the free surfer subject
-        if isinstance(v, neuropythy.freesurfer.subject.Subject):
-            continue
-        # we can't pickle functions or lambdas
-        if _check_uncallable(v):
-            save_results[k] = v
-    with open(os.path.splitext(model_df_path)[0] + "_results_dict.pkl", 'w') as f:
-        pickle.dump(save_results, f)
+    save_results_dict(results, os.path.splitext(model_df_path)[0])
 
     model_df = create_model_dataframe(results, stimulus_model_names, model_df_path)
     return model_df, results
 
-def _check_uncallable(x):
-    # if this is an iterable, we want to call this again (we don't know the structure of this
-    # iterable, so x[0] might be another iterable).
-    if hasattr(x, '__iter__'):
-        # we can have an array that just contains None, in which case v[0] will throw an
-        # exception
-        try:
-            return _check_uncallable(x[0])
-        except IndexError:
-            return False
-        # if this is a dictionary, it may return a keyerror, in which case we want to check the
-        # first value.
-        except KeyError:
-            return _check_uncallable(x.values()[0])
-    else:
-        if not hasattr(x, '__call__'):
-            return True
-        else:
-            return False
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=("Create the dataframe with predicted responses for"

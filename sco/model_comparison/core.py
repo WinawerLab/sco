@@ -315,12 +315,15 @@ def _load_pkl_or_mat(path, mat_field):
     return path
 
 
-def _create_plot_df(model_df, stimuli_idx=None, stimuli_descriptions=None):
+def _create_plot_df(model_df, stimuli_idx=None, stimuli_descriptions=None, extra_cols=[]):
     """create dataframe stimuli associated with condition to plot from
 
     condition can be either a boolean array, in which case we grab the values from stimuli_idx
     corresponding to the Trues, or an array of integers, in which case we assume it's just the
     index numbers themselves.
+
+    extra_cols is a list of strings corresponding to columns in model_df that you would also like
+    to add to the plot_df
     """
     # this grabs the columns that contain the predicted responses from both the matlab and the
     # python code.
@@ -349,10 +352,10 @@ def _create_plot_df(model_df, stimuli_idx=None, stimuli_descriptions=None):
         plot_df['image_name'] = plot_df.image.map(mapping)
 
     plot_df = plot_df.set_index('voxel')
-    plot_df['v123_label'] = model_df['pRF_v123_labels']
-    plot_df['pRF_centers_dim0'] = model_df['pRF_centers_dim0']
-    plot_df['pRF_centers_dim1'] = model_df['pRF_centers_dim1']
-    plot_df['pRF_hemispheres'] = model_df['pRF_hemispheres']
+    for col in extra_cols+['pRF_v123_labels', 'pRF_centers_dim0', 'pRF_centers_dim1', 'pRF_hemispheres']:
+        # we want to rename some of these columns
+        plot_col = {'pRF_v123_labels': 'v123_label'}.get(col, col)
+        plot_df[plot_col] = model_df[col]
     plot_df = plot_df.reset_index()
 
     return plot_df

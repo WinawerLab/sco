@@ -71,9 +71,10 @@ function createMetamers(textureSynthPath, pyrToolsPath, knkpath, imgDir, outputD
         baseImage = double(imread([imgDir, imgName]));
         % need to make sure image is grayscale
         baseImage = mean(baseImage, 3);
-        % need to make sure image is square (and dimension is power
-        % of 2?) -- this should be made more clever
-        % baseImage = baseImage(1:128, 1:128);
+        % need to make sure image is square and can be divided by 2 five times
+        % evenly
+        cutSize = floor(min(size(baseImage))/2^6) * 2^6;
+        baseImage = baseImage(1:cutSize, 1:cutSize);
         
         lastPeriod = find(imgName=='.');
         imgName = imgName(1:lastPeriod-1);

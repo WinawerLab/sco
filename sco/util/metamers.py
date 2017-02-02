@@ -96,7 +96,7 @@ def main(images, output_dir, model_name='full', model_steps=['results', 'model_d
     Three outputs are created as part of this call: results, model_df, and SNR_df. Each requires
     the previous one, but they can be created in separate calls (loading in the previous ones). To
     specify the ones you wish to run in this call, use model_steps
-"""
+    """
     if 'subject_path' in kwargs:
         neuropythy.freesurfer.add_subject_path(os.path.expanduser(kwargs.pop('subject_path')))
     if isinstance(model_steps, basestring):
@@ -125,7 +125,7 @@ def main(images, output_dir, model_name='full', model_steps=['results', 'model_d
     plot_df = _create_plot_df(model_df, extra_cols=['Kay2013_output_nonlinearity', 'Kay2013_SOC_constant'])
     plot_df = create_met_df(plot_df, type_regex=type_regex, seed_regex=seed_regex,
                             name_regex=name_regex)
-    if 'SNR_df' in results:
+    if 'SNR_df' in model_steps:
         SNR_df = create_SNR_df(plot_df, bootstrap_num=bootstrap_num,
                                file_name='%s/SNR_df_%s.csv' % (output_dir, model_name),
                                extra_cols=['Kay2013_output_nonlinearity', 'Kay2013_SOC_constant'])

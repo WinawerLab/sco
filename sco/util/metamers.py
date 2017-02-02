@@ -14,6 +14,7 @@
 import re
 import os
 import neuropythy
+import pickle
 import pandas as pd
 from .core import save_results_dict, create_SNR_df
 from ..model_comparison import create_model_dataframe, _create_plot_df
@@ -80,7 +81,8 @@ def create_image_df(results):
     image_df['image_seed'] = image_df['image_seed'].replace({None: '1'})
     return image_df
 
-def main(images, output_dir, model_name='full', **kwargs):
+def main(images, output_dir, model_name='full', model_steps=['results', 'model_df', 'SNR_df'],
+         **kwargs):
     """Run the SCO model on metamers
 
     NOTE that you will likely need to set type_regex, seed_regex, and name_regex so they correctly
@@ -90,29 +92,43 @@ def main(images, output_dir, model_name='full', **kwargs):
     V2MetScaled-img##-#.png, where the final -# specifies the random seed. If your filenames are
     formatted differently, you'll need to set these regex expression by hand (can be done
     SCO_KWARGS or if main block in cluster_submit.py).
-    """
+
+    Three outputs are created as part of this call: results, model_df, and SNR_df. Each requires
+    the previous one, but they can be created in separate calls (loading in the previous ones). To
+    specify the ones you wish to run in this call, use model_steps
+"""
     if 'subject_path' in kwargs:
         neuropythy.freesurfer.add_subject_path(os.path.expanduser(kwargs.pop('subject_path')))
+    if isinstance(model_steps, basestring):
+        model_steps = [model_steps]
     subject = kwargs.get('subject', 'test-sub')
     max_eccentricity = kwargs.get('max_eccentricity', 7.5)
     bootstrap_num = kwargs.get('bootstrap_num', 100)
-    sample_num = kwargs.get('sample_num', 50)
     type_regex = kwargs.get('type_regex', r'(V[12]Met(Scaled)?).*')
     seed_regex = kwargs.get('seed_regex', r'im[0-9]+.*-([0-9]+).*png')
     name_regex = kwargs.get('name_regex', r'(im[0-9]+).*png')
     print("Running %s" % model_name)
-    results = calc_surface_sco(subject=subject, stimulus_image_filenames=images,
-                               max_eccentricity=max_eccentricity, **kwargs)
-    save_results_dict(results, '%s/results_%s.pkl' % (output_dir, model_name))
-
-    images = [os.path.split(i)[1] for i in images]
-    model_df = create_model_dataframe(results, images, '%s/model_df_%s.csv' % (output_dir, model_name))
+    if 'results' in model_steps:
+        results = calc_surface_sco(subject=subject, stimulus_image_filenames=images,
+                                   max_eccentricity=max_eccentricity, **kwargs)
+        save_results_dict(results, '%s/results_%s.pkl' % (output_dir, model_name))
+    else:
+        with open('%s/results_%s.pkl' % (output_dir, model_name)) as f:
+            results = pickle.load(f)
+    if 'model_df' in model_steps:
+        images = [os.path.split(i)[1] for i in images]
+        model_df = create_model_dataframe(results, images, '%s/model_df_%s.csv' % (output_dir, model_name))
+    else:
+        model_df = pd.read_csv('%s/model_df_%s.csv' % (output_dir, model_name))
     # extra_cols is a list of strings corresponding to columns in model_df that you would also like
     # to add to the plot_df
     plot_df = _create_plot_df(model_df, extra_cols=['Kay2013_output_nonlinearity', 'Kay2013_SOC_constant'])
     plot_df = create_met_df(plot_df, type_regex=type_regex, seed_regex=seed_regex,
                             name_regex=name_regex)
-    SNR_df = create_SNR_df(plot_df, bootstrap_num=bootstrap_num, sample_num=sample_num,
-                           file_name='%s/SNR_df_%s.csv' % (output_dir, model_name),
-                           extra_cols=['Kay2013_output_nonlinearity', 'Kay2013_SOC_constant'])
+    if 'SNR_df' in results:
+        SNR_df = create_SNR_df(plot_df, bootstrap_num=bootstrap_num,
+                               file_name='%s/SNR_df_%s.csv' % (output_dir, model_name),
+                               extra_cols=['Kay2013_output_nonlinearity', 'Kay2013_SOC_constant'])
+    else:
+        SNR_df = pd.read_csv('%s/SNR_df_%s.csv' % (output_dir, model_name))
     return results, model_df, plot_df, SNR_df

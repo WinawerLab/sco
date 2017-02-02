@@ -13,12 +13,12 @@
 TEMPLATE_SUBMISSION_SCRIPT = """
 #!/bin/bash
 #PBS -l nodes=1:ppn=1
-#PBS -l walltime=7:00:00
+#PBS -l walltime=12:00:00
 #PBS -l mem=23GB
 #PBS -N {job_name}
 #PBS -M {username}
 #PBS -j oe
-#PBS -m ae
+#PBS -m bae
 #PBS -o {output_dir}/scripts
  
 module purge
@@ -36,10 +36,14 @@ import subprocess
 from sco.util import metamers
 
 SCO_KWARGS = {'full': {},
-              'dumb_V1': {'Kay2013_SOC_constant': 0, 'Kay2013_output_nonlinearity': 1},
-              'intermediate_1': {'Kay2013_SOC_constant': .25, 'Kay2013_output_nonlinearity': .8},
-              'intermediate_2': {'Kay2013_SOC_constant': .5, 'Kay2013_output_nonlinearity': .6},
-              'intermediate_3': {'Kay2013_SOC_constant': .75, 'Kay2013_output_nonlinearity': .4}}
+              'dumb_V1': {'Kay2013_SOC_constant': 0, 'Kay2013_output_nonlinearity': 1,
+                          'model_steps': ['SNR_df']},
+              'intermediate_1': {'Kay2013_SOC_constant': .25, 'Kay2013_output_nonlinearity': .8,
+                                 'model_steps': ['SNR_df']},
+              'intermediate_2': {'Kay2013_SOC_constant': .5, 'Kay2013_output_nonlinearity': .6,
+                                 'model_steps': ['SNR_df']},
+              'intermediate_3': {'Kay2013_SOC_constant': .75, 'Kay2013_output_nonlinearity': .4,
+                                 'model_steps': ['SNR_df']}}
 
 
 def main(model_names, image_dir, output_dir='~/SCO_metamer_data', job_name="SCO", username="",
@@ -56,6 +60,9 @@ def main(model_names, image_dir, output_dir='~/SCO_metamer_data', job_name="SCO"
     seed_regex, and name_regex are all set correctly (see metamers.main for examples) and include
     these either in the metamers.main call in the if main block or in the SCO_KWARGS dictionary
     above.
+
+    The model steps argument of SCO_KWARGS allows you to specify which outputs to create: results,
+    model_df, SNR_df
     
     Arguments
     ==============

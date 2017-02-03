@@ -54,7 +54,8 @@ def create_met_df(df, col_name='image', type_regex=r'(V[12]Met(Scaled)?).*',
     df['image_seed'] = df[col_name].apply(search_for_noise_seed, args=(seed_regex,))
     return df
 
-def create_image_df(results):
+def create_image_df(results, type_regex=r'(V[12]Met(Scaled)?).*',
+                    seed_regex=r'im[0-9]+.*-([0-9]+).*png', name_regex=r'(im[0-9]+).*png'):
     """given the results dict, return all the images, annotated in a dataframe (for easy facetting)
     
     currently, this only works for metamers, because it tries to find the image_seed, image_type,
@@ -63,22 +64,35 @@ def create_image_df(results):
     clear.
 
     note that this can take a while to run.
+
+    type_regex and seed_regex can be None, in which case image_seed and image_type are not set in
+    the returned image_df
+    
     """
-    def make_df(img, norm_img, idx, filename):
+    def make_df(img, norm_img, idx, filename, type_regex, seed_regex, name_regex):
         t = pd.DataFrame(img).unstack()
-        t2 = pd.DataFrame(norm_img).unstack()
-        tmp = pd.concat([t, t2], axis=1).reset_index()
+        if norm_img is not None:
+            t2 = pd.DataFrame(norm_img).unstack()
+            tmp = pd.concat([t, t2], axis=1).reset_index()
+        else:
+            tmp = t.reset_index()
         tmp = tmp.rename(columns={0: 'value', 1: 'norm_value'})
         tmp['image_idx'] = idx
         tmp['filename'] = filename
-        tmp['image_seed'] = search_for_noise_seed(filename)
-        tmp['image_type'] = search_for_mets(filename)
-        tmp['image_name'] = re.search(r'(im[0-9]+)-smp1.*png', filename).groups()[0]
+        if seed_regex is not None:
+            tmp['image_seed'] = search_for_noise_seed(filename, seed_regex)
+        if type_regex is not None:
+            tmp['image_type'] = search_for_mets(filename, type_regex)
+        tmp['image_name'] = re.search(name_regex, filename).groups()[0]
         return tmp
     
     filenames = [os.path.split(name)[1] for name in results['stimulus_image_filenames']]
-    image_df = pd.concat([make_df(img, norm_img, i, f) for i, (img, norm_img, f) in enumerate(zip(results['stimulus_images'], results['normalized_stimulus_images'], filenames))])
-    image_df['image_seed'] = image_df['image_seed'].replace({None: '1'})
+    if 'normalized_stimulus_images' in results.keys():
+        image_df = pd.concat([make_df(img, norm_img, i, f, type_regex, seed_regex, name_regex) for i, (img, norm_img, f) in enumerate(zip(results['stimulus_images'], results['normalized_stimulus_images'], filenames))])
+    else:
+        image_df = pd.concat([make_df(img, None, i, f, type_regex, seed_regex, name_regex) for i, (img, f) in enumerate(zip(results['stimulus_images'], filenames))])
+    if 'image_seed' in image_df.columns:
+        image_df['image_seed'] = image_df['image_seed'].replace({None: '1'})
     return image_df
 
 def main(images, output_dir, model_name='full', model_steps=['results', 'model_df', 'SNR_df'],

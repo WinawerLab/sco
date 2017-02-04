@@ -104,13 +104,14 @@ def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n
     else:
         raise ValueError('unrecognized method: %s' % method)
 
-def img_plotter(val, **kwargs):
-    """simple function to plot images from a dataframe
+def img_plotter(imgs, **kwargs):
+    """simple function to plot images from the images object
 
-    will plot `val`, assumes x and y are called `level_1` and `level_2`, respectively (which
-    happens when they are constructed by unstacking a dataframe, as
-    `sco.util.metamers.create_image_df` does)
-    """
+    kwargs must contain data, a dataframe with only one unique image_idx value, which specifies
+    which image to plot
+    
+    imgs: 3d numpy array containing all images
+"""
     ax = plt.gca()
     _ = kwargs.pop('color')
     try:
@@ -118,11 +119,59 @@ def img_plotter(val, **kwargs):
     except KeyError:
         return
     cmap = kwargs.pop('cmap', 'gray')
-    # Because images may be different shapes, there may be paddings of NaN, which we want to drop
-    ax.imshow(data.pivot('level_1', 'level_0', val).dropna((0,1), how='all'), cmap=cmap, **kwargs)
+    if data.image_idx.nunique() > 1:
+        raise Exception("Didn't facet correctly, too many images meet this criteria!")
+    ax.imshow(imgs[data.image_idx.unique()][0], cmap=cmap, **kwargs)
+    
+def plot_images(images, image_value, img_restrictions={}, facet_col=None, facet_row=None, **kwargs):
+    """plot stimuli in an easy to arrange, easy to parse way
+    
+    images is the dictionary created by util.metamers.create_image_struct, which has a 'label' key
+    containing a DataFrame that labels images by various properties, and other keys corresponding
+    to different image types ('stimulus_images' and 'normalized_stimulus_images'), most likely.
+    
+    image_value: key in images which contains the values to plot (e.g., 'stimulus_images' or
+    'normalized_stimulus_images')
 
+    img_restrictions: dictionary, optional. keys must be columns in images['labels'], values are 
+                      the value(s) you want to plot
+
+    facet_col, facet_row: strings, optional. how you want to split up the facetgrid
+
+    **kwargs: will be passed to sns.FacetGrid
+    """
+    tmp_df = images['labels'].copy()
+    for k,v in img_restrictions.iteritems():
+        if isinstance(v, basestring) or not hasattr(v, '__iter__'):
+            v = [v]
+        if k in tmp_df.columns:
+            tmp_df = tmp_df[(tmp_df[k].isin(v))]
+    # we just use this to determine the max and min values; we still need the full one to plot
+    imgs = images[image_value][tmp_df.image_idx.unique()]
+    size = kwargs.pop('size', 2.3)
+    if facet_col not in tmp_df.columns:
+        facet_col = None
+    if facet_row not in tmp_df.columns:
+        facet_row = None
+    margin_titles = kwargs.pop('margin_titles', True)
+    try:
+        min_val, max_val = imgs.min(), imgs.max()
+    except ValueError:
+        min_val = min([im.min() for im in imgs])
+        max_val = max([im.max() for im in imgs])
+    cmap = kwargs.pop('cmap', 'gray')
+    with sns.axes_style('whitegrid', {'axes.grid': False, 'axes.linewidth':0.}):
+        g = sns.FacetGrid(tmp_df, col=facet_col, row=facet_row, size=size, margin_titles=margin_titles, **kwargs)
+        g.map_dataframe(img_plotter, imgs=images[image_value], vmin=min_val, vmax=max_val, cmap=cmap)
+        g.set(yticks=[], xticks=[])
+    make_colorbar(g.fig, cmap, vmin=min_val, vmax=max_val)
+    return g    
+    
 def cortical_image_plotter(x, y, z, **kwargs):
     plt.tripcolor(matplotlib.tri.Triangulation(x, y), z, shading='gouraud', **kwargs)
+
+# create a "basic version" that both of these call and also create one that plots the difference
+# between models.
 
 def plot_predicted_responses(plot_df, plot_restrictions={}, plot_value='predicted_responses', facet_col=None, facet_row=None, 
                              xlabels=False, ylabels=False, **kwargs):
@@ -164,40 +213,6 @@ def plot_predicted_responses(plot_df, plot_restrictions={}, plot_value='predicte
     make_colorbar(g.fig, cmap, vmin=min_val, vmax=max_val)
     for ax in g.fig.axes[:-1]:
         ax.set_aspect('equal')
-    return g
-
-# create a "basic version" that both of these call and also create one that plots the difference
-# between models.
-
-def plot_images(image_df, image_value, img_restrictions={}, facet_col=None, facet_row=None, **kwargs):
-    """
-    image_value: column in image_df which contains the values to plot
-
-    img_restrictions: dictionary, optional. keys must be columns in image_df, values are the value(s) you want to plot
-
-    facet_col, facet_row: strings, optional. how you want to split up the facetgrid
-
-    **kwargs: will be passed to sns.FacetGrid
-    """
-    tmp_df = image_df.copy()
-    for k,v in img_restrictions.iteritems():
-        if isinstance(v, basestring) or not hasattr(v, '__iter__'):
-            v = [v]
-        if k in tmp_df.columns:
-            tmp_df = tmp_df[(tmp_df[k].isin(v))]
-    size = kwargs.pop('size', 2.3)
-    if facet_col not in image_df.columns:
-        facet_col = None
-    if facet_row not in image_df.columns:
-        facet_row = None
-    margin_titles = kwargs.pop('margin_titles', True)
-    min_val, max_val = tmp_df[image_value].min(), tmp_df[image_value].max()
-    cmap = kwargs.pop('cmap', 'gray')
-    with sns.axes_style('whitegrid', {'axes.grid': False, 'axes.linewidth':0.}):
-        g = sns.FacetGrid(tmp_df, col=facet_col, row=facet_row, size=size, margin_titles=margin_titles, **kwargs)
-        g.map_dataframe(img_plotter, image_value, vmin=min_val, vmax=max_val, cmap=cmap)
-        g.set(yticks=[], xticks=[])
-    make_colorbar(g.fig, cmap, vmin=min_val, vmax=max_val)
     return g
 
 def _hemi_check(hemi):

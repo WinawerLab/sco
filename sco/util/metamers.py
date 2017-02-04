@@ -20,21 +20,12 @@ from .core import save_results_dict, create_SNR_df
 from ..model_comparison import create_model_dataframe, _create_plot_df
 from .. import calc_surface_sco
 
-def search_for_mets(x, re_exp=r'(V[12]Met(Scaled)?).*'):
-    """find the metamer type in the filename
+def _search_for_label(x, regex, none_val):
+    """search filename x for label using regex, returning none_val if nothing is found
     """
-    tmp = re.search(re_exp, x)
+    tmp = re.search(regex, x)
     if tmp is None:
-        return "original"
-    else:
-        return tmp.groups()[0].replace('MetScaled', 'SclMet').replace('Met', '-metamer')
-
-def search_for_noise_seed(x, re_exp=r'im[0-9]+-smp1-([0-9]+).*png'):
-    """find the noise seed in the filename
-    """
-    tmp = re.search(re_exp, x)
-    if tmp is None:
-        return None
+        return none_val
     else:
         return tmp.groups()[0]
 
@@ -49,51 +40,54 @@ def create_met_df(df, col_name='image', type_regex=r'(V[12]Met(Scaled)?).*',
     """
     if 'language' in df.columns:
         df = df[df.language=='python']
-    df['image_type'] = df[col_name].apply(search_for_mets, args=(type_regex,))
-    df['image_name'] = df[col_name].apply(lambda x: re.search(name_regex, x).groups()[0])
-    df['image_seed'] = df[col_name].apply(search_for_noise_seed, args=(seed_regex,))
+    df['image_type'] = df[col_name].apply(_search_for_label, args=(type_regex, 'original'))
+    df['image_name'] = df[col_name].apply(_search_for_label, args=(name_regex, None))
+    df['image_seed'] = df[col_name].apply(_search_for_label, args=(seed_regex, None))
     return df
 
-def create_image_df(results, type_regex=r'(V[12]Met(Scaled)?).*',
-                    seed_regex=r'im[0-9]+.*-([0-9]+).*png', name_regex=r'(im[0-9]+).*png'):
-    """given the results dict, return all the images, annotated in a dataframe (for easy facetting)
+def create_image_struct(results, regex_dict={'image_type': (r'(V[12]Met(Scaled)?).*', 'original'),
+                                             'image_seed': (r'im[0-9]+.*-([0-9]+).*png', '1'), 
+                                             'image_name': (r'(im[0-9]+).*png', None)},
+                        replace_dict={'image_type': [('MetScaled', 'SclMet'), ('Met', '-metamer')]}):
+    """given the results dict, return all the images with labels (for easy facetting)
     
-    currently, this only works for metamers, because it tries to find the image_seed, image_type,
-    and image_name, which all are defined in a metamer-specific way. however, in the future it may
-    be useful to make this more general; I need to see another usecase before how to do so becomes
-    clear.
+    This returns a dictionary with the following keys:
 
-    note that this can take a while to run.
+    - stimulus_images: the images array from the results dict
 
-    type_regex and seed_regex can be None, in which case image_seed and image_type are not set in
-    the returned image_df
+    - normalized_stimulus_images: the normalized images array from the results dict
+
+    - labels: a pandas DataFrame containing labels of the images. The main two columns are filenames
+              and image_index. filenames is the filename of the image, without any folders and 
+              image_index is the appropriate index into stimulus_images and normalized_stimulus_images 
+              to find the corresponding image. It will also contain a column for each entry in `regex_dict`,
+              storing the result of searching filenames for the value in a column labeled with the key. 
+
+    this plays well with plot_images, allowing one to easily find and plot images in an easy-to-parse
+    way
+
+    each entry in regex_dict should have two values: the first a regex to search filenames with, the second
+    the value that should be inserted in case the regex comes up empty
     
+    replace_dict allows one to optionally replace values from one column. After a column is created, if its
+    name shows up as a key in replace_dict, we will call label_df[key].apply(lambda x: x.replace(*replace_dict[key])) 
+    (so the value should be a tuple or a list of tuples, in which case each is called one in turn)
     """
-    def make_df(img, norm_img, idx, filename, type_regex, seed_regex, name_regex):
-        t = pd.DataFrame(img).unstack()
-        if norm_img is not None:
-            t2 = pd.DataFrame(norm_img).unstack()
-            tmp = pd.concat([t, t2], axis=1).reset_index()
-        else:
-            tmp = t.reset_index()
-        tmp = tmp.rename(columns={0: 'value', 1: 'norm_value'})
-        tmp['image_idx'] = idx
-        tmp['filename'] = filename
-        if seed_regex is not None:
-            tmp['image_seed'] = search_for_noise_seed(filename, seed_regex)
-        if type_regex is not None:
-            tmp['image_type'] = search_for_mets(filename, type_regex)
-        tmp['image_name'] = re.search(name_regex, filename).groups()[0]
-        return tmp
-    
     filenames = [os.path.split(name)[1] for name in results['stimulus_image_filenames']]
+    label_df = pd.DataFrame({'filenames': filenames})
+    for col, (regex, none_val) in regex_dict.iteritems():
+        label_df[col] = label_df['filenames'].apply(_search_for_label, args=(regex, none_val))
+        if col in replace_dict:
+            if hasattr(replace_dict[col][0], '__iter__'):
+                for v in replace_dict[col]:
+                    label_df[col] = label_df[col].apply(lambda x: x.replace(*v))
+            else:
+                label_df[col] = label_df[col].apply(lambda x: x.replace(*replace_dict[col]))
+    label_df = label_df.reset_index().rename(columns={'index': 'image_idx'})
+    images = {'labels': label_df, 'stimulus_images': results['stimulus_images']}
     if 'normalized_stimulus_images' in results.keys():
-        image_df = pd.concat([make_df(img, norm_img, i, f, type_regex, seed_regex, name_regex) for i, (img, norm_img, f) in enumerate(zip(results['stimulus_images'], results['normalized_stimulus_images'], filenames))])
-    else:
-        image_df = pd.concat([make_df(img, None, i, f, type_regex, seed_regex, name_regex) for i, (img, f) in enumerate(zip(results['stimulus_images'], filenames))])
-    if 'image_seed' in image_df.columns:
-        image_df['image_seed'] = image_df['image_seed'].replace({None: '1'})
-    return image_df
+        images['normalized_stimulus_images'] = results['normalized_stimulus_images']
+    return images
 
 def main(images, output_dir, model_name='full', model_steps=['results', 'model_df', 'SNR_df'],
          **kwargs):

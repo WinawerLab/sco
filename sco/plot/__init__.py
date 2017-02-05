@@ -123,7 +123,8 @@ def img_plotter(imgs, **kwargs):
         raise Exception("Didn't facet correctly, too many images meet this criteria!")
     ax.imshow(imgs[data.image_idx.unique()][0], cmap=cmap, **kwargs)
     
-def plot_images(images, image_value, img_restrictions={}, facet_col=None, facet_row=None, **kwargs):
+def plot_images(images, image_value, img_restrictions={}, facet_col=None, facet_row=None,
+                cbar=True, **kwargs):
     """plot stimuli in an easy to arrange, easy to parse way
     
     images is the dictionary created by util.metamers.create_image_struct, which has a 'label' key
@@ -164,7 +165,8 @@ def plot_images(images, image_value, img_restrictions={}, facet_col=None, facet_
         g = sns.FacetGrid(tmp_df, col=facet_col, row=facet_row, size=size, margin_titles=margin_titles, **kwargs)
         g.map_dataframe(img_plotter, imgs=images[image_value], vmin=min_val, vmax=max_val, cmap=cmap)
         g.set(yticks=[], xticks=[])
-    make_colorbar(g.fig, cmap, vmin=min_val, vmax=max_val)
+    if cbar:
+        make_colorbar(g.fig, cmap, vmin=min_val, vmax=max_val)
     return g    
     
 def cortical_image_plotter(x, y, z, **kwargs):

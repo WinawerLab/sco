@@ -174,7 +174,7 @@ def cortical_image_plotter(x, y, z, **kwargs):
 # between models.
 
 def plot_predicted_responses(plot_df, plot_restrictions={}, plot_value='predicted_responses', facet_col=None, facet_row=None, 
-                             xlabels=False, ylabels=False, **kwargs):
+                             xlabels=False, ylabels=False, set_minmax=True, **kwargs):
     """
     plot_value: column in plot_df which contains the values to plot, defaults to `predicted_responses`
 
@@ -195,7 +195,10 @@ def plot_predicted_responses(plot_df, plot_restrictions={}, plot_value='predicte
     size = kwargs.pop('size', 2.3)
     margin_titles = kwargs.pop('margin_titles', True)
     aspect = kwargs.pop('aspect', 1.25)    
-    min_val, max_val = tmp_df[plot_value].min(), tmp_df[plot_value].max()
+    if set_minmax:
+        min_val, max_val = tmp_df[plot_value].min(), tmp_df[plot_value].max()
+    else:
+        min_val, max_val = None, None
     cmap = kwargs.pop('cmap', 'gray')
     # this annoying bit will make sure there's not a None in the variables we're facetting on
     tmp_df[facet_col] = tmp_df[facet_col].replace({None: [i for i in tmp_df[facet_col].unique() if i is not None][0]})
@@ -210,7 +213,8 @@ def plot_predicted_responses(plot_df, plot_restrictions={}, plot_value='predicte
         g.set_xlabels('')
     if not ylabels:
         g.set_ylabels('')
-    make_colorbar(g.fig, cmap, vmin=min_val, vmax=max_val)
+    if set_minmax:
+        make_colorbar(g.fig, cmap, vmin=min_val, vmax=max_val)
     for ax in g.fig.axes[:-1]:
         ax.set_aspect('equal')
     return g
@@ -409,7 +413,8 @@ def make_colorbar(fig, cbar_cmap, nuniq=None, vmin=None, vmax=None, plot_vals=No
 
 def plot_flat_cortex(model_df, meshes, data_df=None, plot_val='predicted_responses', hemi='both',
                      facet_col='image_type', facet_row='model', facet_col_vals=None,
-                     facet_row_vals=None, v123_cmaps= {1: 'Reds', 2: 'Reds', 3: 'Reds'}, **kwargs):
+                     facet_row_vals=None, set_minmax=True,
+                     v123_cmaps= {1: 'Reds', 2: 'Reds', 3: 'Reds'}, **kwargs):
     """Plot the specified property on a flat cortex, averaging across specified categories
 
     This function plots the property specified by `plot_val` on a flat cortex. `plot_val` can come
@@ -499,7 +504,10 @@ def plot_flat_cortex(model_df, meshes, data_df=None, plot_val='predicted_respons
                 vmax = max(vmax, meshes[h].prop(plot_val).max())
         except AttributeError:
             raise Exception("Neither your mesh nor your data_df contains plot_val %s!" % plot_val)
-        vmin, vmax = float(vmin), float(vmax)
+        if set_minmax:
+            vmin, vmax = float(vmin), float(vmax)
+        else:
+            vmin, vmax = None, None
         flat_cort_df = []
         for h in hemi:
             map_colors, cmap, nuniq_tmp, cbar_cmap = _flat_cortex_make_cmap(meshes[h], plot_val,
@@ -513,7 +521,8 @@ def plot_flat_cortex(model_df, meshes, data_df=None, plot_val='predicted_respons
         flat_cort_df = flat_cort_df.reset_index().rename(columns={'index':'color_idx'})
         g = sns.FacetGrid(flat_cort_df, aspect=len(hemi))
         g.map(flat_cortex_plotter, 'x_coords', 'y_coords', 'color_idx', 'hemi', 'color_map')
-        make_colorbar(g.fig, cbar_cmap, nuniq, vmin, vmax)
+        if set_minmax:
+            make_colorbar(g.fig, cbar_cmap, nuniq, vmin, vmax)
         return g, flat_cort_df
     else:
         # we do this first, because it will be the same for all facet_col, facet_row pairs
@@ -525,7 +534,10 @@ def plot_flat_cortex(model_df, meshes, data_df=None, plot_val='predicted_respons
             # and determine what their minimum values are (same for vmax)
             vmin = min(vmin, pivs[h][pivs[h].index.isin([i for i in itertools.product(facet_col_vals, facet_row_vals)])].min().min())
             vmax = max(vmax, pivs[h][pivs[h].index.isin([i for i in itertools.product(facet_col_vals, facet_row_vals)])].max().max())
-        vmin, vmax = float(vmin), float(vmax)
+        if set_minmax:
+            vmin, vmax = float(vmin), float(vmax)
+        else:
+            vmin, vmax = None, None
 
         flat_cort_df = []
         for h, c, r in itertools.product(hemi, facet_col_vals, facet_row_vals):
@@ -542,5 +554,6 @@ def plot_flat_cortex(model_df, meshes, data_df=None, plot_val='predicted_respons
         g = sns.FacetGrid(flat_cort_df, col='facet_col', row='facet_row', aspect=len(hemi), **kwargs)
         g.map(flat_cortex_plotter, 'x_coords', 'y_coords', 'color_idx', 'hemi', 'color_map')
         g.set_titles("{col_name} | {row_name}")
-        make_colorbar(g.fig, cbar_cmap, nuniq, vmin, vmax)
+        if set_minmax:
+            make_colorbar(g.fig, cbar_cmap, nuniq, vmin, vmax)
         return g, flat_cort_df

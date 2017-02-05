@@ -41,6 +41,7 @@ def create_met_df(df, col_name='image', type_regex=r'(V[12]Met(Scaled)?).*',
     if 'language' in df.columns:
         df = df[df.language=='python']
     df['image_type'] = df[col_name].apply(_search_for_label, args=(type_regex, 'original'))
+    df['image_type'] = df['image_type'].apply(lambda x: x.replace('MetScaled', 'SclMet').replace('Met', '-metamer'))
     df['image_name'] = df[col_name].apply(_search_for_label, args=(name_regex, None))
     df['image_seed'] = df[col_name].apply(_search_for_label, args=(seed_regex, None))
     return df

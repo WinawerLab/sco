@@ -175,17 +175,24 @@ def cortical_image_plotter(x, y, z, **kwargs):
 
 def plot_predicted_responses(plot_df, plot_restrictions={}, plot_value='predicted_responses', facet_col=None, facet_row=None, 
                              xlabels=False, ylabels=False, set_minmax=True, **kwargs):
-    """
+    """plot the predicted responses on stimuli ("cortical images")
+
     plot_value: column in plot_df which contains the values to plot, defaults to `predicted_responses`
 
-    plot_restrictions: dictionary, optional. keys must be columns in plot_df, values are the value(s) you want to plot
+    plot_restrictions: dictionary, optional. keys must be columns in plot_df, values are the
+                       value(s) you want to plot
 
     facet_col, facet_row: strings, optional. how you want to split up the facetgrid
 
-    xlabels, ylabels: boolean optional. whether you want to include labels on x and y axes. False by default
+    xlabels, ylabels: boolean, optional. whether you want to include labels on x and y axes. False
+                      by default
 
+    set_minmax: boolean, optional. whether all images should have the same vmin and vmax values
+                (True) or whether they should be allowed to have separate vmin and vmax values 
+                (False)
+    
     **kwargs: will be passed to sns.FacetGrid
-    """
+"""
     tmp_df = plot_df.copy()
     for k,v in plot_restrictions.iteritems():
         if isinstance(v, basestring) or not hasattr(v, '__iter__'):
@@ -474,6 +481,10 @@ def plot_flat_cortex(model_df, meshes, data_df=None, plot_val='predicted_respons
     facet_row_vals: str or list of strs, optional. subset of facet_row that you want to visualize
                     on your rows. Probably values of the image type (e.g., 'original',
                     'V1-metamer', etc). If None (default), will use all
+
+    set_minmax: boolean, optional. whether all images should have the same vmin and vmax values
+                (True) or whether they should be allowed to have separate vmin and vmax values 
+                (False)
 
     v123_cmaps: dictionary, optional. Keys must be 1, 2, and 3 and values are the colormaps to use
                 for V1, V2, and V3.  by default, all three will be matplotlib.cm.Reds.

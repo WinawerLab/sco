@@ -186,18 +186,15 @@ def _facet_plot_shape_df(plot_df, restrictions, facet_col, facet_row):
         # this annoying bit will make sure there's not a None in the variables we're facetting on
         tmp_df[facet_row] = tmp_df[facet_row].replace({None: [i for i in tmp_df[facet_row].unique() if i is not None][0]})    
     return tmp_df, facet_col, facet_row
-    
-# create a "basic version" that both of these call and also create one that plots the difference
-# between models.
 
 def plot_cortical_images(plot_df, plot_restrictions={}, plot_value='predicted_responses', facet_col=None, facet_row=None, 
                          xlabels=False, ylabels=False, set_minmax=True, **kwargs):
     """plot the predicted responses on stimuli ("cortical images")
 
-    plot_value: column in plot_df which contains the values to plot, defaults to `predicted_responses`
-
     plot_restrictions: dictionary, optional. keys must be columns in plot_df, values are the
                        value(s) you want to plot
+
+    plot_value: column in plot_df which contains the values to plot, defaults to `predicted_responses`
 
     facet_col, facet_row: strings, optional. how you want to split up the facetgrid
 
@@ -232,6 +229,67 @@ def plot_cortical_images(plot_df, plot_restrictions={}, plot_value='predicted_re
         g.set_ylabels('')
     if set_minmax:
         make_colorbar(g.fig, cmap, vmin=min_val, vmax=max_val)
+    for ax in g.fig.axes[:-1]:
+        ax.set_aspect('equal')
+    return g
+
+def plot_cortical_images_diff(plot_df, diff_vals, plot_restrictions={}, plot_value='predicted_responses', facet_col=None, facet_row=None, 
+                              xlabels=False, ylabels=False, set_minmax=True, **kwargs):
+    """plot the difference between two specified categories of cortical images
+    
+    note that the two versions you want to plot have to have the same number of rows in the
+    dataframe (probably the same voxels, to be safe), so this will almost certainly fail if you're
+    trying to compare V1 and V2, for example.
+
+    diff_vals: dictionary, should be of the form {'a': ['b', 'c']}, where a is a column in plot_df
+               and b and c are two values of that column. then we will plot the plot_value of b minus
+               the plot_value of c as a cortical image
+
+    plot_value: string, optional. column in plot_df which contains the values to plot, 
+                defaults to `predicted_responses`
+
+    plot_restrictions: dictionary, optional. keys must be columns in plot_df, values are the
+                       value(s) you want to plot
+
+    facet_col, facet_row: strings, optional. how you want to split up the facetgrid
+
+    xlabels, ylabels: boolean, optional. whether you want to include labels on x and y axes. False
+                      by default
+
+    set_minmax: boolean, optional. whether all images should have the same vmin and vmax values
+                (True) or whether they should be allowed to have separate vmin and vmax values 
+                (False)
+    
+    **kwargs: will be passed to sns.FacetGrid
+"""
+    tmp_df, facet_col, facet_row = sco.plot._facet_plot_shape_df(plot_df, plot_restrictions, facet_col,
+                                                                 facet_row)
+    new_df = tmp_df[tmp_df[diff_vals.keys()[0]]==diff_vals.values()[0][0]]
+    new_df['diff'] =tmp_df[tmp_df[diff_vals.keys()[0]]==diff_vals.values()[0][0]][plot_value] - tmp_df[tmp_df[diff_vals.keys()[0]]==diff_vals.values()[0][1]][plot_value]    
+    size = kwargs.pop('size', 2.3)
+    margin_titles = kwargs.pop('margin_titles', True)
+    aspect = kwargs.pop('aspect', 1.25)    
+    if set_minmax:
+        min_val, max_val = new_df['diff'].min(), new_df['diff'].max()
+    else:
+        min_val, max_val = None, None
+    cmap = kwargs.pop('cmap', 'RdBu')
+    if min_val < 0 and max_val > 0:
+        norm = sco.plot.MidpointNormalize(min_val, max_val, 0.)
+    else:
+        norm = matplotlib.colors.Normalize(min_val, max_val)
+    with sns.axes_style('whitegrid', {'axes.grid': False, 'axes.linewidth':0.}):
+        g = sns.FacetGrid(new_df, col=facet_col, row=facet_row, size=size, margin_titles=margin_titles, aspect=aspect,
+                          **kwargs)
+        g.map(sco.plot._cortical_image_plotter, 'pRF_centers_dim0', 'pRF_centers_dim1', 'diff', 
+              vmin=min_val, vmax=max_val, cmap=cmap, norm=norm)
+        g.set(yticks=[], xticks=[])
+    if not xlabels:
+        g.set_xlabels('')
+    if not ylabels:
+        g.set_ylabels('')
+    if set_minmax:
+        sco.plot.make_colorbar(g.fig, cmap, vmin=min_val, vmax=max_val)
     for ax in g.fig.axes[:-1]:
         ax.set_aspect('equal')
     return g

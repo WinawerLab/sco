@@ -36,14 +36,10 @@ import subprocess
 from sco.util import metamers
 
 SCO_KWARGS = {'full': {},
-              'dumb_V1': {'Kay2013_SOC_constant': 0, 'Kay2013_output_nonlinearity': 1,
-                          'model_steps': ['SNR_df']},
-              'intermediate_1': {'Kay2013_SOC_constant': .25, 'Kay2013_output_nonlinearity': .8,
-                                 'model_steps': ['SNR_df']},
-              'intermediate_2': {'Kay2013_SOC_constant': .5, 'Kay2013_output_nonlinearity': .6,
-                                 'model_steps': ['SNR_df']},
-              'intermediate_3': {'Kay2013_SOC_constant': .75, 'Kay2013_output_nonlinearity': .4,
-                                 'model_steps': ['SNR_df']}}
+              'dumb_V1': {'Kay2013_SOC_constant': 0, 'Kay2013_output_nonlinearity': 1},
+              'intermediate_1': {'Kay2013_SOC_constant': .25, 'Kay2013_output_nonlinearity': .8,},
+              'intermediate_2': {'Kay2013_SOC_constant': .5, 'Kay2013_output_nonlinearity': .6},
+              'intermediate_3': {'Kay2013_SOC_constant': .75, 'Kay2013_output_nonlinearity': .4}}
 
 
 def main(model_names, image_dir, output_dir='~/SCO_metamer_data', job_name="SCO", username="",

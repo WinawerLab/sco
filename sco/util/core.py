@@ -60,7 +60,7 @@ def create_SNR_df(plot_df, bootstrap_val='predicted_responses', diff_col='image_
     
     extra_cols is a list of strings corresponding to columns in plot_df that you would also like
     to add to the SNR_df
-"""
+    """
     bootstrap_df = _create_bootstrap_df(bootstrap_num, plot_df, bootstrap_val, diff_col, extra_unique_cols)
 
     gb = bootstrap_df.groupby('voxel')
@@ -70,9 +70,9 @@ def create_SNR_df(plot_df, bootstrap_val='predicted_responses', diff_col='image_
     for col in [col for col in bootstrap_df.columns if '-' in col]:
         SNR_df[col] = gb.apply(lambda g: g[[col]].mean() / g[[col]].std())
 
-    SNR_df = pd.melt(SNR_df.reset_index(), id_vars=['voxel', 'v123_label'])
+    SNR_df = pd.melt(SNR_df.reset_index(), id_vars=['voxel', 'v123_label']+extra_cols)
 
-    SNR_df.to_csv(file_name)
+    SNR_df.to_csv(file_name, index=False)
 
     return SNR_df
 

@@ -112,7 +112,7 @@ def main(images, output_dir, model_name='full', model_steps=['results', 'model_d
         model_steps = [model_steps]
     subject = kwargs.get('subject', 'test-sub')
     max_eccentricity = kwargs.get('max_eccentricity', 7.5)
-    bootstrap_num = kwargs.get('bootstrap_num', 100)
+    bootstrap_num = kwargs.get('bootstrap_num', 1000)
     type_regex = kwargs.get('type_regex', r'(V[12]Met(Scaled)?).*')
     seed_regex = kwargs.get('seed_regex', r'im[0-9]+.*-([0-9]+).*png')
     name_regex = kwargs.get('name_regex', r'(im[0-9]+).*png')

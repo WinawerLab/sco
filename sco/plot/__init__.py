@@ -104,14 +104,14 @@ def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n
     else:
         raise ValueError('unrecognized method: %s' % method)
 
-def img_plotter(imgs, **kwargs):
+def _image_plotter(imgs, **kwargs):
     """simple function to plot images from the images object
 
     kwargs must contain data, a dataframe with only one unique image_idx value, which specifies
     which image to plot
     
     imgs: 3d numpy array containing all images
-"""
+    """
     ax = plt.gca()
     _ = kwargs.pop('color')
     try:
@@ -124,7 +124,7 @@ def img_plotter(imgs, **kwargs):
     ax.imshow(imgs[data.image_idx.unique()][0], cmap=cmap, **kwargs)
     
 def plot_images(images, image_value, img_restrictions={}, facet_col=None, facet_row=None,
-                cbar=True, **kwargs):
+                 cbar=True, **kwargs):
     """plot stimuli in an easy to arrange, easy to parse way
     
     images is the dictionary created by util.metamers.create_image_struct, which has a 'label' key
@@ -141,42 +141,57 @@ def plot_images(images, image_value, img_restrictions={}, facet_col=None, facet_
 
     **kwargs: will be passed to sns.FacetGrid
     """
-    tmp_df = images['labels'].copy()
-    for k,v in img_restrictions.iteritems():
-        if isinstance(v, basestring) or not hasattr(v, '__iter__'):
-            v = [v]
-        if k in tmp_df.columns:
-            tmp_df = tmp_df[(tmp_df[k].isin(v))]
+    tmp_df, facet_col, facet_row = _facet_plot_shape_df(images['labels'], img_restrictions, facet_col,
+                                                        facet_row)
     # we just use this to determine the max and min values; we still need the full one to plot
     imgs = images[image_value][tmp_df.image_idx.unique()]
     size = kwargs.pop('size', 2.3)
-    if facet_col not in tmp_df.columns:
-        facet_col = None
-    if facet_row not in tmp_df.columns:
-        facet_row = None
     margin_titles = kwargs.pop('margin_titles', True)
     try:
         min_val, max_val = imgs.min(), imgs.max()
     except ValueError:
+        # if imgs is not a proper 3d array (which happens when some of the images are different
+        # shapes, we can't use a simple .min() and .max())
         min_val = min([im.min() for im in imgs])
         max_val = max([im.max() for im in imgs])
     cmap = kwargs.pop('cmap', 'gray')
     with sns.axes_style('whitegrid', {'axes.grid': False, 'axes.linewidth':0.}):
         g = sns.FacetGrid(tmp_df, col=facet_col, row=facet_row, size=size, margin_titles=margin_titles, **kwargs)
-        g.map_dataframe(img_plotter, imgs=images[image_value], vmin=min_val, vmax=max_val, cmap=cmap)
+        g.map_dataframe(_image_plotter, imgs=images[image_value], vmin=min_val, vmax=max_val, cmap=cmap)
         g.set(yticks=[], xticks=[])
     if cbar:
         make_colorbar(g.fig, cmap, vmin=min_val, vmax=max_val)
     return g    
     
-def cortical_image_plotter(x, y, z, **kwargs):
+def _cortical_image_plotter(x, y, z, **kwargs):
     plt.tripcolor(matplotlib.tri.Triangulation(x, y), z, shading='gouraud', **kwargs)
 
+def _facet_plot_shape_df(plot_df, restrictions, facet_col, facet_row):
+    """handles much of the shaping and restricting of dataframes to plot them using FacetGrids
+    """
+    tmp_df = plot_df.copy()
+    for k,v in restrictions.iteritems():
+        if isinstance(v, basestring) or not hasattr(v, '__iter__'):
+            v = [v]
+        if k in tmp_df.columns:
+            tmp_df = tmp_df[(tmp_df[k].isin(v))]
+    if facet_col not in tmp_df.columns:
+        facet_col = None
+    else:
+        # this annoying bit will make sure there's not a None in the variables we're facetting on
+        tmp_df[facet_col] = tmp_df[facet_col].replace({None: [i for i in tmp_df[facet_col].unique() if i is not None][0]})
+    if facet_row not in tmp_df.columns:
+        facet_row = None
+    else:
+        # this annoying bit will make sure there's not a None in the variables we're facetting on
+        tmp_df[facet_row] = tmp_df[facet_row].replace({None: [i for i in tmp_df[facet_row].unique() if i is not None][0]})    
+    return tmp_df, facet_col, facet_row
+    
 # create a "basic version" that both of these call and also create one that plots the difference
 # between models.
 
-def plot_predicted_responses(plot_df, plot_restrictions={}, plot_value='predicted_responses', facet_col=None, facet_row=None, 
-                             xlabels=False, ylabels=False, set_minmax=True, **kwargs):
+def plot_cortical_images(plot_df, plot_restrictions={}, plot_value='predicted_responses', facet_col=None, facet_row=None, 
+                         xlabels=False, ylabels=False, set_minmax=True, **kwargs):
     """plot the predicted responses on stimuli ("cortical images")
 
     plot_value: column in plot_df which contains the values to plot, defaults to `predicted_responses`
@@ -194,13 +209,9 @@ def plot_predicted_responses(plot_df, plot_restrictions={}, plot_value='predicte
                 (False)
     
     **kwargs: will be passed to sns.FacetGrid
-"""
-    tmp_df = plot_df.copy()
-    for k,v in plot_restrictions.iteritems():
-        if isinstance(v, basestring) or not hasattr(v, '__iter__'):
-            v = [v]
-        if k in tmp_df.columns:
-            tmp_df = tmp_df[(tmp_df[k].isin(v))]
+    """
+    tmp_df, facet_col, facet_row = _facet_plot_shape_df(plot_df, plot_restrictions, facet_col,
+                                                        facet_row)
     size = kwargs.pop('size', 2.3)
     margin_titles = kwargs.pop('margin_titles', True)
     aspect = kwargs.pop('aspect', 1.25)    
@@ -209,13 +220,10 @@ def plot_predicted_responses(plot_df, plot_restrictions={}, plot_value='predicte
     else:
         min_val, max_val = None, None
     cmap = kwargs.pop('cmap', 'gray')
-    # this annoying bit will make sure there's not a None in the variables we're facetting on
-    tmp_df[facet_col] = tmp_df[facet_col].replace({None: [i for i in tmp_df[facet_col].unique() if i is not None][0]})
-    tmp_df[facet_row] = tmp_df[facet_row].replace({None: [i for i in tmp_df[facet_row].unique() if i is not None][0]})    
     with sns.axes_style('whitegrid', {'axes.grid': False, 'axes.linewidth':0.}):
         g = sns.FacetGrid(tmp_df, col=facet_col, row=facet_row, size=size, margin_titles=margin_titles, aspect=aspect,
                           **kwargs)
-        g.map(cortical_image_plotter, 'pRF_centers_dim0', 'pRF_centers_dim1', plot_value, 
+        g.map(_cortical_image_plotter, 'pRF_centers_dim0', 'pRF_centers_dim1', plot_value, 
               vmin=min_val, vmax=max_val, cmap=cmap)
         g.set(yticks=[], xticks=[])
     if not xlabels:

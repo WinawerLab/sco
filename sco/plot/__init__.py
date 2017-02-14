@@ -11,6 +11,8 @@ import matplotlib.tri    as tri
 import numpy             as np
 import seaborn as sns
 import pandas as pd
+import neuropythy
+from surfer import Brain
 
 def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n_stds=1,
                    size_gain=1, method='triangulation', subplot=None):
@@ -296,9 +298,18 @@ def plot_cortical_images_diff(plot_df, diff_vals, plot_restrictions={},
         ax.set_aspect('equal')
     return g
 
-def _hemi_check(hemi):
+def _hemi_check(hemi, mode='pandas'):
+    """make sure the hemi string is correctly formatted
+    
+    mode: {'pandas', 'surfer'}, determines whether our response should be 'R' / 'L' (pandas) or
+    'rh' / 'lh' (surfer), based on the conventions of SCO's `model_df` and pysurfer,
+    respectively.
+    """
     try:
-        hemi_dict = {'R':'R', 'RH': 'R', 'L': 'L', 'LH': 'L'}
+        if mode=='pandas':
+            hemi_dict = {'R':'R', 'RH': 'R', 'L': 'L', 'LH': 'L'}
+        elif mode=='surfer':
+            hemi_dict = {'R':'rh', 'RH': 'rh', 'L': 'lh', 'LH': 'lh'}            
         return hemi_dict[hemi.upper()]
     except KeyError:
         raise Exception("Don't know what to do with hemi %s" % hemi)
@@ -357,7 +368,7 @@ class MidpointNormalize(matplotlib.colors.Normalize):
         return np.ma.masked_array(np.interp(value, x, y))
 
 def _flat_cortex_make_cmap(mesh, plot_val, vmin=None, vmax=None,
-                          v123_cmaps = {1: matplotlib.cm.Reds, 2: matplotlib.cm.Reds, 3: matplotlib.cm.Reds}):
+                          v123_cmaps = {1: 'Reds', 2: 'Reds', 3: 'Reds'}):
 
     """This will only plot the corresponding values on V1, V2, and V3 (as specified by mesh property 
 
@@ -556,8 +567,10 @@ def plot_flat_cortex(model_df, meshes, data_df=None, plot_val='predicted_respons
                 (True) or whether they should be allowed to have separate vmin and vmax values 
                 (False)
 
-    v123_cmaps: dictionary, optional. Keys must be 1, 2, and 3 and values are the colormaps to use
-                for V1, V2, and V3.  by default, all three will be matplotlib.cm.Reds.
+    v123_cmaps: dictionary or matplotlib colormap, optional. If a dictionary, keys must be 1, 2,
+                and 3 and values are the colormaps to use for V1, V2, and V3. by default, all
+                three will be matplotlib.cm.Reds. If a colormap, same colormap will be used for all 
+                three areas.
 
     col/row_order can be specified in **kwargs
     """
@@ -566,6 +579,9 @@ def plot_flat_cortex(model_df, meshes, data_df=None, plot_val='predicted_respons
         hemi = ['L', 'R']
     else:
         hemi = [_hemi_check(hemi)]
+        
+    if not isinstance(v123_cmaps, dict):
+        v123_cmaps = dict((i, v123_cmaps) for i in range(1,4))
         
     if data_df is not None and facet_col_vals is None:
         facet_col_vals = data_df[facet_col].unique()
@@ -638,3 +654,75 @@ def plot_flat_cortex(model_df, meshes, data_df=None, plot_val='predicted_respons
         if set_minmax:
             make_colorbar(g.fig, cbar_cmap, nuniq, vmin, vmax)
         return g, flat_cort_df
+
+def _pysurfer_shape_predictions(hemi, model, image_type, model_df, plot_df, subject):
+    """based on export_predicted_response_surface, need to get data in right shape for pysurfer
+
+    hemi: the hemisphere to plot, either 'L'/'LH'/'l'/'lh' or 'R'/'RH'/'r'/'rh'
+
+    model: the model you want to visualize predictions for, must be one of the model values in 
+           plot_df (probably 'full' and 'dumb_V1')
+
+    image_type: image type to visualize predictions for, must be one of the image_type values in 
+                plot_df (probably, 'original', 'V1-metamer', etc)
+    """
+    hemi = _hemi_check(hemi)
+    hemi_df = model_df[model_df.pRF_hemispheres.isin([hemi])]
+    piv = plot_df[plot_df['voxel'].isin(hemi_df['voxel'])]
+    piv = piv.pivot_table(values='predicted_responses', columns='voxel', index=['model', 'image_type'], aggfunc=np.mean)
+    if hemi=='L':
+        preds = np.full((subject.LH.vertex_count), 0., dtype=np.float32)
+    elif hemi=='R':
+        preds = np.full((subject.RH.vertex_count), 0., dtype=np.float32)
+    pidcs = hemi_df['pRF_vertex_indices'].values
+    preds[pidcs] = piv.loc[model, image_type].values
+    return preds, pidcs
+
+def pysurfer_plot_predictions(subject_id, hemi, model, image_type, model_df, plot_df,
+                              mode='data', save_path='brain.png', cmap='Reds', subjects_dir=None,
+                              **kwargs):
+    """plot average predictions on pysurfer brain and save to image
+    
+    this is a little limited, since I don't think it's as useful a visualization. but it will
+    average across all predicted responses for the specified model and image (similar to
+    `plot_flat_cortex`), allowing you to visualize how the predicted responses are distributed
+    across the visual cortex.
+    
+    this takes a bit of time to run.
+    
+    KNOWN BUG: this function may not properly save the image by itself. If this happens (the image
+    will be saved but will not show the overlaid brain), call `brain.save_image(path)` with the
+    returned Brain object.
+    
+    hemi: the hemisphere to plot, either 'L'/'LH'/'l'/'lh' or 'R'/'RH'/'r'/'rh'
+    
+    model: the model you want to visualize predictions for, must be one of the model values in 
+           plot_df (probably 'full', 'dumb_V1', etc)
+
+    image_type: image type to visualize predictions for, must be one of the image_type values in 
+                plot_df (probably, 'original', 'V1-metamer', etc)
+                
+    mode: {'data', 'overlay'}, whether to use surfer.Brain.add_data or surfer.Brain.add_overlay to
+          add the data to the Brain object. 'data' allows a colormap to be specified, while 'overlay'
+          does not, but 'overlay' will only show relevant values on the brain, plotting all vertices
+          without values as transparent, while 'data' will show them as the minimum value on the
+          colormap, which is distracting.
+
+    returns `brain`, the pysurfer Brain with data projected on top. It is recommended that you
+    close the object (call `brain.close()`) when you have finished with it
+    """
+    hemi = _hemi_check(hemi, 'surfer')
+    view_dict = {'lh': {'azimuth': 290., 'elevation': 120., 'roll': 0.},
+                 'rh': {'azimuth': 260., 'elevation': 120., 'roll': 0.}}
+    subject = neuropythy.freesurfer_subject(subject_id)
+    preds, pidcs = _pysurfer_shape_predictions(hemi, model, image_type, model_df, plot_df, subject)
+    brain = Brain(subject_id, hemi, 'inflated', views=view_dict[hemi], subjects_dir=subjects_dir)
+    vmin = kwargs.pop('min', .0001)
+    if mode=='data':
+        brain.add_data(preds, min=vmin, max=preds.max(), colormap=cmap, vertices=pidcs, **kwargs)
+    elif mode=='overlay':
+        brain.add_overlay(preds, min=vmin, max=preds.max(), **kwargs)
+    else:
+        raise Exception("Don't know how to add data to Brain with mode %s!" % mode)
+    brain.save_image(save_path)
+    return brain

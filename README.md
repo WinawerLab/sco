@@ -103,7 +103,10 @@ values. The key you will most likely be interested in is
 `predicted_responses`, which contains the predicted response of each
 voxel to each image.
 
-In order to get an mgh for viewing the predictions on a brain, call
+## Visualizing model predictions
+
+In order to get an mgh for viewing the predictions of the model to a
+single image on a brain, call
 `results=sco.export_predicted_responses(results, export_path='...')`,
 after filling out `results` above and specifying where you want to
 export the image (this step can be added to the calc chain if you
@@ -112,7 +115,20 @@ will take the `predicted_responses` key from `results` and create a
 corresponding mgh image, which you can view using `freesurfer` or
 `nibabel`.
 
-## Makefile
+The module `sco.plot` also contains several functions to help
+visualize model predictions and examples can also be found in
+`sco.model_comparison.visualize_model_comparison` or in the
+`Metamers.ipynb` and `Compare_with_Kay2013.ipynb` notebooks.
+
+## Compare with Kay2013
+
+The SCO model is an extension of the Second-Order Contrast model
+proposed in Kay2013a. We therefore wanted to compare the model's
+performance on some simple, systematic stimuli to that of the
+Second-Order Contrast model, implemented in MATLAB as part
+of [knkutils](https://github.com/kendrickkay/knkutils)
+(see [Kendrick's website](http://kendrickkay.net/socmodel/) for more
+details).
 
 This repository contains a Makefile, which is used to quickly create
 the images comparing the python and matlab implementations of the
@@ -177,6 +193,77 @@ preference" in the jupyter notebook. It will load in all of the
 dataframes and combine them in a way that allows you to visualize the
 model behavior.
 
+If you want to delete the results you have generated (so you can
+re-run the model), type `make fullclean` or `make sweepclean`.
+
+## Texture Metamers
+
+The notebook `Metamers.ipynb` analyzes how the SCO model handles V1
+and V2 metamers, as used in Freeman2013.
+
+To generate the stimuli for that notebook, the script
+`createMetamers.m` is provided. You can use to create your own V1 and
+V2 metamers for a given batch of images or you can use the recipes
+found in the `Makefile` to create metamers from three defined
+examples: the stimuli from Freeman2013,
+some
+[Brodatz texture images](http://multibandtexture.recherche.usherbrooke.ca/index.html),
+or some images from [ImageNet](http://image-net.org/explore) (plus
+some simple stimuli from Kay2013a). To do so, type `make
+Metamer_images/{img}_metamers`, where `{img}` is either:
+`Freeman2013`, `Brodatz`, or `ImageNet` from the command line in the
+main sco directory (note that this requires `python2.7`, `make`, and
+`matlab` are in your path and you should check to make sure that paths
+`KNK_PATH`, `SUBJ_DIR`, `TEXTURE_SYNTH_PATH`, and `PYR_TOOLS_PATH` are
+correct, and that `SUBJ` refers to a valid freesurfer subject. The
+seed images will then be downloaded from the internet and the metamers
+created.
+
+After the stimuli are created, you can either start up the
+`Metamers.ipynb` notebook and run the model from there or submit the
+model to the cluster. If you are running 100+ images, calculating the
+SNR values (bootstrapping 100 to 1000 times), and running multiple
+versions of the model, this can take a very long time (3+ hours for
+each model), so it's recommended you run the model on a
+cluster. See
+[Running model on the cluster](#running-model-on-the-cluster) for
+details. Regardless of whether you run the model in the notebook or
+using `cluster_submit.py`, the predicted responses will be saved to a
+.csv.
+
+All the visualization of model results is handled by the notebook, so
+look there for more details.
+
+## Running model on the cluster
+
+`cluster_submit.py` is provided in order to help run the model on a
+computing cluster. Note that because not all of the items in the data
+pool are pickle-able (some are functions and thus can't be saved),
+it's recommended to do this when you want to view only the outputs of
+the model (the predicted responses), not the intermediate stages.
+
+`cluster_submit.py` should work as is if you are submitting the script
+to NYU's mercer (PBS) cluster. The `TEMPLATE_SUBMISSION_SCRIPT`
+constant at the top of the script shows the shell script that will be
+created and submitted to run the job. By default, the shell script
+will simply call `cluster_submit.py`, causing the bottom part of the
+script (after `if __name__ == '__main__'`) to be called, which will
+run `metamers.main`. If you want to use another script, specify it
+when calling `cluster_submit.main` as the `script_path` argument. The
+`submission_command` argument can be modified if you wish to specify
+submission options (these can also be added to the top of the
+`TEMPLATE_SUBMISSION_SCRIPT`).
+
+As is, `cluster_submit.py` will run the model on a specified directory
+of images. You can run multiple versions of the model by adding
+entries to the `SCO_KWARGS` dictionary in the script; currently,
+`'full'`, `'dumb_V1`, `'intermediate_1'`, `'intermediate_2'`, and
+`'intermediate_3'` are supported. The `model_names` argument is used
+to specify which model(s) should be run. For example, to run the
+`'full'` and `'dumb_V1'` versions of the model in the directory found
+at `~/imgs`, you would run `cluster_submit.main(['full', 'dumb_V1'],
+'~/imgs')` from within a python interpeter (e.g., Ipython).
+
 # Data pool
 
 The model has a large data pool (found in the `results` dictionary),
@@ -184,7 +271,7 @@ which I describe below. The data pool contains the inputs and outputs
 for every step of the model.
 
 For these descriptions, we assume your subject
-has n voxels and you're predicting the responses for m images.
+has `n` voxels and you're predicting the responses for `m` images.
 
 Any parameter that is specified as an array can also be specified as a
 list. However, the model will turn it into an array for ease of
@@ -470,6 +557,11 @@ areas V1, V2, and V3).
   in `normalization.core.calc_Kay2013_output_nonlinearity`.
 
 # References
+
+- Freeman, J., Ziemba, C. M., Heeger, D. J., Simoncelli, E. P., &
+  Movshon, J. A. (2013). A functional and perceptual signature of the
+  second visual area in primates. Nature Neuroscience, 16(7),
+  974–981. http://dx.doi.org/10.1038/nn.3402
 
 - Kay2013a: Kay, K. N., Winawer, J., Rokem, A., Mezer, A., & Wandell,
   B. A. (2013). A two-stage cascade model of BOLD responses in human

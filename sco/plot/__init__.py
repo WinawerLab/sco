@@ -187,8 +187,9 @@ def _facet_plot_shape_df(plot_df, restrictions, facet_col, facet_row):
         tmp_df[facet_row] = tmp_df[facet_row].replace({None: [i for i in tmp_df[facet_row].unique() if i is not None][0]})    
     return tmp_df, facet_col, facet_row
 
-def plot_cortical_images(plot_df, plot_restrictions={}, plot_value='predicted_responses', facet_col=None, facet_row=None, 
-                         xlabels=False, ylabels=False, set_minmax=True, **kwargs):
+def plot_cortical_images(plot_df, plot_restrictions={}, plot_value='predicted_responses',
+                         facet_col=None, facet_row=None, xlabels=False, ylabels=False,
+                         set_minmax=True, **kwargs):
     """plot the predicted responses on stimuli ("cortical images")
 
     plot_restrictions: dictionary, optional. keys must be columns in plot_df, values are the
@@ -233,7 +234,8 @@ def plot_cortical_images(plot_df, plot_restrictions={}, plot_value='predicted_re
         ax.set_aspect('equal')
     return g
 
-def plot_cortical_images_diff(plot_df, diff_vals, plot_restrictions={}, plot_value='predicted_responses', facet_col=None, facet_row=None, 
+def plot_cortical_images_diff(plot_df, diff_vals, plot_restrictions={},
+                              plot_value='predicted_responses', facet_col=None, facet_row=None, 
                               xlabels=False, ylabels=False, set_minmax=True, **kwargs):
     """plot the difference between two specified categories of cortical images
     
@@ -262,7 +264,7 @@ def plot_cortical_images_diff(plot_df, diff_vals, plot_restrictions={}, plot_val
     
     **kwargs: will be passed to sns.FacetGrid
 """
-    tmp_df, facet_col, facet_row = sco.plot._facet_plot_shape_df(plot_df, plot_restrictions, facet_col,
+    tmp_df, facet_col, facet_row = _facet_plot_shape_df(plot_df, plot_restrictions, facet_col,
                                                                  facet_row)
     new_df = tmp_df[tmp_df[diff_vals.keys()[0]]==diff_vals.values()[0][0]]
     new_df['diff'] =tmp_df[tmp_df[diff_vals.keys()[0]]==diff_vals.values()[0][0]][plot_value] - tmp_df[tmp_df[diff_vals.keys()[0]]==diff_vals.values()[0][1]][plot_value]    
@@ -275,13 +277,13 @@ def plot_cortical_images_diff(plot_df, diff_vals, plot_restrictions={}, plot_val
         min_val, max_val = None, None
     cmap = kwargs.pop('cmap', 'RdBu')
     if min_val < 0 and max_val > 0:
-        norm = sco.plot.MidpointNormalize(min_val, max_val, 0.)
+        norm = MidpointNormalize(min_val, max_val, 0.)
     else:
         norm = matplotlib.colors.Normalize(min_val, max_val)
     with sns.axes_style('whitegrid', {'axes.grid': False, 'axes.linewidth':0.}):
         g = sns.FacetGrid(new_df, col=facet_col, row=facet_row, size=size, margin_titles=margin_titles, aspect=aspect,
                           **kwargs)
-        g.map(sco.plot._cortical_image_plotter, 'pRF_centers_dim0', 'pRF_centers_dim1', 'diff', 
+        g.map(_cortical_image_plotter, 'pRF_centers_dim0', 'pRF_centers_dim1', 'diff', 
               vmin=min_val, vmax=max_val, cmap=cmap, norm=norm)
         g.set(yticks=[], xticks=[])
     if not xlabels:
@@ -289,7 +291,7 @@ def plot_cortical_images_diff(plot_df, diff_vals, plot_restrictions={}, plot_val
     if not ylabels:
         g.set_ylabels('')
     if set_minmax:
-        sco.plot.make_colorbar(g.fig, cmap, vmin=min_val, vmax=max_val)
+        make_colorbar(g.fig, cmap, vmin=min_val, vmax=max_val)
     for ax in g.fig.axes[:-1]:
         ax.set_aspect('equal')
     return g

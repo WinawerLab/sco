@@ -41,10 +41,9 @@ SCO_KWARGS = {'full': {},
               'intermediate_2': {'Kay2013_SOC_constant': .5, 'Kay2013_output_nonlinearity': .6},
               'intermediate_3': {'Kay2013_SOC_constant': .75, 'Kay2013_output_nonlinearity': .4}}
 
-
 def main(model_names, image_dir, output_dir='~/SCO_metamer_data', job_name="SCO", username="",
          submission_command="qsub {script}", script_path=None):
-    """Run the given variants of the models on the passed-in image directory
+    """Run the given variants of the models on the specified `image_dir`
     
     Because I can't come up with a good way to pass a dictionary around on the command line, the
     user is limited to the supported variants of the model (given in SCO_KWARGS), though this can
@@ -54,7 +53,7 @@ def main(model_names, image_dir, output_dir='~/SCO_metamer_data', job_name="SCO"
 
     Note that if you're using this for metamer (main use right now), make sure that type_regex,
     seed_regex, and name_regex are all set correctly (see metamers.main for examples) and include
-    these either in the metamers.main call in the if main block or in the SCO_KWARGS dictionary
+    these either in the metamers.main call in the if-main block or in the SCO_KWARGS dictionary
     above.
 
     The model steps argument of SCO_KWARGS allows you to specify which outputs to create: results,

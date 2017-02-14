@@ -12,7 +12,13 @@ import numpy             as np
 import seaborn as sns
 import pandas as pd
 import neuropythy
-from surfer import Brain
+
+# pysurfer is optional
+try:
+    from surfer import Brain
+except ImportError, e:
+    if e.message != 'No module named surfer':
+        raise
 
 def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n_stds=1,
                    size_gain=1, method='triangulation', subplot=None):
@@ -689,6 +695,8 @@ def pysurfer_plot_predictions(subject_id, hemi, model, image_type, model_df, plo
     across the visual cortex.
     
     this takes a bit of time to run.
+
+    This requires the optional library pysurfer to run.
     
     KNOWN BUG: this function may not properly save the image by itself. If this happens (the image
     will be saved but will not show the overlaid brain), call `brain.save_image(path)` with the

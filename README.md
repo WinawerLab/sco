@@ -16,6 +16,10 @@ available and listed in the requirements file. In order to install,
 type `pip install -r requirements.txt`. If you wish to use the
 included Jupyter notebooks, make sure to also install `jupyter`.
 
+One included function, `sco.plot.pysurfer_plot_predictions`, requires
+pysurfer to run. Since this library can be difficult to get installed
+(it requires mayavi), it is not listed as an official requirement.
+
 If you wish to compare the output of this model to the output of
 Kendrick Kay's MATLAB implementation, you will need
 his [knkutils](https://github.com/kendrickkay/knkutils).

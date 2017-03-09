@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='sco',
-    version='0.1.0',
+    version='0.2.0',
     description='Library for the prediction of cortical responses to visual stimuli: the Standard Cortical Observer',
     keywords='neuroscience vision cortex ',
     author='Noah C. Benson',
@@ -23,8 +23,9 @@ setup(
                       'scipy>=0.7',
                       #'scikit-image>=0.12',
                       'nibabel>=2.0',
-                      'pysistence>=0.4',
+                      'pyrsistent>=0.12',
                       'decorator>=4.0',
-                      'neuropythy>=0.1',
+                      'neuropythy>=0.2',
+                      'pimms>=0.1',
                       'pandas>=0.18.1',
                       'seaborn>=0.7.1'])

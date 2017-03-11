@@ -17,6 +17,8 @@ setup(
               'sco.stimulus',
               'sco.pRF',
               'sco.normalization',
+              'sco.impl',
+              'sco.impl.benson17',
               'sco.model_comparison'],
     package_data={'': ['LICENSE.txt']},
     install_requires=['numpy>=1.2',

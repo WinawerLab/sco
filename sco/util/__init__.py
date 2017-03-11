@@ -7,6 +7,41 @@ import numpy             as np
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.tri    as tri
+import pint
+
+# The unit registry that we use
+units = pint.UnitRegistry()
+# we want to define the pixel unit
+units.define('pixel = [image_length] = px')
+
+def lookup_labels(labels, data_by_labels, **kwargs):
+    '''
+    sco.util.lookup_labels(labels, data_by_labels) yields a list the same size as labels in which
+      each element i of the list is equal to data_by_labels[labels[i]].
+    
+    The option null may additionally be passed to lookup_labels; if null is given, then whenever a
+    label value from data is not found in labels, it is instead given the value null; if null is not
+    given, then an error is raised in this situation.
+
+    The lookup_labels function expects the labels to be integer or numerical values.
+    '''
+    res = None
+    null = None
+    raise_q = True
+    if 'null' in kwargs:
+        null = kwargs['null']
+        raise_q = False
+    if len(kwargs) > 1 or (len(kwargs) > 0 and 'null' not in kwargs):
+        raise ValueError('Unexpected option given to lookup_labels; only null is accepted')
+    if raise_q:
+        try:
+            res = pyr.pvector(data_by_labels[lbl] for lbl in labels)
+        except:
+            raise ValueError('Not all labels found by lookup_labels and no null given')
+    else:
+        res = pyr.pvector(data_by_labels[lbl] if lbl in data_by_labels else null
+                          for lbl in labels)
+    return res
 
 def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n_stds=1,
                    size_gain=1, method='triangulation', subplot=None):

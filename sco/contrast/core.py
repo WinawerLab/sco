@@ -9,9 +9,10 @@ import pyrsistent            as     pyr
 from   scipy                 import ndimage as ndi
 from   skimage.filters       import gabor_kernel
 from   types                 import (IntType, LongType)
-from   ..util                import lookup_labels
+from   ..util                import (lookup_labels, units)
 
-import ..impl.benson17, pimms
+from   sco.impl              import benson17
+import pimms
 
 def scaled_gabor_kernel(cpp, theta=0, zero_mean=True, **kwargs):
     '''
@@ -36,7 +37,7 @@ def scaled_gabor_kernel(cpp, theta=0, zero_mean=True, **kwargs):
                                       for row in range(n)])
     re = kern.real / np.sum(np.abs(kern.real * np.cos(mtx)))
     im = kern.imag / np.sum(np.abs(kern.imag * np.sin(mtx)))
-    return np.asarray(re + 1j*im))
+    return np.asarray(re + 1j*im)
 
 @pimms.immutable
 class ImageArrayContrastFilter(object):
@@ -135,7 +136,8 @@ class ImageArrayContrastFilter(object):
             rmtx = np.zeros(self.image_array.shape)
             for (i,im) in enumerate(self.image_array):
                 rmtx[i, :, :] = np.sqrt(
-                    np.sum([ndi.convolve(im, k, mode='constant', cval=self.bg)**2 for k in kerns],
+                    np.sum([ndi.convolve(im, k, mode='constant', cval=self.background)**2
+                            for k in kerns],
                            axis=0))
             rmtx.setflags(write=False)
             res[th] = rmtx
@@ -273,7 +275,7 @@ def calc_contrast_filter(image_array, normalized_pixels_per_degree, gabor_orient
       * normalized_pixels_per_degree
       * gabor_orientations
       * background
-      * saturation_constant
+      * saturation_constants
       * divisive_exponent
 
     Efferent output values:
@@ -284,7 +286,7 @@ def calc_contrast_filter(image_array, normalized_pixels_per_degree, gabor_orient
                                     gabor_orientations,  background)
 
 @pimms.calc('divisive_normalization_parameters', 'divisive_normalization_function')
-def calc_divisive_normalization(labels, saturation_constant_by_label, divisive_exponent_by_label):
+def calc_divisive_normalization(labels, saturation_constants_by_label, divisive_exponents_by_label):
     '''
     calc_divisive_normalization is a calculator that prepares the divisive normalization function
     to be run in the sco pipeline. It gathers parameters into a pimms itable (such that each row
@@ -295,8 +297,8 @@ def calc_divisive_normalization(labels, saturation_constant_by_label, divisive_e
     saturation_constant_by_label and divisive_exponent_by_label, and the function
     sco.impl.benson17.divisively_normalize_Heeger1992 is used.
     '''
-    sat = lookup_labels(labels, saturation_constant_by_label)
-    rxp = lookup_labels(labels, divisive_exponent_by_label)
+    sat = lookup_labels(labels, saturation_constants_by_label)
+    rxp = lookup_labels(labels, divisive_exponents_by_label)
     return (pimms.itable(saturation_constant=sat, divisive_exponent=rxp),
             benson17.divisively_normalize_Heeger1992)
 
@@ -323,7 +325,9 @@ def calc_contrast_energies(contrast_filter,
     # inefficient:
     divnfn = divisive_normalization_function
     params = divisive_normalization_parameters
-    all_cpds = set([k for s in cpd_sensitivities for k in s.iterkeys()])
+    all_cpds = np.unique([k.to(units.cycle/units.deg).m if pimms.is_quantity(k) else k
+                          for s in cpd_sensitivities for k in s.iterkeys()])
+    all_cpds = all_cpds * (units.cycles / units.degree)
     rsps = {cpd:ImageArrayContrastView(contrast_filter, cpd, divnfn, params).contrast_energy
             for cpd in all_cpds}
     # flip this around...
@@ -332,8 +336,8 @@ def calc_contrast_energies(contrast_filter,
         for (k1,v1) in v0.iteritems():
             if k1 not in flip: flip[k1] = {}
             flip[k1][k0] = v1
-    rsps = pyr.pmap({k:pyr.pmap(v) for (k,v) in flip})
-    return rsps
+    rsps = pyr.pmap({k:pyr.pmap(v) for (k,v) in flip.iteritems()})
+    return {'contrast_energies': rsps}
 
 @pimms.calc('contrast_constants')
 def calc_contrast_constants(labels, contrast_constants_by_label):
@@ -348,7 +352,7 @@ def calc_contrast_constants(labels, contrast_constants_by_label):
     Provided efferent parameters:
       * contrast_constants
     '''
-    r = np.asarray(lookup_labels(labels, contrast_constants_by_labels), dtype=np.float)
+    r = np.asarray(lookup_labels(labels, contrast_constants_by_label), dtype=np.float)
     r.setflags(write=False)
     return r
 
@@ -371,25 +375,34 @@ def calc_pRF_SOC(pRFs, contrast_energies, cpd_sensitivities,
       * pRF_SOC
     '''
     d2p = normalized_pixels_per_degree
+    d2p = d2p.to(units.px/units.deg) if pimms.is_quantity(d2p) else d2p*(units.px/units.deg)
     params = divisive_normalization_parameters
     n = len(next(next(contrast_energies.itervalues()).itervalues()))
     m = len(pRFs)
     imshape = next(next(contrast_energies.itervalues()).itervalues()).shape[1:3]
     imlen = imshape[0] * imshape[1]
     socs = np.zeros((m, n))
+    # we want to avoid numerical mismatch, so we round the keys to the nearest 10^-5
+    def chop(x):
+        x = float(x.to(units.cycle/units.degree).m if pimms.is_quantity(x) else x)
+        return np.round(x, 5)
+    contrast_energies = {k0:{chop(k):v for (k,v) in v0.iteritems()}
+                         for (k0,v0) in contrast_energies.iteritems()}
     for (i,prf,p,ss,c) in zip(range(m), pRFs, params.rows, cpd_sensitivities, contrast_constants):
         wts = None
-        uu = np.zeros((n, imlen))
-        for (cpd, w) in cpd_sensitivities.iteritems():
+        uu = None
+        for (cpd, w) in ss.iteritems():
+            cpd = chop(cpd)
             if wts is None:
-                (u,wts) = prf(contrast_energies[cpd][p], d2p, c=None)
+                (u,wts) = prf(contrast_energies[p][cpd], d2p, c=None)
+                uu = np.zeros(u.shape)
             else:
-                u = prf(contrast_energies[cpd][p], d2p, c=None, weights=False)[0]
+                u = prf(contrast_energies[p][cpd], d2p, c=None, weights=False)[0]
             uu += w * u
         # Here is the SOC formula: (x - c<x>)^2
         wts = npml.repmat(wts, len(uu), 1)
         mu = np.sum(wts * u, axis=1)
-        socs(i,:) = np.sum(wts * (u - contrast_const * mu)**2, axis=1)
+        socs[i,:] = np.sum(wts * (u - c*npml.repmat(mu, u.shape[1], 1).T)**2, axis=1)
     socs.setflags(write=False)
     return socs
 
@@ -406,7 +419,7 @@ def calc_compressive_constants(labels, compressive_constants_by_label):
     Provided efferent parameters:
       * compressive_constants
     '''
-    r = np.asarray(lookup_labels(labels, compressive_constants_by_labels), dtype=np.float)
+    r = np.asarray(lookup_labels(labels, compressive_constants_by_label), dtype=np.float)
     r.setflags(write=False)
     return r
 
@@ -415,11 +428,16 @@ def calc_compressive_nonlinearity(pRF_SOC, compressive_constants):
     '''
     calc_compressive_nonlinearity is a calculator that applies a compressive nonlinearity to the
     predicted second-order-contrast responses of the pRFs. If the compressive constant is n is and
-    the SOC response is s, then the result here is simply s ** n
+    the SOC response is s, then the result here is simply s ** n.
+
+    Required afferent parameters:
+      * pRF_SOC
+      * compressive_constants
+
+    Provided efferent values:
+      * prediction
     '''
-    out = np.asarray([s ** n for (s, n) in zip(pRF_SOC, compressive_constants)])
+    out = np.asarray([s**n for (s, n) in zip(pRF_SOC, compressive_constants)])
     out.setflags(write=False)
     return out
     
-
-

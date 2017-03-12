@@ -22,4 +22,4 @@ from .core  import (calc_gamma_correction, import_stimuli, calc_images)
 stimulus_plan_data = pyr.m(gamma_correction  = calc_gamma_correction,
                            import_stimuli    = import_stimuli,
                            images            = calc_images)
-stimulus_plan = pimms.plan(anatomy_plan_data)
+stimulus_plan = pimms.plan(stimulus_plan_data)

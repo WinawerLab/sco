@@ -27,8 +27,8 @@ def import_freesurfer_subject(subject):
     return subject
 
 @pimms.calc('polar_angles', 'eccentricities', 'labels', 'hemispheres', 'anatomical_ids')
-def import_benson14_from_freesurfer(freesurfer_subject,
-                                    modality='volume', max_eccentricity=20, import_filter=None):
+def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
+                                    modality='volume', import_filter=None):
     '''
     import_benson14_from_freesurfer is a calculation that imports (or creates then imports) the
     Benson et al. (2014) template of retinotopy for the subject, whose neuropythy.freesurfer
@@ -62,6 +62,7 @@ def import_benson14_from_freesurfer(freesurfer_subject,
       * labels will always be 1, 2, or 3 indicating V1, V2, or V3
 
     '''
+    subject = freesurfer_subject
     if modality.lower() == 'volume':
         # make sure there are template volume files that match this subject
         ang = os.path.join(subject.directory, 'mri', 'angle_benson14.mgz')
@@ -77,7 +78,7 @@ def import_benson14_from_freesurfer(freesurfer_subject,
         label_mgz = fs.mghformat.load(lab)
         ribbon_mgzs = (subject.LH.ribbon, subject.RH.ribbon)
         # The variables are all mgz volumes, so we need to extract the values:
-        labels = np.round(np.abs(label_mgh.dataobj.get_unscaled()))
+        labels = np.round(np.abs(label_mgz.dataobj.get_unscaled()))
         angles = angle_mgz.dataobj.get_unscaled()
         eccens = eccen_mgz.dataobj.get_unscaled()
         (lrib, rrib) = [r.dataobj.get_unscaled() for r in ribbon_mgzs]
@@ -88,13 +89,13 @@ def import_benson14_from_freesurfer(freesurfer_subject,
                  for (i,j,k) in coords
                  if lrib[i,j,k] != 0 or rrib[i,j,k] != 0
                  if eccens[i,j,k] < max_eccentricity]
-        hemis  = pyr.pvector(r[0] for r in tmp)
-        coords = pyr.pvector(r[1] for r in tmp)
+        hemis  = np.asarray([r[0] for r in tmp], dtype=np.int)
+        coords = np.asarray([r[1] for r in tmp], dtype=np.int)
         # Pull out the angle/eccen data
-        angs0   = np.asarray([angle[i,j,k] for (i,j,k) in coords])
+        angs0   = np.asarray([angles[i,j,k] for (i,j,k) in coords])
         angles  = np.pi/180.0 * (90.0 - angs0*hemis)
-        eccens  = [eccen[i,j,k] for (i,j,k) in coords]
-        labels  = [label[i,j,k] for (i,j,k) in coords]
+        eccens  = np.asarray([eccens[i,j,k] for (i,j,k) in coords], dtype=np.float)
+        labels  = np.asarray([labels[i,j,k] for (i,j,k) in coords], dtype=np.int)
     elif modality.lower() == 'surface':
         # make sure there are template volume files that match this subject
         lang = os.path.join(subject.directory, 'surf', 'lh.angle_benson14.mgz')
@@ -127,7 +128,7 @@ def import_benson14_from_freesurfer(freesurfer_subject,
         hemis   = np.concatenate([[1 for a in lang], [-1 for a in rang]], axis=0)[vals]
         angles  = np.pi/180. * (90.0 - angs0[vals]*hemis)
         eccens  = eccs[vals]
-        labels  = labs[vals]
+        labels  = np.asarray(labs[vals], dtype=np.int)
     else:
         raise ValueError('Option modality must be \'surface\' or \'volume\'')
     # do the filtering and convert to pvectors
@@ -136,58 +137,15 @@ def import_benson14_from_freesurfer(freesurfer_subject,
     else:
         idcs = [i for (i,(p,e,l,h)) in enumerate(zip(angles, eccens, labels, hemis))
                 if import_filter(p,e,l,h)]
-    return {'polar_angles':   units.degree * pyr.pvector(angles[idcs]),
-            'eccentricities': units.degree * pyr.pvector(eccens[idcs]),
-            'labels':         pyr.pvector(labels[idcs]),
-            'anatomical_ids': pyr.pvector(coords[idcs]),
-            'hemispheres':    pyr.pvector(hemis[idcs])}
-
-@pimms.calc('pRF_centers', 'pRF_sigmas', 'pRF_output_nonlinearities')
-def calc_pRF_data(polar_angles, eccentricities, labels,
-                  pRF_sigma_slope_by_label, output_nonlinearity_by_label):
-    '''
-    calc_pRF_data is a calculation that transforms polar_angles, eccentricities, labels, and
-    related meta-data into pRF_centers and pRF_sigmas. This calculation uses a simple formula:
-      pRF_sigma = 1/2 + m[label] * eccentricity
-    where m[label] is the slope of the pRF size (vs eccentricity) in terms of the visual area label.
-    The slopes, m, are given in the parameter pRF_sigma_slope_by_label.
-
-    Required afferent parameters:
-      * polar_angles, the polar angle values (obtained from import_benson14_from_freesurfer)
-      * eccentricities, the eccentricity values (also from import_benson14_from_freesurfer)
-      * labels, the visual area labels (also from import_benson14_from_freesurfer)
-      * pRF_sigma_slope_by_label, a dict that maps labels to sigma-slope
-      * output_nonlinearity_by_label, a dict that maps labels to output nonlinearity parameters
-
-    Efferent output values:
-      * pRF_centers: an n x 2 numpy matrix of the (x,y) pRF centers for each pRF in the visual field
-      * pRF_sigmas: the sigma parameter for each pRF
-      * pRF_radii: the effective receptive field size for each pRF
-      * pRF_output_nonlinearities: a list of output nonlinearity values, one per pRF
-
-    Notes:
-      * The polar_angles and eccentricities parameters are expected to use pint's unit system and
-        be either in degrees or radians
-    '''
-    if not pimms.is_quantity(polar_angles):
-        warnings.warn('polar_angle is not a quantity; assuming that it is in degrees')
-        polar_angles = polar_angles * units.degree
-    if not pimms.is_quantity(eccentricities):
-        warnings.warn('polar_angle is not a quantity; assuming that it is in degrees')
-        eccentricities = eccentricities * units.degree
-    angle_unit = eccentricities.u
-    # Get the pRF centers:
-    xs = eccentricities * np.cos(polar_angles)
-    ys = eccentricities * np.sin(polar_angles)
-    pRF_centers = np.asarray([xs, ys]).T * angle_unit
-    # Okay; now we get the pRF sigmas, which are determined by the pRF_sigma_slope_by_label data:
-    m = np.asarray(lookup_labels(labels, pRF_sigma_slope_by_label))
-    pRF_sigmas = (0.5*units.degree + eccentricities.to('degree') * m).to(angle_unit)
-    # From pRF sigma, we can get the pRF radii
-    n = np.asarray(lookup_labels(labels, output_nonlinearity_by_label))
-    n.setflags(write=False)
-    # That's it:
-    return (pRF_centers, pRF_sigmas, n)
+    vals = {'polar_angles':   units.degree * angles[idcs],
+            'eccentricities': units.degree * eccens[idcs],
+            'labels':         labels[idcs],
+            'anatomical_ids': coords[idcs],
+            'hemispheres':    hemis[idcs]}
+    # make sure they're all write-only
+    for v in vals.itervalues():
+        v.setflags(write=False)
+    return vals
         
 @pimms.calc('predicted_responses_exported_q')
 def export_predicted_responses(predicted_responses,

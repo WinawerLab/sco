@@ -12,13 +12,6 @@ The package sco.impl.benson14 contains implementation details specific to the Be
 publications.
 '''
 
-from .options import provide_winawerlab_default_options
-
-import .benson17
-
-
-
-
 
 
 

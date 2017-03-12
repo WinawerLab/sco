@@ -16,8 +16,6 @@ from   scipy.interpolate     import (RectBivariateSpline, interp1d)
 from   skimage               import data
 from   skimage.util          import img_as_float
 
-from   ..core                import calculates
-
 warnings.filterwarnings('ignore', category=UserWarning, message='.*From scipy 0.13.0.*')
 
 @pimms.calc('gamma_correction_function')
@@ -105,8 +103,8 @@ def import_stimuli(stimulus, gamma_correction_function=None):
         else:
             raise ValueError('stimulus is not iterable nor a filename')
     # we can use the stimulus_importer function no matter what the stimulus arguments are
-    return pyr.pmap({k:import_stimulus(v, gamma_correction_function)
-                     for (k,v) in stimulus.iteritems()})
+    return {'stimulus_map': pyr.pmap({k:import_stimulus(v, gamma_correction_function)
+                                      for (k,v) in stimulus.iteritems()})}
 
 def image_apply_aperture(im, radius,
                          center=None, fill_value=0.5, edge_width=10, crop=True):
@@ -228,7 +226,7 @@ def calc_images(pixels_per_degree, stimulus_map,
     # Separate out the images and names and
     imar = np.asarray(imgs.values(), dtype=np.float)
     imar.setflags(write=False)
-    imnm = pmap.pvector(imgs.keys())
+    imnm = pyr.pvector(imgs.keys())
     # Finally, note the pixel centers
     (rs,cs) = (imar.shape[1], imar.shape[2])
     x0 = (0.5*rs, 0.5*cs)

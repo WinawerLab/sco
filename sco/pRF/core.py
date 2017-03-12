@@ -5,6 +5,8 @@
 
 import numpy                 as     np
 import scipy.sparse          as     sparse
+import pyrsistent            as     pyr
+from   sco.util              import (units, lookup_labels)
 import pimms
 
 @pimms.immutable
@@ -26,12 +28,13 @@ class PRFSpec(object):
         '''
         if pimms.is_quantity(pt):
             if pt.u == units.rad:   pt = pt.to(units.deg)
-            elif pt.u != units.deg: raise ValueError('pRF centers must be in degrees or radians')
+            elif not (pt.u == units.deg):
+                raise ValueError('pRF centers must be in degrees or radians')
         else:
             # assume degrees
             pt = pt * units.deg
         pt = np.asarray(pt.m) * pt.u
-        if pt.shape != 2:
+        if len(pt.shape) != 1 or  pt.shape[0] != 2:
             raise ValueError('pRF centers must be 2D')
         return pt
     @pimms.param
@@ -41,7 +44,8 @@ class PRFSpec(object):
         '''
         if pimms.is_quantity(sig):
             if sig.u == units.rad:   sig = sig.to(units.deg)
-            elif sig.u != units.deg: raise ValueError('pRF sigma must be in degrees or radians')
+            elif not (sig.u == units.deg):
+                raise ValueError('pRF sigma must be in degrees or radians')
         else:
             sig = sig * units.deg
         if sig <= 0: raise ValueError('sigma must be positive')
@@ -58,7 +62,7 @@ class PRFSpec(object):
         '''
         prf.radius is the pRF radius of the given PRFSpec object; the radius of the pRF is computed
         from the sigma and exponent parameters like so:
-           radius = sigma / sqrt(exponent).
+           radius = sigma * sqrt(exponent).
         This can be observed directly from the pRF equation:
            (q: sensitivity, x: distance from pRF center, s: sigma, n: exponent, r: radius)
            q = exp(-(x/s)^2 / 2)^n
@@ -67,7 +71,7 @@ class PRFSpec(object):
              = exp(-(x / (s/sqrt(n)))^2 / 2)
              = exp(-(x/r)^2 / 2) with r = s / sqrt(n).
         '''
-        return float(sigma / np.sqrt(exponent)) * units.deg
+        return sigma.to(units.deg) * np.sqrt(exponent)
     @pimms.param
     def n_radii(nr):
         '''
@@ -79,17 +83,20 @@ class PRFSpec(object):
 
     def _params(self, imshape, d2p):
         if len(imshape) > 2: imshape = imshape[-2:]
-        x0 = np.asarray([imshape[0]*0.5 - self.center[1]*d2p, imshape[1]*0.5 + self.center[0]*d2p])
+        imshape = imshape * units.px
+        x0 = np.asarray([(imshape[0]*0.5 - self.center[1]*d2p).to(units.px).m,
+                         (imshape[1]*0.5 + self.center[0]*d2p).to(units.px).m])
         rad = self.radius * d2p
-        dst = self.n_radii * rad
+        dst = (self.n_radii * rad).m
         rrng0 = (int(np.floor(x0[0] - dst)), int(np.ceil(x0[0] + dst)))
         crng0 = (int(np.floor(x0[1] - dst)), int(np.ceil(x0[1] + dst)))
-        rrng = (max([rrng0[0], 0]), min([rrng0[1], imshape[0]]))
-        crng = (max([crng0[0], 0]), min([crng0[1], imshape[1]]))
+        rrng = (max([rrng0[0], 0]), min([rrng0[1], imshape[0].m]))
+        crng = (max([crng0[0], 0]), min([crng0[1], imshape[1].m]))
         if any(s[1] - s[0] <= 0 for s in [rrng, crng]):
             raise ValueError('Bad image or std given to PRFSpec._params()')
         return (x0, rad, dst, rrng, crng, rrng0, crng0)
     def _weights(self, x0, rad, rrng, crng):
+        rad = rad.m # this should be in pixels when passed in
         cnst = -0.5 / (rad*rad)
         (xmsh,ymsh) = np.meshgrid(np.asarray(range(crng[0], crng[1]), dtype=np.float) - x0[1],
                                   np.asarray(range(rrng[0], rrng[1]), dtype=np.float) - x0[0])
@@ -160,7 +167,7 @@ class PRFSpec(object):
                 u_mid = np.asarray([np.concatenate((u_c0, uu, u_cc), axis=1) for uu in u_im])
                 u = np.asarray(
                     [uu if len(row_cat) == 1 else np.concatenate(row_cat, axis=0)
-                     for uu in u_mid
+                     for uu      in u_mid
                      for row_cat in [tuple([r for r in [u_r0, uu, u_rr] if r is not None])]])
             else:
                 u_mid = np.concatenate((u_c0, u_im, u_cc), axis=1)
@@ -168,7 +175,7 @@ class PRFSpec(object):
                 u = u_mid if len(row_cat) == 1 else np.concatenate(row_cat, axis=0)
         # Okay, now u is the correct size and w is the correct size...
         u = np.asarray([uu.flatten() for uu in u]) if stackq else u.flatten()
-        if c is None and weights is None: return (u, None)
+        if c is None and not weights: return (u, None)
         ## weights are from the _weights method:
         w = self._weights(x0, rad, rrng0, crng0)
         w = w.flatten()
@@ -179,8 +186,83 @@ class PRFSpec(object):
         else:
             return np.dot(w, (u - c*np.dot(w, u))**2)
 
+@pimms.calc('compressive_constants')
+def calc_compressive_constants(labels, compressive_constants_by_label):
+    '''
+    calc_compressive_constants is a calculator that combines the labels with the data in
+    compressive_constants_by_label to produce a list of compressive constants.
+
+    Required afferent parameters:
+      * labels
+      * compressive_constants_by_label
+
+    Provided efferent values:
+      * compressive_constants
+    '''
+    n = np.asarray(lookup_labels(labels, compressive_constants_by_label), dtype=np.float)
+    n.setflags(write=False)
+    return n
+
+@pimms.calc('pRF_sigmas', 'pRF_sigma_slopes')
+def calc_pRF_sigmas(labels, eccentricities, pRF_sigma_slopes_by_label):
+    '''
+    calc_pRF_sigmas is a calculator that combines the labels with the data in
+    pRF_sigma_slopes_by_label to pRF_sigma_slopes, one slope per sigma; it also uses the
+    eccentricity to determine the predicted sigma as well in pRF_sigmas.
+
+    This calculation uses a simple formula:
+      pRF_sigma = 1/2 + m[label] * eccentricity
+    where m[label] is the slope of the pRF size (vs eccentricity) in terms of the visual area label.
+    The slopes, m, are given in the parameter pRF_sigma_slope_by_label.
+
+    Required afferent parameters:
+      * labels
+      * pRF_sigma_slopes_by_label
+      * eccentricities
+
+    Provided efferent values:
+      * pRF_sigma_slopes
+      * pRF_sigmas
+    '''
+    ms = np.asarray(lookup_labels(labels, pRF_sigma_slopes_by_label), dtype=np.float)
+    sigs = 0.5*units.degree + eccentricities * ms
+    sigs.setflags(write=False)
+    ms.setflags(write=False)
+    return (sigs, ms)
+        
+@pimms.calc('pRF_centers')
+def calc_pRF_centers(polar_angles, eccentricities):
+    '''
+    calc_pRF_centers is a calculation that transforms polar_angles and eccentricities into
+    pRF_centers, which are (x,y) coordinates, in degrees, in the visual field. 
+
+    Required afferent parameters:
+      * polar_angles, the polar angle values (obtained from import_benson14_from_freesurfer)
+      * eccentricities, the eccentricity values (also from import_benson14_from_freesurfer)
+
+    Efferent output values:
+      * pRF_centers: an n x 2 numpy matrix of the (x,y) pRF centers for each pRF in the visual field
+
+    Notes:
+      * The polar_angles and eccentricities parameters are expected to use pint's unit system and
+        be either in degrees or radians
+    '''
+    if not pimms.is_quantity(polar_angles):
+        warnings.warn('polar_angle is not a quantity; assuming that it is in degrees')
+        polar_angles = polar_angles * units.degree
+    if not pimms.is_quantity(eccentricities):
+        warnings.warn('polar_angle is not a quantity; assuming that it is in degrees')
+        eccentricities = eccentricities * units.degree
+    angle_unit = eccentricities.u
+    # Get the pRF centers:
+    xs = eccentricities * np.cos(polar_angles)
+    ys = eccentricities * np.sin(polar_angles)
+    pRF_centers = np.asarray([xs, ys]).T * angle_unit
+    # That's it:
+    return pRF_centers.to(units.deg)
+
 @pimms.calc('pRFs', 'pRF_radii')
-def calc_pRFs(pRF_centers, pRF_sigmas, pRF_output_nonlinearities, pRF_n_radii=3.0):
+def calc_pRFs(pRF_centers, pRF_sigmas, compressive_constants, pRF_n_radii=3.0):
     '''
     calc_pRFs is a calculator that adds to the datapool a set of objects of class PRFSpec;
     these objects represent the pRF and can calculate responses or sparse matrices representing
@@ -189,7 +271,7 @@ def calc_pRFs(pRF_centers, pRF_sigmas, pRF_output_nonlinearities, pRF_n_radii=3.
     calculates the weighted second moment about c times the weighted mean of the pRF.
 
     Required afferent parameters:
-      * pRF_centers, pRF_sigmas, pRF_output_nonlinearities
+      * pRF_centers, pRF_sigmas, compressive_constants
 
     Optional afferent parameters:
       * pRF_blob_stds (default 3) specifies how many standard deviations should be included in the
@@ -200,14 +282,14 @@ def calc_pRFs(pRF_centers, pRF_sigmas, pRF_output_nonlinearities, pRF_n_radii=3.
       * pRF_radii: the effective pRF sizes, as determined by: radius = sigma / sqrt(nonlinearity)
     '''
     prfs = np.asarray(
-        [PRFSpec(x0, sig, n_radii=pRF_n_radii)
-         for (x0, sig, n) in zip(pRF_centers, pRF_sigmas, pRF_output_nonlinearities)])
+        [PRFSpec(x0, sig, n, n_radii=pRF_n_radii)
+         for (x0, sig, n) in zip(pRF_centers, pRF_sigmas, compressive_constants)])
     prfs.setflags(write=False)
-    radii = np.asarray([p.radius for p in prfs])
+    radii = np.asarray([p.radius.to(units.deg).m for p in prfs]) * units.deg
     radii.setflags(write=False)
     return (prfs, radii)
 
-@calculates('cpd_sensitivities')
+@pimms.calc('cpd_sensitivities')
 def calc_cpd_sensitivities(labels, eccentricities, pRF_radii, cpd_sensitivity_function):
     '''
     calc_cpd_sensitivities is a calculator that produces the frequency sensitivity maps for each
@@ -224,9 +306,9 @@ def calc_cpd_sensitivities(labels, eccentricities, pRF_radii, cpd_sensitivity_fu
         frequencies (in cycles/degree) and whose values are the weights of that frequency for the
         relevant pRF.
     '''
-    ss = np.asarray(
-        [pyr.pmap(cpd_sensitivity_function(ecc, rad, lab))
-         for (rad, ecc, lab) in zip(pRF_radii, eccentricities, labels)])
+    ss = np.full(len(labels), None, dtype=np.object)
+    for (i, rad, ecc, lab) in zip(range(len(ss)), pRF_radii, eccentricities, labels):
+        ss[i] = pyr.pmap(cpd_sensitivity_function(ecc, rad, lab))
     ss.setflags(write=False)
     return ss
 

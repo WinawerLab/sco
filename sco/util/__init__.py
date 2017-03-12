@@ -4,6 +4,7 @@
 # By Noah C. Benson
 
 import numpy             as np
+import pyrsistent        as pyr
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.tri    as tri
@@ -35,13 +36,12 @@ def lookup_labels(labels, data_by_labels, **kwargs):
         raise ValueError('Unexpected option given to lookup_labels; only null is accepted')
     if raise_q:
         try:
-            res = pyr.pvector(data_by_labels[lbl] for lbl in labels)
+            res = [data_by_labels[lbl] for lbl in labels]
         except:
             raise ValueError('Not all labels found by lookup_labels and no null given')
     else:
-        res = pyr.pvector(data_by_labels[lbl] if lbl in data_by_labels else null
-                          for lbl in labels)
-    return res
+        res = [data_by_labels[lbl] if lbl in data_by_labels else null for lbl in labels]
+    return pyr.pvector(res)
 
 def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n_stds=1,
                    size_gain=1, method='triangulation', subplot=None):

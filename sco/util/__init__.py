@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import matplotlib.tri    as tri
 import pint
 
+from .io import (export_predictions, export_analysis)
+
 # The unit registry that we use
 units = pint.UnitRegistry()
 # we want to define the pixel unit

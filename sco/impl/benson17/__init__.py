@@ -10,42 +10,44 @@ defined; this may be included in any SCO plan to ensure that the optional parame
 available to the downstream calculations if not provided by the user or other calculations.
 '''
 
-import pyrsistent as _pyr
-import pimms      as _pimms
-import numpy      as _np
+import pyrsistent              as _pyr
+import pimms                   as _pimms
+import numpy                   as _np
+from   sco.util   import units as _units
 
 # Divisive Normalization ###########################################################################
 # The following are divisive normalization models that can be used with the SCO
-def divisively_normalize_Heeger1992(data, response_exponent=0.5, saturation_constant=1.0):
+def divisively_normalize_Heeger1992(data, divisive_exponent=0.5, saturation_constant=1.0):
     '''
     divisively_normalize(data) yields the 3D image array that is the result of divisively
     normalizing the 3D orientation-filtered image array values of the map data, whose keys should
     be the orientations (in radians) of the gabor filters applied to the values.
 
     Reference:
-      Heeger DJ (1992) Vis. Neurosci. 9(2):181–197. doi:10.1017/S0952523800009640.
+      Heeger DJ (1992) Vis. Neurosci. 9(2):181-197. doi:10.1017/S0952523800009640.
     '''
     surround = _np.mean(data.values(), axis=0)
     s = saturation_constant
-    r = response_exponent
+    r = divisive_exponent
     den = (s**r + surround**r)
     num = _np.zeros(surround.shape)
     for v in data.itervalues(): num += v**r
     num /= len(data)
-    normalized = num / div
+    normalized = num / den
     normalized.setflags(write=False)
     return normalized
 
 # Parameters Defined by Labels #####################################################################
-pRF_sigma_slope_by_label_Kay2013      = pyr.pmap({1:0.10, 2:0.15, 3:0.27})
-contrast_constant_by_label_Kay2013    = pyr.pmap({1:0.93, 2:0.99, 3:0.99})
-compressive_constant_by_label_Kay2013 = pyr.pmap({1:0.18, 2:0.13, 3:0.12})
-saturation_constant_by_label_Kay2013  = pyr.pmap({1:0.50, 2:0.50, 3:0.50})
-divisive_exponent_by_label_Kay2013    = pyr.pmap({1:1.00, 2:1.00, 3:1.00})
+pRF_sigma_slopes_by_label_Kay2013      = _pyr.pmap({1:0.10, 2:0.15, 3:0.27})
+contrast_constants_by_label_Kay2013    = _pyr.pmap({1:0.93, 2:0.99, 3:0.99})
+compressive_constants_by_label_Kay2013 = _pyr.pmap({1:0.18, 2:0.13, 3:0.12})
+saturation_constants_by_label_Kay2013  = _pyr.pmap({1:0.50, 2:0.50, 3:0.50})
+divisive_exponents_by_label_Kay2013    = _pyr.pmap({1:1.00, 2:1.00, 3:1.00})
 
 # Frequency Sensitivity ############################################################################
-_cpd_sensitivity_frequencies = [0.75 * 2.0**(0.5 * k) for k in range(6)]
-_cpd_sensitivity_std = 0.5
+_sensitivity_frequencies_cpd = (_np.asarray([0.75 * 2.0**(0.5 * k) for k in range(6)])
+                                * (_units.cycles/_units.degree))
+_sensitivity_std_cpd         = 0.5
 def cpd_sensitivity(e, s, l):
     '''
     cpd_sensitivity(ecc, prfsz, lbl) yields the predicted spatial frequency sensitivity of a 
@@ -53,15 +55,15 @@ def cpd_sensitivity(e, s, l):
     This is returned as a map whose keys are sampled frequencies (in cycles per degree) and
     whose values sum to 1.
     '''
-    # round to nearest 25th of a degree:
-    s = round(25.0 * s) * 0.04
+    # round to nearest 100th of a degree:
+    s = s.to(_units.deg).m if _pimms.is_quantity(s) else s
     if s in cpd_sensitivity._cache: return cpd_sensitivity._cache[s]
     ss = 1.5 / s
-    weights = _np.asarray([_np.exp(-0.5*((k - ss)/_cpd_sensitivity_std)**2)
-                          for k in _cpd_sensitivity_frequencies])
+    weights = _np.asarray([_np.exp(-0.5*((k.m - ss)/_sensitivity_std_cpd)**2)
+                           for k in _sensitivity_frequencies_cpd])
     wtot = _np.sum(weights)
     weights /= wtot
-    res = {k:v for (k,v) in zip(_default_frequencies, weights) if v > 0.01}
+    res = {k:v for (k,v) in zip(_sensitivity_frequencies_cpd, weights) if v > 0.01}
     if len(res) < len(weights):
         wtot = _np.sum(res.values())
         res = {k:(v/wtot) for (k,v) in res.iteritems()}
@@ -72,17 +74,17 @@ cpd_sensitivity._cache = {}
 
 # Default Options ##################################################################################
 # The default options are provided here for the SCO
-@pimms.calc('benson17_default_options_used')
+@_pimms.calc('benson17_default_options_used')
 def provide_default_options(
-        pRF_sigma_slope_by_label      = pRF_sigma_slope_by_label_Kay2013,
-        contrast_constant_by_label    = contrast_constant_by_label_Kay2013,
-        compressive_constant_by_label = compressive_constant_by_label_Kay2013,
-        saturation_constant           = saturation_constant_Kay2013,
-        divisive_exponent             = divisive_exponent_Kay2013,
-        max_eccentricity              = 12,
-        modality                      = 'volume',
-        cpd_sensitivity_function      = cpd_sensitivity,
-        gabor_orientations            = 8):
+        pRF_sigma_slopes_by_label      = pRF_sigma_slopes_by_label_Kay2013,
+        contrast_constants_by_label    = contrast_constants_by_label_Kay2013,
+        compressive_constants_by_label = compressive_constants_by_label_Kay2013,
+        saturation_constants_by_label  = saturation_constants_by_label_Kay2013,
+        divisive_exponents_by_label    = divisive_exponents_by_label_Kay2013,
+        max_eccentricity               = 12,
+        modality                       = 'volume',
+        cpd_sensitivity_function       = cpd_sensitivity,
+        gabor_orientations             = 8):
     '''
     provide_default_options is a calculator that optionally accepts values for all parameters for
     which default values are provided in the sco.impl.benson17 package and yields into the calc plan

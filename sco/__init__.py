@@ -9,15 +9,10 @@ visual stimuli.
 import pimms        as _pimms
 import pyrsistent   as _pyr
 
-from sco.anatomy  import (anatomy_plan,  anatomy_plan_data)
-from sco.stimulus import (stimulus_plan, stimulus_plan_data)
-from sco.pRF      import (pRF_plan,      pRF_plan_data)
-from sco.contrast import (contrast_plan, contrast_plan_data)
-from sco.analysis import (analysis_plan, analysis_plan_data)
+from sco.util          import (cortical_image)
+from sco.impl.benson17 import sco_plan as benson17_plan
 
-from sco.util import (cortical_image)
-
-import sco.impl.benson17
+sco_plans = {'benson17': benson17_plan}
 
 #from sco.model_comparison import create_model_dataframe
 
@@ -30,19 +25,6 @@ __version__ = "%s.%s.%s" % (_version_major, _version_minor, _version_micro)
 description = 'Predict the response of the cortex to visual stimuli'
     
 # The volume (default) calculation chain
-sco_plan_data = _pyr.pmap({k:v
-                           for pd    in [stimulus_plan_data, contrast_plan_data,
-                                         pRF_plan_data,      anatomy_plan_data,
-                                         {'provide_default_options':
-                                          sco.impl.benson17.provide_default_options}]
-                           for (k,v) in pd.iteritems()})
-sco_plan         = _pimms.plan(sco_plan_data)
-
-sco_with_analysis_plan_data = reduce(lambda pd,kv: pd.set(kv[0], kv[1]),
-                                     analysis_plan_data.iteritems(),
-                                     sco_plan_data)
-sco_with_analysis_plan = _pimms.plan(sco_with_analysis_plan_data)
-
 def reload_sco():
     '''
     reload_sco() reloads the sco and all of its submodules; it returns the new sco module.

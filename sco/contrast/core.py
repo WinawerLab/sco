@@ -11,7 +11,6 @@ from   skimage.filters       import gabor_kernel
 from   types                 import (IntType, LongType)
 from   ..util                import (lookup_labels, units)
 
-from   sco.impl              import benson17
 import pimms
 
 def scaled_gabor_kernel(cpp, theta=0, zero_mean=True, **kwargs):
@@ -275,32 +274,14 @@ def calc_contrast_filter(image_array, normalized_pixels_per_degree, gabor_orient
       * normalized_pixels_per_degree
       * gabor_orientations
       * background
-      * saturation_constants
-      * divisive_exponent
 
     Efferent output values:
-      * contrast_filter, an object of type ImageArrayContrastFilter
+      @ contrast_filter Will be an object of type ImageArrayContrastFilter that can filter the image
+        array at arbitrary frequencies and divisive normalization parameters.
     '''
     # all the parameter checking and transformation is handled in this class
     return ImageArrayContrastFilter(image_array,         normalized_pixels_per_degree,
                                     gabor_orientations,  background)
-
-@pimms.calc('divisive_normalization_parameters', 'divisive_normalization_function')
-def calc_divisive_normalization(labels, saturation_constants_by_label, divisive_exponents_by_label):
-    '''
-    calc_divisive_normalization is a calculator that prepares the divisive normalization function
-    to be run in the sco pipeline. It gathers parameters into a pimms itable (such that each row
-    is a map of the parameters for each pRF in the pRFs list), which is returned as the value
-    'divisive_normalization_parameters'; it also adds a 'divisive_normalization_function' that
-    is appropriate for the parameters given. In the case of this implementation, the parameters
-    saturation_constant and divisive_exponent are extracted from the afferent parameters
-    saturation_constant_by_label and divisive_exponent_by_label, and the function
-    sco.impl.benson17.divisively_normalize_Heeger1992 is used.
-    '''
-    sat = lookup_labels(labels, saturation_constants_by_label)
-    rxp = lookup_labels(labels, divisive_exponents_by_label)
-    return (pimms.itable(saturation_constant=sat, divisive_exponent=rxp),
-            benson17.divisively_normalize_Heeger1992)
 
 @pimms.calc('contrast_energies')
 def calc_contrast_energies(contrast_filter,
@@ -318,7 +299,10 @@ def calc_contrast_energies(contrast_filter,
       * cpd_sensitivities
 
     Output efferent values:
-      * contrast_energies
+      @ contrast_energies Will be a nested map whose first level of keys are persistent-maps of the
+        divisive normalization parameters and whose second level of keys are a set of frequencies;
+        the values at the second level are the stacks of contrast energy images for the particular
+        divisive normalization parameters and frequencies specified in the keys.
     '''
     # first, calculate the contrast energies at each frequency for all images then we combine them;
     # since this reuses images internally when the parameters are the same, it shouldn't be too
@@ -347,10 +331,12 @@ def calc_contrast_constants(labels, contrast_constants_by_label):
 
     Required afferent parameters:
       * labels
-      * contrast_constants_by_label
+      @ contrast_constants_by_label Must be a map whose keys are label values and whose values are
+        the variance-like contrast constant for that particular area; all values appearing in the
+        pRF labels must be found in this map.
 
     Provided efferent parameters:
-      * contrast_constants
+      @ contrast_constants Will be an array of values, one per pRF, of the contrast constants.
     '''
     r = np.asarray(lookup_labels(labels, contrast_constants_by_label), dtype=np.float)
     r.setflags(write=False)
@@ -372,7 +358,9 @@ def calc_pRF_SOC(pRFs, contrast_energies, cpd_sensitivities,
       * divisive_normalization_parameters
 
     Provided efferent parameters:
-      * pRF_SOC
+      @ pRF_SOC Will be an array of the second-order-contrast energies, one per pRF per image;
+        these will be stored in an (n x m) matrix where n is the number of pRFs and m is the
+        number of images.
     '''
     d2p = normalized_pixels_per_degree
     d2p = d2p.to(units.px/units.deg) if pimms.is_quantity(d2p) else d2p*(units.px/units.deg)
@@ -414,10 +402,12 @@ def calc_compressive_constants(labels, compressive_constants_by_label):
 
     Required afferent parameters:
       * labels
-      * compressive_constants_by_label
+      @ compressive_constants_by_label Must be a map whose keys are label values and whose values are
+        the compressive output exponent for that particular area; all values appearing in the
+        pRF labels must be found in this map.
 
     Provided efferent parameters:
-      * compressive_constants
+      @ compressive_constants Will be an array of compressive output exponents, one per pRF.
     '''
     r = np.asarray(lookup_labels(labels, compressive_constants_by_label), dtype=np.float)
     r.setflags(write=False)
@@ -435,7 +425,9 @@ def calc_compressive_nonlinearity(pRF_SOC, compressive_constants):
       * compressive_constants
 
     Provided efferent values:
-      * prediction
+      @ prediction Will be the final predictions of %BOLD-change for each pRF examined, up to gain.
+        The data will be stored in an (n x m) matrix where n is the number of pRFs (see labels,
+        hemispheres, anatomical_ids) and m is the number of images.
     '''
     out = np.asarray([s**n for (s, n) in zip(pRF_SOC, compressive_constants)])
     out.setflags(write=False)

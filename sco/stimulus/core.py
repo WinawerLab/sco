@@ -25,7 +25,7 @@ def calc_gamma_correction(gamma=None):
     value gamma_correction_function that corrects the contrast of a stimulus presentation.
 
     Optional afferent values:
-      * stimulus_gamma may be given, in which case it must be one of:
+      @ gamma May be given, in which case it must be one of:
         - an (n x 2) or (2 x n) matrix such that is equivalent to (potentially after transposition)
           a matrix of (x,y) values where x is the input gamma and y is the corrected gamma
         - a vector of corrected gamma values; if the vector u is of length n, then this is 
@@ -82,15 +82,16 @@ def import_stimuli(stimulus, gamma_correction_function=None):
     calculation are properly imported.
 
     Required afferent values:
-      * stimulus may either be a dict or list of images matrices or a list of image filenames
+      @ stimulus May either be a dict or list of images matrices or a list of image filenames.
 
     Optional afferent values:
-      * gamma_correction_function (default None) specifies how gamma should be corrected; this
-        should usually be provided via the gamma argument (see calc_gamma_correction).
+      @ gamma_correction_function May specifies how gamma should be corrected; this
+        should usually be provided via the gamma argument (see calc_gamma_correction and gamma).
 
     Efferent output values:
-      * stimulus_map is a persistent dict whose keys are the image identifiers and whose
-        values are the image matrices
+      @ stimulus_map Will be a persistent dict whose keys are the image identifiers and whose
+        values are the image matrices of the imported stimuli prior to normalization or any
+        processing.
     '''
     # Make this into a map so that we have ids and images/filenames
     if not pimms.is_map(stimulus):
@@ -176,28 +177,28 @@ def calc_images(pixels_per_degree, stimulus_map,
     images value.
     
     Required afferent parameters:
-      * pixels_per_degree must specify the number of pixels per degree in the input images; note
-        that all stimulus images must have the same pixels_per_degree value
-      * imported_stimuli
+      @ pixels_per_degree Must specify the number of pixels per degree in the input images; note
+        that all stimulus images must have the same pixels_per_degree value.
+      @ stimulus_map Must be a map whose values are 2D image matrices.
 
     Optional afferent parameters:
-      * background specifies the background color of the stimulus; by default this is 0.5 (gray);
-        this is only used if an aperture is applied
-      * aperture_radius specifies the radius of the aperture in degrees; by default this is None,
+      @ background Specifies the background color of the stimulus; by default this is 0.5 (gray);
+        this is only used if an aperture is applied.
+      @ aperture_radius Specifies the radius of the aperture in degrees; by default this is None,
         indicating that no aperture should be used; otherwise the aperture is applied after
-        normalizing the images
-      * aperture_edge_width specifies the width of the aperture edge in degrees; by default this is
-        1; if 0, then no aperture edge is used
-      * normalized_pixels_per_degree specifies the resolution of the images used in the calculation;
-        by default this is 15
+        normalizing the images.
+      @ aperture_edge_width Specifies the width of the aperture edge in degrees; by default this is
+        1; if 0, then no aperture edge is used.
+      @ normalized_pixels_per_degree Specifies the resolution of the images used in the calculation;
+        by default this is 15.
 
     Output efferent values:
-      * image_array is the 3D numpy array image stack; image_array[i,j,k] is the pixel in image i,
-        row j, column k
-      * image_names is the list of image names in the same order as the images in image_array; the
-        names are derived from the keys of the stimulus_map
-      * pixel_centers is an r x c x 2 numpy matrix with units of degrees specifying the center of
-        each pixel (r is the number of rows and c is the number of columns)
+      @ image_array Will be the 3D numpy array image stack; image_array[i,j,k] is the pixel in image
+        i, row j, column k
+      @ image_names Will be the list of image names in the same order as the images in image_array;
+        the names are derived from the keys of the stimulus_map.
+      @ pixel_centers Will be an r x c x 2 numpy matrix with units of degrees specifying the center
+        of each pixel (r is the number of rows and c is the number of columns).
     '''
     # first, let's interpret our arguments
     if pimms.is_quantity(pixels_per_degree):

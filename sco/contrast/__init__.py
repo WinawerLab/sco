@@ -10,16 +10,14 @@ first- and second-order contrast present in the normalized stimulus image array.
 
 import pyrsistent as _pyr
 import pimms as _pimms
-from .core import (ImageArrayContrastView,     ImageArrayContrastFilter,
-                   calc_contrast_filter,       calc_divisive_normalization,
-                   calc_contrast_constants,    calc_contrast_energies,
-                   calc_compressive_constants, calc_compressive_nonlinearity,
-                   calc_pRF_SOC)
+from .core import (ImageArrayContrastView,        ImageArrayContrastFilter,
+                   calc_contrast_filter,          calc_contrast_constants,
+                   calc_contrast_energies,        calc_compressive_constants,
+                   calc_compressive_nonlinearity, calc_pRF_SOC)
 
 contrast_plan_data = _pyr.m(contrast_constants       = calc_contrast_constants,
                             compressive_constants    = calc_compressive_constants,
                             contrast_filter          = calc_contrast_filter,
-                            divisive_normalization   = calc_divisive_normalization,
                             contrast_energies        = calc_contrast_energies,
                             pRF_SOC                  = calc_pRF_SOC,
                             compressive_nonlinearity = calc_compressive_nonlinearity)

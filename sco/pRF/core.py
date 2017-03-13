@@ -197,7 +197,8 @@ def calc_compressive_constants(labels, compressive_constants_by_label):
       * compressive_constants_by_label
 
     Provided efferent values:
-      * compressive_constants
+      @ compressive_constants Will be an array of values for the compressive constant n as used
+        in the SOC model to compress the output (r = r0^n).
     '''
     n = np.asarray(lookup_labels(labels, compressive_constants_by_label), dtype=np.float)
     n.setflags(write=False)
@@ -221,8 +222,9 @@ def calc_pRF_sigmas(labels, eccentricities, pRF_sigma_slopes_by_label):
       * eccentricities
 
     Provided efferent values:
-      * pRF_sigma_slopes
-      * pRF_sigmas
+      @ pRF_sigma_slopes Will be an array of values, one per pRF, of the sigma slope parameter;
+        these parameters are used to predict pRF sigma values.
+      @ pRF_sigmas Will be set to an array of values, one per pRF, of the sigma parameter of each.
     '''
     ms = np.asarray(lookup_labels(labels, pRF_sigma_slopes_by_label), dtype=np.float)
     sigs = 0.5*units.degree + eccentricities * ms
@@ -237,11 +239,12 @@ def calc_pRF_centers(polar_angles, eccentricities):
     pRF_centers, which are (x,y) coordinates, in degrees, in the visual field. 
 
     Required afferent parameters:
-      * polar_angles, the polar angle values (obtained from import_benson14_from_freesurfer)
-      * eccentricities, the eccentricity values (also from import_benson14_from_freesurfer)
+      @ polar_angles The polar angle values (obtained from import_benson14_from_freesurfer).
+      @ eccentricities The eccentricity values (also from import_benson14_from_freesurfer).
 
     Efferent output values:
-      * pRF_centers: an n x 2 numpy matrix of the (x,y) pRF centers for each pRF in the visual field
+      @ pRF_centers Will be an n x 2 numpy matrix of the (x,y) pRF centers for each pRF in the
+        visual field
 
     Notes:
       * The polar_angles and eccentricities parameters are expected to use pint's unit system and
@@ -274,12 +277,12 @@ def calc_pRFs(pRF_centers, pRF_sigmas, compressive_constants, pRF_n_radii=3.0):
       * pRF_centers, pRF_sigmas, compressive_constants
 
     Optional afferent parameters:
-      * pRF_blob_stds (default 3) specifies how many standard deviations should be included in the
+      @ pRF_n_radii May specify how many standard deviations should be included in the
         Gaussian blob that defines the pRF.
 
     Output efferent values:
-      * pRFs: the array of PRFSpec objects; this is a numpy array of the pRFs
-      * pRF_radii: the effective pRF sizes, as determined by: radius = sigma / sqrt(nonlinearity)
+      @ pRFs Will be the array of PRFSpec objects; this is a numpy array of the pRFs.
+      @ pRF_radii Will be the effective pRF sizes, as determined by: radius = sigma / sqrt(n).
     '''
     prfs = np.asarray(
         [PRFSpec(x0, sig, n, n_radii=pRF_n_radii)
@@ -302,7 +305,7 @@ def calc_cpd_sensitivities(labels, eccentricities, pRF_radii, cpd_sensitivity_fu
       * cpd_sensitivity_function
 
     Output efferent values:
-      * cpd_sensitivities is a persistent numpy array of maps, one per pRF,  whose keys are
+      @ cpd_sensitivities Will be a persistent numpy array of maps, one per pRF, whose keys are
         frequencies (in cycles/degree) and whose values are the weights of that frequency for the
         relevant pRF.
     '''

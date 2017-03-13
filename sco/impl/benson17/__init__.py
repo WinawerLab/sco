@@ -15,6 +15,14 @@ import pimms                   as _pimms
 import numpy                   as _np
 from   sco.util   import units as _units
 
+import sco.anatomy
+import sco.stimulus
+import sco.pRF
+import sco.contrast
+import sco.analysis
+import sco.util
+
+
 # Divisive Normalization ###########################################################################
 # The following are divisive normalization models that can be used with the SCO
 def divisively_normalize_Heeger1992(data, divisive_exponent=0.5, saturation_constant=1.0):
@@ -36,6 +44,40 @@ def divisively_normalize_Heeger1992(data, divisive_exponent=0.5, saturation_cons
     normalized = num / den
     normalized.setflags(write=False)
     return normalized
+
+@_pimms.calc('divisive_normalization_parameters', 'divisive_normalization_function')
+def calc_divisive_normalization(labels, saturation_constants_by_label, divisive_exponents_by_label):
+    '''
+    calc_divisive_normalization is a calculator that prepares the divisive normalization function
+    to be run in the sco pipeline. It gathers parameters into a pimms itable (such that each row
+    is a map of the parameters for each pRF in the pRFs list), which is returned as the value
+    'divisive_normalization_parameters'; it also adds a 'divisive_normalization_function' that
+    is appropriate for the parameters given. In the case of this implementation, the parameters
+    saturation_constant and divisive_exponent are extracted from the afferent parameters
+    saturation_constant_by_label and divisive_exponent_by_label, and the function
+    sco.impl.benson17.divisively_normalize_Heeger1992 is used.
+
+    Required afferent parameters:
+      * labels
+      @ saturation_constants_by_label Must be a map whose keys are label values and whose values are
+        the saturation constant for the particular area; all values appearing in the pRF labels
+        must be found in this map.
+      * divisive_exponents_by_label Must be a map whose keys are label values and whose values are
+        the divisive normalization exponent for that particular area; all values appearing in the
+        pRF labels must be found in this map.
+
+    Provided efferent values:
+      @ divisive_normalization_parameters Will be an ITable whose columns correspond to the
+        divisive normalization formula's saturation constant and exponent; the rows will correspond
+        to the pRFs.
+      @ divisive_normalization_function Will be a function compatible with the
+        divisive_normalization_parameters data-table; currently this is
+        sco.impl.benson17.divisively_normalize_Heeger1992.
+    '''
+    sat = sco.util.lookup_labels(labels, saturation_constants_by_label)
+    rxp = sco.util.lookup_labels(labels, divisive_exponents_by_label)
+    return (_pimms.itable(saturation_constant=sat, divisive_exponent=rxp),
+            divisively_normalize_Heeger1992)
 
 # Parameters Defined by Labels #####################################################################
 pRF_sigma_slopes_by_label_Kay2013      = _pyr.pmap({1:0.10, 2:0.15, 3:0.27})
@@ -103,3 +145,16 @@ def provide_default_options(
     '''
     # the defaults are filled-in by virtue of being in the above argument list
     return True
+
+# The volume (default) calculation chain
+sco_plan_data = _pyr.pmap({k:v
+                           for pd    in [sco.stimulus.stimulus_plan_data,
+                                         sco.contrast.contrast_plan_data,
+                                         sco.pRF.pRF_plan_data,
+                                         sco.anatomy.anatomy_plan_data,
+                                         sco.analysis.analysis_plan_data,
+                                         {'default_options': provide_default_options,
+                                          'divisive_normalization': calc_divisive_normalization}]
+                           for (k,v) in pd.iteritems()})
+
+sco_plan      = _pimms.plan(sco_plan_data)

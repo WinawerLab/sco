@@ -83,6 +83,7 @@ class PRFSpec(object):
 
     def _params(self, imshape, d2p):
         if len(imshape) > 2: imshape = imshape[-2:]
+        if not pimms.is_quantity(d2p): d2p = d2p * (units.px/units.deg)
         imshape = imshape * units.px
         x0 = np.asarray([(imshape[0]*0.5 - self.center[1]*d2p).to(units.px).m,
                          (imshape[1]*0.5 + self.center[0]*d2p).to(units.px).m])
@@ -260,7 +261,7 @@ def calc_pRF_centers(polar_angles, eccentricities):
     # Get the pRF centers:
     xs = eccentricities * np.cos(polar_angles)
     ys = eccentricities * np.sin(polar_angles)
-    pRF_centers = np.asarray([xs, ys]).T * angle_unit
+    pRF_centers = np.asarray([xs.to(angle_unit).m, ys.to(angle_unit).m]).T * angle_unit
     # That's it:
     return pRF_centers.to(units.deg)
 

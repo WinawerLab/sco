@@ -171,7 +171,7 @@ def calc_images(pixels_per_degree, stimulus_map,
                 background=0.5,
                 aperture_radius=None,
                 aperture_edge_width=None,
-                normalized_pixels_per_degree=15):
+                normalized_pixels_per_degree=12):
     '''
     calc_images() is a the calculation that converts the imported_stimuli value into the normalized
     images value.
@@ -201,26 +201,31 @@ def calc_images(pixels_per_degree, stimulus_map,
         of each pixel (r is the number of rows and c is the number of columns).
     '''
     # first, let's interpret our arguments
-    if pimms.is_quantity(pixels_per_degree):
-        # this can be ignored
-        pixels_per_degree = pixels_per_degree.m
-    deg2px = float(pixels_per_degree)
-    if pimms.is_quantity(normalized_pixels_per_degree):
-        normalized_pixels_per_degree = normalized_pixels_per_degree.m
-    normdeg2px = float(normalized_pixels_per_degree)
+    deg2px = float(pimms.mag(pixels_per_degree, 'px/deg'))
+    normdeg2px = float(pimms.mag(normalized_pixels_per_degree, 'px/deg'))
     # we can get the zoom ratio from these
     zoom_ratio = normdeg2px / deg2px
     # Zoom each image so that the pixels per degree is right:
-    imgs = {k:ndi.zoom(im, zoom_ratio, cval=background) if not np.isclose(zoom_ratio, 1) else im
-            for (k,im) in stimulus_map.iteritems()}
+    if np.isclose(zoom_ratio, 1):
+        imgs = stimulus_map
+    else:
+        imgs = {k:ndi.zoom(im, zoom_ratio, cval=background) for (k,im) in stimulus_map.iteritems()}
     maxdims = [np.max([im.shape[i] for im in imgs.itervalues()]) for i in [0,1]]
     # Then apply the aperture
     if aperture_radius is None:
         aperture_radius = (0.5 * np.sqrt(np.dot(maxdims, maxdims))) / normdeg2px
     if aperture_edge_width is None:
         aperture_edge_width = 0
-    rad_px = aperture_radius * normdeg2px
-    aew_px = aperture_edge_width * normdeg2px
+    rad_px = 0
+    try: rad_px = pimms.mag(aperture_radius, 'deg') * normdeg2px
+    except:
+        try: rad_px = pimms.mag(aperture_radius, 'px')
+        except: raise ValuerError('aperture_radius given in unrecognized units')
+    aew_px = 0
+    try: aeq_px = pimms.mag(aperture_edge_width, 'deg') * normdeg2px
+    except:
+        try: aeq_px = pimms.mag(aperture_edge_width, 'px')
+        except: raise ValuerError('aperture_edge_width given in unrecognized units')
     bg = background
     imgs = {k:image_apply_aperture(im, rad_px, fill_value=bg, edge_width=aew_px)
             for (k,im) in imgs.iteritems()}

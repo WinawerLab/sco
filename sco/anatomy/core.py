@@ -66,6 +66,8 @@ def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
       * labels will always be 1, 2, or 3 indicating V1, V2, or V3
 
     '''
+    max_eccentricity = max_eccentricity.to(units.deg) if pimms.is_quantity(max_eccentricity) else \
+                       max_eccentricity*units.deg
     subject = freesurfer_subject
     if modality.lower() == 'volume':
         # make sure there are template volume files that match this subject
@@ -92,12 +94,12 @@ def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
         tmp   = [(1 if lrib[i,j,k] == 1 else -1, (i,j,k))
                  for (i,j,k) in coords
                  if lrib[i,j,k] != 0 or rrib[i,j,k] != 0
-                 if eccens[i,j,k] < max_eccentricity]
+                 if eccens[i,j,k] < max_eccentricity.m]
         hemis  = np.asarray([r[0] for r in tmp], dtype=np.int)
         coords = np.asarray([r[1] for r in tmp], dtype=np.int)
         # Pull out the angle/eccen data
         angs0   = np.asarray([angles[i,j,k] for (i,j,k) in coords])
-        angles  = np.pi/180.0 * (90.0 - angs0*hemis)
+        angles  = angs0*hemis
         eccens  = np.asarray([eccens[i,j,k] for (i,j,k) in coords], dtype=np.float)
         labels  = np.asarray([labels[i,j,k] for (i,j,k) in coords], dtype=np.int)
     elif modality.lower() == 'surface':
@@ -127,10 +129,10 @@ def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
                                for (ldat,rdat) in zip([lang, lecc, llab], [rang, recc, rlab])]
         idcs  = np.concatenate([range(len(lang)), range(len(rang))], axis=0)
         vals  = np.intersect1d(np.intersect1d(np.where(labs > 0)[0], np.where(labs < 4)[0]),
-                               np.where(eccs < max_eccentricity)[0])
+                               np.where(eccs < max_eccentricity.m)[0])
         coords  = idcs[vals]
         hemis   = np.concatenate([[1 for a in lang], [-1 for a in rang]], axis=0)[vals]
-        angles  = np.pi/180. * (90.0 - angs0[vals]*hemis)
+        angles  = angs0[vals]*hemis
         eccens  = eccs[vals]
         labels  = np.asarray(labs[vals], dtype=np.int)
     else:

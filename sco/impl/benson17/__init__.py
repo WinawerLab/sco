@@ -87,8 +87,8 @@ saturation_constants_by_label_Kay2013  = _pyr.pmap({1:0.50, 2:0.50, 3:0.50})
 divisive_exponents_by_label_Kay2013    = _pyr.pmap({1:1.00, 2:1.00, 3:1.00})
 
 # Frequency Sensitivity ############################################################################
-_sensitivity_frequencies_cpd = (_np.asarray([0.75 * 2.0**(0.5 * k) for k in range(6)])
-                                * (_units.cycles/_units.degree))
+_sensitivity_frequencies_cpd = _pimms.quant(_np.asarray([0.75 * 2.0**(0.5 * k) for k in range(6)]),
+                                            'cycles/deg')
 _sensitivity_std_cpd         = 0.5
 def cpd_sensitivity(e, s, l):
     '''
@@ -97,8 +97,7 @@ def cpd_sensitivity(e, s, l):
     This is returned as a map whose keys are sampled frequencies (in cycles per degree) and
     whose values sum to 1.
     '''
-    # round to nearest 100th of a degree:
-    s = s.to(_units.deg).m if _pimms.is_quantity(s) else s
+    s = _pimms.mag(s, 'deg')
     if s in cpd_sensitivity._cache: return cpd_sensitivity._cache[s]
     ss = 1.5 / s
     weights = _np.asarray([_np.exp(-0.5*((k.m - ss)/_sensitivity_std_cpd)**2)

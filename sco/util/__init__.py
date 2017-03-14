@@ -8,14 +8,17 @@ import pyrsistent        as pyr
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.tri    as tri
-import pint
+import pint, pimms
 
 from .io import (export_predictions, export_analysis)
 
 # The unit registry that we use
-units = pint.UnitRegistry()
-# we want to define the pixel unit
-units.define('pixel = [image_length] = px')
+try:
+    units = pimms.units
+except:
+    units = pint.UnitRegistry()
+    # we want to define the pixel unit
+    units.define('pixel = [image_length] = px')
 
 def lookup_labels(labels, data_by_labels, **kwargs):
     '''
@@ -73,7 +76,7 @@ def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n
         return np.asarray([cortical_image(datapool, visual_area=visual_area, image_number=ii,
                                           image_size=image_size, n_stds=n_stds, method=method,
                                           subplot=subplot)
-                           for ii in range(len(datapool['stimulus_images']))])
+                           for ii in range(len(datapool['image_array']))])
     if subplot is None:
         plotter = plt
         fig = plotter.figure()
@@ -82,10 +85,11 @@ def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n
         fig = subplot
     if method == 'triangulation':
         # deal with pyplot's interactive mode
-        maxecc = float(datapool['max_eccentricity'][image_number])
-        labs   = datapool['pRF_v123_labels']
-        (x,y)   = datapool['pRF_centers'].T
-        z       = datapool['predicted_responses'][image_number]
+        maxecc  = float(pimms.mag(datapool['max_eccentricity'], 'deg'))
+        labs    = datapool['labels']
+        centers = pimms.mag(datapool['pRF_centers'], 'deg')
+        (x,y)   = centers.T
+        z       = datapool['prediction'][:,image_number]
 
         (x,y,z) = np.transpose([(xx,yy,zz)
                                 for (xx,yy,zz,l) in zip(x,y,z,labs)
@@ -98,18 +102,16 @@ def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n
     
     elif method == 'pRF_projection':
         # otherwise, we operate on a single image:    
-        r      = datapool['predicted_responses']
-        maxecc = float(datapool['max_eccentricity'][image_number])
-        sigs   = datapool['pRF_sizes']
-        labs   = datapool['pRF_v123_labels']
-    
-        (x,y) = datapool['pRF_centers'].T
-        z = r[image_number]
-    
+        maxecc  = float(pimms.mag(datapool['max_eccentricity'], 'deg'))
+        labs    = datapool['labels']
+        centers = pimms.mag(datapool['pRF_centers'], 'deg')
+        (x,y)   = centers.T
+        r       = datapool['prediction']
+        z       = r[:,image_number]
+        sigs    = pimms.mag(datapool['pRF_radii'], 'deg')
         (x,y,z,sigs) = np.transpose([(xx,yy,zz,ss)
                                      for (xx,yy,zz,ss,l) in zip(x,y,z,sigs,labs)
                                      if l == visual_area])
-    
         img        = np.zeros((image_size, image_size, 2))
         img_center = (float(image_size)*0.5, float(image_size)*0.5)
         img_scale  = (img_center[0]/maxecc, img_center[1]/maxecc)
@@ -128,12 +130,12 @@ def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n
             gaus = np.exp(exp_const * (mesh_xs**2 + mesh_ys**2))
             img[r0:rr, c0:cc, 0] += zz
             img[r0:rr, c0:cc, 1] += gaus
-            img = np.flipud(img[:,:,0] / (img[:,:,1] + (1.0 - img[:,:,1].astype(bool))))
-            fig = plotter.figure()
-            plotter.imshow(img)
-            plotter.axis('equal')
-            plotter.axis('off')
-            return fig
+        img = np.flipud(img[:,:,0] / (img[:,:,1] + (1.0 - img[:,:,1].astype(bool))))
+        fig = plotter.figure()
+        plotter.imshow(img)
+        plotter.axis('equal')
+        plotter.axis('off')
+        return fig
     else:
         raise ValueError('unrecognized method: %s' % method)
     

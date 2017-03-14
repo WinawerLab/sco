@@ -389,8 +389,8 @@ def calc_pRF_SOC(pRFs, contrast_energies, cpd_sensitivities,
             uu += w * u
         # Here is the SOC formula: (x - c<x>)^2
         wts = npml.repmat(wts, len(uu), 1)
-        mu = np.sum(wts * u, axis=1)
-        socs[i,:] = np.sum(wts * (u - c*npml.repmat(mu, u.shape[1], 1).T)**2, axis=1)
+        mu = np.sum(wts * uu, axis=1)
+        socs[i,:] = np.sum(wts * (uu - c*npml.repmat(mu, uu.shape[1], 1).T)**2, axis=1)
     socs.setflags(write=False)
     return socs
 

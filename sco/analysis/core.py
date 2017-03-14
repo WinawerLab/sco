@@ -108,10 +108,12 @@ def calc_prediction_analysis(prediction, ground_truth, labels, hemispheres, pRFs
     ecc  = np.sqrt(np.sum(centers**2, axis=1))
     angm = np.arctan2(centers[:,1], centers[:,0])
     angp = 90.0 - 180.0/np.pi * angm
+    angp[angp > 180] -= 360.0
     rad  = np.asarray([p.radius.to(units.degree).m for p in pRFs])
     # Okay, now we can do some interesting comparisons; let's sort by polar angle and eccentricity:
     ecc_bins = int(np.median([10, 100, int(np.round(np.power(len(ecc), 0.375)))]))
-    ecc_bin_walls = np.percentile(ecc, np.asarray(range(ecc_bins + 1), dtype=np.float)/(ecc_bins + 1))
+    c = 100.0 / (ecc_bins + 1)
+    ecc_bin_walls = np.percentile(ecc, c*np.asarray(range(ecc_bins + 1), dtype=np.float))
     ecc_bin_walls = [(mn,mx) for (mn,mx) in zip(ecc_bin_walls[:-1], ecc_bin_walls[1:])]
     ecc_bin_idcs = [np.where((ecc >= mn) & (ecc <= mx))[0] for (mn,mx) in ecc_bin_walls]
     ecc_bin_means = np.asarray([np.mean(ecc[ii]) for ii in ecc_bin_idcs])
@@ -121,7 +123,8 @@ def calc_prediction_analysis(prediction, ground_truth, labels, hemispheres, pRFs
     for (mu,ii) in zip(ecc_bin_means, ecc_bin_idcs):
         lbls[pyr.m(eccentricity=mu)] = np.intersect1d(lbls[l0], ii)
     ang_bins = int(np.median([10, 100, int(np.round(np.power(len(angp), 0.375)))]))
-    ang_bin_walls = np.percentile(angp, np.asarray(range(ang_bins + 1), dtype=np.float)/(ang_bins + 1))
+    c = 100.0 / (ang_bins + 1)
+    ang_bin_walls = np.percentile(angp, c*np.asarray(range(ang_bins + 1), dtype=np.float))
     ang_bin_walls = [(mn,mx) for (mn,mx) in zip(ang_bin_walls[:-1], ang_bin_walls[1:])]
     ang_bin_idcs = [np.where((angp >= mn) & (angp <= mx))[0] for (mn,mx) in ang_bin_walls]
     ang_bin_means = np.asarray([np.mean(angp[ii]) for ii in ang_bin_idcs])
@@ -130,7 +133,7 @@ def calc_prediction_analysis(prediction, ground_truth, labels, hemispheres, pRFs
             lbls[l0.set('polar_angle', mu)] = np.intersect1d(lbls[l0], ii)
     for (mu,ii) in zip(ang_bin_means, ang_bin_idcs):
         lbls[pyr.m(polar_angle=mu)] = np.intersect1d(lbls[l0], ii)
-    # Okay, now we have the labels divide up; let's look at correlations of verages across images;
+    # Okay, now we have the labels divide up; let's look at correlations of vertices across images;
     res = {}
     for (lbl, idcs) in lbls.iteritems():
         if len(idcs) == 0: continue

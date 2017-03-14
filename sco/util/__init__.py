@@ -8,7 +8,7 @@ import pyrsistent        as pyr
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.tri    as tri
-import pint, pimms
+import pint, pimms, os
 
 from .io import (export_predictions, export_analysis)
 
@@ -139,4 +139,78 @@ def cortical_image(datapool, visual_area=1, image_number=None, image_size=200, n
     else:
         raise ValueError('unrecognized method: %s' % method)
     
+def corrcoef_image(rmap, visual_area=1, image_size=200, n_stds=1,
+                   size_gain=1, method='triangulation', subplot=None):
+    '''
+    corrcoef_image(imap) plots an image (using sco.util.cortical_image) of the correlation
+      coefficients of the prediction versus the ground-truth in the given results map from
+      the SCO model plan, imap.
+    '''
+    pred = rmap['prediction']
+    gtth = rmap['ground_truth']
+    r = np.zeros(gtth.shape[0])
+    for (i,(p,t)) in enumerate(zip(pred,gtth)):
+            try:    r[i] = np.corrcoef(p,t)[0,1]
+            except: r[0] = 0.0
+    plotter = subplot if subplot is not None else plt
+    tmpmap = {k:v for (k,v) in rmap.iteritems()}
+    tmpmap['prediction'] = np.asarray([r]).T
+    f = cortical_image(tmpmap, image_number=0, visual_area=visual_area, image_size=image_size,
+                       n_stds=n_stds, size_gain=size_gain, method=method, subplot=subplot)
+    plotter.clim((-1,1))
+    return f
 
+    
+def export_report(rmap):
+    '''
+    export_report(imap) exports a set of images to the output_directory provided in the given imap,
+      which must come from an SCO model plan, and yields their filenames.
+    '''
+    anal = rmap['prediction_analysis']
+    def analq(**kwargs): return anal[pyr.m(**kwargs)]
+
+    create_dir = rmap['create_directories']
+    output_dir = rmap['output_directory']
+    prefix = rmap['output_prefix']
+    suffix = rmap['output_suffix']
+    prefix = '' if prefix is None else prefix
+    suffix = '' if suffix is None else suffix
+    if not os.path.exists(output_dir) or not os.path.isdir(output_dir):
+        if create_dir:
+            os.mkdirs(output_dir)
+        if not (create_dir and os.path.exists(output_dir) and os.path.isdir(output_dir)):
+            raise ValueError('Output directory does not exist')
+
+    flnm = os.path.join(output_dir, prefix + 'accuracy' + suffix + '.pdf')
+    
+    eccs = np.unique([kk['eccentricity'] for kk in anal.iterkeys() if 'eccentricity' in kk])
+    angs = np.unique([kk['polar_angle'] for kk in anal.iterkeys() if 'polar_angle' in kk])
+    n_ec = len(eccs)
+    n_pa = len(angs)
+
+    (f,axs) = plt.subplots(4,2, figsize=(12,16))
+    for (va,ax) in zip([1,2,3,None],axs):
+        if va is None:
+            r_ec = np.asarray([analq(eccentricity=e) for e in eccs])
+            r_pa = np.asarray([analq(polar_angle=a) for a in angs])
+        else:
+            r_ec = np.asarray([analq(eccentricity=e, label=va) for e in eccs])
+            r_pa = np.asarray([analq(polar_angle=a, label=va) for a in angs])
+            e_pa = np.sqrt((1.0 - r_pa**2)/(n_pa - 2.0))
+            e_ec = np.sqrt((1.0 - r_ec**2)/(n_ec - 2.0))
+
+        ax[0].errorbar(eccs, r_ec, yerr=e_ec, c='r')
+        if va is None: ax[0].set_xlabel('(All Areas) Eccentricity [deg]')
+        else:          ax[0].set_xlabel('(V%d) Eccentricity [deg]' % va)
+        ax[0].set_ylabel('Pearson\'s r')
+        ax[0].set_ylim((-1.0,1.0))
+        
+        ax[1].errorbar(angs, r_pa, yerr=e_pa, c='r')
+        if va is None: ax[1].set_xlabel('(All Areas) Polar Angle [deg]')
+        else:          ax[1].set_xlabel('(V%d) Polar Angle [deg]' % va)
+        ax[1].set_ylabel('Pearson\'s r')
+        ax[1].set_xlim((-180.0,180.0))
+        ax[1].set_ylim((-1.0,1.0))
+
+    f.savefig(flnm)
+    return f

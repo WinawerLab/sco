@@ -50,8 +50,8 @@ def export_anatomical_data(data, sub, anat_ids, hemis, name, output_dir,
             os.mkdirs(output_dir)
         if not (create_dir and os.path.exists(output_dir) and os.path.isdir(output_dir)):
             raise ValueError('Output directory does not exist')
-    preffix = '' if preffix is None else preffix
-    suffix  = '' if suffix  is None else suffix
+    prefix = '' if prefix is None else prefix
+    suffix = '' if suffix is None else suffix
     make_fname = lambda p,ext: os.path.join(output_dir, p + prefix + name + suffix + '.' + ext)
     modality = modality.lower()
     data = np.asarray(data)

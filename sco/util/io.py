@@ -7,6 +7,20 @@ import numpy as np
 import pyrsistent as pyr
 import os, pimms, sys
 import nibabel
+import matplotlib.pyplot as plt
+
+from .plot import (cortical_image, corrcoef_image, report_image)
+
+def _sco_init_outputs(output_directory, create_directories, output_prefix, output_suffix):
+    if not os.path.exists(output_directory) or not os.path.isdir(output_directory):
+        if create_directories:
+            os.mkdirs(output_directory)
+        if not (create_directories
+                and os.path.exists(output_directory) and os.path.isdir(output_directory)):
+            raise ValueError('Output directory does not exist')
+    output_prefix = '' if output_prefix is None else output_prefix
+    output_suffix = '' if output_suffix is None else output_suffix
+    return (output_prefix, output_suffix)
 
 def export_anatomical_data(data, sub, anat_ids, hemis, name, output_dir,
                            modality=None, create_dir=False, prefix='', suffix='',
@@ -45,13 +59,7 @@ def export_anatomical_data(data, sub, anat_ids, hemis, name, output_dir,
         anat_ids = anat_ids.flatten()
     if modality is None:
         modality = 'volume' if len(anat_ids.shape) == 2 else 'surface'
-    if not os.path.exists(output_dir) or not os.path.isdir(output_dir):
-        if create_dir:
-            os.mkdirs(output_dir)
-        if not (create_dir and os.path.exists(output_dir) and os.path.isdir(output_dir)):
-            raise ValueError('Output directory does not exist')
-    prefix = '' if prefix is None else prefix
-    suffix = '' if suffix is None else suffix
+    (prefix, suffix) = _sco_init_outputs(output_dir, create_dir, prefix, suffix)
     make_fname = lambda p,ext: os.path.join(output_dir, p + prefix + name + suffix + '.' + ext)
     modality = modality.lower()
     data = np.asarray(data)
@@ -76,7 +84,7 @@ def export_anatomical_data(data, sub, anat_ids, hemis, name, output_dir,
             file_names.append(fnm)
     elif modality == 'volume':
         vol = np.full(sub.LH.ribbon.shape + (data.shape[1],), null, dtype=dtype)
-        for (row,(i,j,k)) in zip(anat_ids, data): vol[i,j,k,:] = row
+        for ((i,j,k),row) in zip(anat_ids, data): vol[i,j,k,:] = row
         img = nibabel.Nifti1Image(vol, affine)
         fnm = make_fname('', 'nii.gz')
         img.to_filename(fnm)
@@ -86,7 +94,7 @@ def export_anatomical_data(data, sub, anat_ids, hemis, name, output_dir,
     return file_names
 
 @pimms.calc('exported_predictions_filenames')
-def export_predictions(predictions, anatomical_ids, modality, hemispheres, freesurfer_subject,
+def export_predictions(prediction, anatomical_ids, modality, hemispheres, freesurfer_subject,
                        labels, image_names, output_directory,
                        create_directories=False, output_prefix='', output_suffix=''):
     '''
@@ -111,9 +119,15 @@ def export_predictions(predictions, anatomical_ids, modality, hemispheres, frees
       * output_suffix (default: '') may be a string that is appended the the filename; appends are
         performed before the file extension is appended, such as in
         'lh.<prefix><name><suffix>.nii.gz'.
+
+    Provided efferent values:
+      @ exported_predictions_filenames Will be a list of the prediction files exported by
+        export_predictions.
     '''
+    (output_prefix, output_suffix) = _sco_init_outputs(output_directory, create_directories,
+                                                       output_prefix, output_suffix)
     # output the raw predictions themselves
-    fnms = export_anatomical_data(predictions, freesurfer_subject, anatomical_ids, hemispheres,
+    fnms = export_anatomical_data(prediction, freesurfer_subject, anatomical_ids, hemispheres,
                                   'prediction', output_directory,
                                   create_dir=create_directories, modality=modality,
                                   prefix=output_prefix, suffix=output_suffix)
@@ -127,10 +141,11 @@ def export_predictions(predictions, anatomical_ids, modality, hemispheres, frees
     return pyr.pvector(fnms)
 
 @pimms.calc('exported_analysis_filenames')
-def export_analysis(prediction_analysis, prediction_analysis_labels, output_directory,
+def export_analysis(output_directory,
+                    prediction_analysis, prediction_analysis_labels,
                     create_directories=False, output_prefix='', output_suffix=''):
     '''
-    export_evaluations(rmap, output_dir) exports the evaluation data in the given results map, which
+    export_evaluations is a calculator that exports the evaluation data in the calc plan, which
        must come from sco.sco_plan(...) or similar; at the least it must contain the data documented
        below. The return value is a set of filenames exported.
     
@@ -147,16 +162,14 @@ def export_analysis(prediction_analysis, prediction_analysis_labels, output_dire
       * output_suffix (default: '') may be a string that is appended the the filename; appends are
         performed before the file extension is appended, such as in
         'lh.<prefix><name><suffix>.nii.gz'.
+
+    Provided efferent values:
+      @ exported_analysis_filenames Will be a list of filenames exported by export_analysis.
     '''
+    if prediction_analysis is None: return None
     # We basically just make a big CSV data-table:
-    if not os.path.exists(output_directory) or not os.path.isdir(output_directory):
-        if create_directories:
-            os.mkdirs(output_directory)
-        if not (create_directories
-                and os.path.exists(output_directory) and os.path.isdir(output_directory)):
-            raise ValueError('Output directory does not exist')
-    output_prefix = '' if output_prefix is None else output_prefix
-    output_suffix = '' if output_suffix is None else output_suffix
+    (output_prefix, output_suffix) = _sco_init_outputs(output_directory, create_directories,
+                                                       output_prefix, output_suffix)
     # Write out the label-group correlation data
     filename = os.path.join(output_directory, output_prefix + 'analysis' + output_suffix + '.csv')
     headers = sorted(list(set([k for m in prediction_analysis.iterkeys() for k in m.iterkeys()])))
@@ -165,9 +178,8 @@ def export_analysis(prediction_analysis, prediction_analysis_labels, output_dire
     for h in headers:
         header += ',' + h
         fmt += ',%s'
-    header[0] = '#'
-    header = header + ',n,correlation\n'
-    fmt = fmt[1:] + '\n'
+    header = '#' + header[1:] + ',n,correlation\n'
+    fmt = fmt[1:] + ',%s,%s\n'
     with open(filename, 'w') as f:
         f.write(header)
         for (lbl, rval) in prediction_analysis.iteritems():
@@ -177,3 +189,76 @@ def export_analysis(prediction_analysis, prediction_analysis_labels, output_dire
             f.write(fmt % tup)
     return pyr.v(filename)
         
+@pimms.calc('exported_report_filenames')
+def export_report_images(labels, pRFs, max_eccentricity, output_directory,
+                         prediction_analysis, ground_truth,
+                         create_directories=False, output_prefix='', output_suffix=''):
+    '''
+    export_report_images is a calculator that takes a prediction analysis
+      (see sco.analysis.calc_prediction_analysis) and exports a set of images to the output
+      directory that report on the accuracy of the model predictions.
+
+    Note that this calculator does nothing and simply yields None if the ground_truth or
+    prediction_analysis values are not found; these have default values.
+    
+    Required afferent values:
+      * output_directory, the directory to which to write the results
+
+    Options:
+      * prediction_analysis and prediction_analysis_labels: the analysis of the predicted versus
+        ground truth data (from sco.analysis)
+      * create_directories (default: False) if True, will create the directory if it does not exist;
+        otherwise raises an exception when the directory does not exist.
+      * output_prefix (default: '') may be a string that is prepended to filenames; prepends are
+        performed before other prefixes such as 'lh.<prefix><name><suffix>.nii.gz'.
+      * output_suffix (default: '') may be a string that is appended the the filename; appends are
+        performed before the file extension is appended, such as in
+        'lh.<prefix><name><suffix>.nii.gz'.
+
+    Provided efferent values:
+      @ exported_report_filenames Will be a list of filenames of analysis images exported.
+    '''
+    if prediction_analysis is None or ground_truth is None: return None
+    (output_prefix, output_suffix) = _sco_init_outputs(output_directory, create_directories,
+                                                       output_prefix, output_suffix)
+    fnm = os.path.join(output_directory, output_prefix + 'accuracy' + output_suffix + '.pdf')
+    f = report_image(prediction_analysis)
+    f.savefig(fnm)
+    fnms = [fnm]
+    plt.close(f)
+    for l in np.unique(labels):
+        fnm = os.path.join(output_directory, output_prefix + ('v%dcorr' % l) + output_suffix + '.png')
+        fnms.append(fnm)
+        f = corrcoef_image(prediction_analysis, ground_truth, labels, pRFs, max_eccentricity,
+                           visual_area=l)
+        f.savefig(fnm)
+        plt.close(f)
+    return pyr.pvector(fnms)
+
+@pimms.calc('exported_files')
+def calc_exported_files(exported_report_filenames,
+                        exported_analysis_filenames,
+                        exported_predictions_filenames):
+    '''
+    calc_exported_files is a calculation object that simply accumulates the files exported by
+      various other functions in the sco.util package (specifically sco.util.io) and stores the list
+      of all successfully exported files in the efferent value 'exported_files'.
+
+    Required afferent values:
+      @ exported_report_filenames Filename list generally obtained from
+        sco.util.io.export_report_images.
+      @ exported_predictions_filenames Filename list generally obtained from
+        sco.util.io.export_predictions.
+      @ exported_analysis_filenames Filename list generally obtained from
+        sco.util.export_analysis.
+    '''
+    flists = [exported_report_filenames,exported_analysis_filenames,exported_predictions_filenames]
+    return pyr.pvector([u for flist in flists if flist is not None for u in flist])
+
+@pimms.calc(None)
+def require_exports(exported_files):
+    '''
+    require_exports is a calc object that does very little but, when added to a calc plan, requires
+      that all exports be completed upon initialization.
+    '''
+    pass

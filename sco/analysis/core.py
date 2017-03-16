@@ -87,6 +87,7 @@ def calc_prediction_analysis(prediction, ground_truth, labels, hemispheres, pRFs
         as well as eccentricity and polar angle. These analyses are in many cases itables that can be
         easily exported as CSV files.
     '''
+    if ground_truth is None: return (None, None)
     # For starters, we just get the correlations between predictions and ground truth:
     r = np.zeros(prediction.shape[0], dtype=np.float)
     for (i,p,g) in zip(range(len(r)), prediction, ground_truth):

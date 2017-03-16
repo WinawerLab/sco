@@ -152,6 +152,7 @@ sco_plan_data = _pyr.pmap({k:v
                                          sco.pRF.pRF_plan_data,
                                          sco.anatomy.anatomy_plan_data,
                                          sco.analysis.analysis_plan_data,
+                                         sco.util.export_plan_data,
                                          {'default_options': provide_default_options,
                                           'divisive_normalization': calc_divisive_normalization}]
                            for (k,v) in pd.iteritems()})

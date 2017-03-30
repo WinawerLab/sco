@@ -7,7 +7,7 @@ import os, sys, math, tempfile, tarfile
 import pysistence
 
 from neuropythy.util import CommandLineParser
-from sco import (calc_sco, export_predicted_responses)
+from sco import (calc_sco, export_predicted_response_volumes, export_predicted_response_surface)
 
 main_parser = CommandLineParser(
     [('h', 'help',      'help',              False),

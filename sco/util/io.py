@@ -151,7 +151,7 @@ def export_analysis(output_directory,
     
     Required afferent values:
       * prediction_analysis and prediction_analysis_labels: the analysis of the predicted versus
-        ground truth data (from sco.analysis)
+        measurements data (from sco.analysis)
       * output_directory, the directory to which to write the results
 
     Options:
@@ -191,14 +191,14 @@ def export_analysis(output_directory,
         
 @pimms.calc('exported_report_filenames')
 def export_report_images(labels, pRFs, max_eccentricity, output_directory,
-                         prediction_analysis, ground_truth,
+                         prediction_analysis, measurements,
                          create_directories=False, output_prefix='', output_suffix=''):
     '''
     export_report_images is a calculator that takes a prediction analysis
       (see sco.analysis.calc_prediction_analysis) and exports a set of images to the output
       directory that report on the accuracy of the model predictions.
 
-    Note that this calculator does nothing and simply yields None if the ground_truth or
+    Note that this calculator does nothing and simply yields None if the measurements or
     prediction_analysis values are not found; these have default values.
     
     Required afferent values:
@@ -206,7 +206,7 @@ def export_report_images(labels, pRFs, max_eccentricity, output_directory,
 
     Options:
       * prediction_analysis and prediction_analysis_labels: the analysis of the predicted versus
-        ground truth data (from sco.analysis)
+        measured data (from sco.analysis)
       * create_directories (default: False) if True, will create the directory if it does not exist;
         otherwise raises an exception when the directory does not exist.
       * output_prefix (default: '') may be a string that is prepended to filenames; prepends are
@@ -218,7 +218,7 @@ def export_report_images(labels, pRFs, max_eccentricity, output_directory,
     Provided efferent values:
       @ exported_report_filenames Will be a list of filenames of analysis images exported.
     '''
-    if prediction_analysis is None or ground_truth is None: return None
+    if prediction_analysis is None or measurements is None: return None
     (output_prefix, output_suffix) = _sco_init_outputs(output_directory, create_directories,
                                                        output_prefix, output_suffix)
     fnm = os.path.join(output_directory, output_prefix + 'accuracy' + output_suffix + '.pdf')
@@ -229,7 +229,7 @@ def export_report_images(labels, pRFs, max_eccentricity, output_directory,
     for l in np.unique(labels):
         fnm = os.path.join(output_directory, output_prefix + ('v%dcorr' % l) + output_suffix + '.png')
         fnms.append(fnm)
-        f = corrcoef_image(prediction_analysis, ground_truth, labels, pRFs, max_eccentricity,
+        f = corrcoef_image(prediction_analysis, measurements, labels, pRFs, max_eccentricity,
                            visual_area=l)
         f.savefig(fnm)
         plt.close(f)

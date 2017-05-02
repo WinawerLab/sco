@@ -4,93 +4,182 @@
 # by Noah C. Benson
 
 import numpy as np
-import scipy as sp
+import scipy as sp, scipy.spatial as sps
 import pyrsistent as pyr
 import nibabel, nibabel.freesurfer.mghformat as fsmgh
 import os, sys, pimms
-from sco.util import units
+from sco.util import units, import_mri, nearest_indices, apply_affine
 
-@pimms.calc('ground_truth')
-def import_ground_truth(ground_truth_filename, modality, anatomical_ids, hemispheres,
-                        freesurfer_subject):
+@pimms.calc('measurements', 'measurement_indices',
+            'measurement_coordinates', 'measurement_hemispheres',
+            cache=True)
+def import_measurements(measurements_filename):
     '''
-    import_ground_truth is a calculator that imports ground truth data from a given filename or pair
+    import_measurements is a calculator that imports measured data from a given filename or pair
     of filenames (in the case of surface modalities), and converts them into a matrix of
-    ground-truth values that is the same size os the matrix 'predictions' produced by the sco plan.
+    measurement values that is the same size os the matrix 'predictions' produced by the sco plan.
 
     Required afferent values:
-      * ground_truth_filename must be either the filename or a tuple of (lh_filename, rh_filename) if
-        the modality is 'surface' instead of 'volume'
-      * modality must be 'surface' or 'volume'
-      * anatomical_ids (from sco.anatomy)
-      * hemispheres (from sco.anatomy)
-      * freesurfer_subject (from sco.antomy)
+      @ measurements_filename Must be either the filename of a volume of measurements or a tuple of
+        (lh_filename, rh_filename) if surface files are provided.
 
     Provided efferent values:
-      * ground_truth: an (n x m) matrix of the measured values whose rows correspond to the
-        anatomical ids and whose columns correspond to the images
+      @ measurements Will be an (n x m) matrix of the measured values whose rows correspond to the
+        anatomical ids and whose columns correspond to the images.
+      @ measurement_indices Will be a list, one per measurement voxel/vertex whose data appears in
+        the measurements matrix, of the voxel-index triple (i,j,k) or the vertex id of each
+        measurement; in the latter case, right-hemisphere ids will overlap with left-hemisphere ids,
+        and the measurement_hemispheres value must be used to distinguish them.
+      @ measurement_coordinates Will be a list of coordinates, one per element of the measurements
+        matrix; if the imported measurements were from surface files, then this is None. Note that
+        when the measurements filename refers to a NifTI file, this *always* uses the qform affine
+        transform to produce coordinates.
+      @ measurement_hemispheres Will be a list whose values are all either +1 or -1, one per row of
+        the measurements matrix if the measurements that are imported come from surface files; if
+        they do not, then this will be None. For surface files, +1 and -1 indicate LH and RH,
+        respectively.
     '''
-    if ground_truth_filename is None: return None
-    gt = None
-    if modality == 'surface':
-        if len(ground_truth_filename) != 2:
-            raise ValueError('ground_truth_filename must be (lhnm, rhnm) when modality is surface')
-        if pimms.is_map(ground_truth_filename):
-            ground_truth_filename = (ground_truth_filename['lh'], ground_truth_filename['rh'])
-        gt = np.asarray([None for _ in anatomical_ids])
-        hsz = [None,None]
-        for (fnm, hid, hnm, hidx) in zip(ground_truth_filename, [1,-1], ['LH', 'RH'], [0,1]):
-            h = getattr(freesurfer_subject, hnm)
-            n = h.vertex_count
-            if fnm.endswith('.mgh') or fnm.endswith('.mgz'):
-                img = fsmgh.load(fnm)
-            else:
-                img = nibabel.load(fnm)
-            vol = np.squeeze(img.dataobj.get_unscaled())
+    if measurements_filename is None: return None
+    meas = None
+    idcs = None
+    crds = None
+    hems = None
+    if len(measurements_filename) == 2:
+        if pimms.is_map(measurements_filename):
+            try:
+                measurements_filename = (measurements_filename['lh'], measurements_filename['rh'])
+            except:
+                measurements_filename = (measurements_filename['LH'], measurements_filename['RH'])
+        meas = [None,None]
+        idcs = [None,None]
+        hems = [None,None]
+        for (fnm, hsgn, hidx) in zip(measurements_filename, [1,-1], [0,1]):
+            vol = import_mri(fnm)
             vol = vol if len(vol) == n else vol.T
-            hsz[hidx] = vol.shape
-            if len(vol) != n: raise ValueError('number of vertices in %s filename incorrect' % hnm)
-            hwhere = np.where(hemispheres == hid)[0]
-            gt[hwhere] = vol[anatomical_ids[hwhere]].tolist()
+            if len(vol.shape) != 2:
+                raise ValueError('measurement surf file %s must have 2 non-unit dimensions' % fnm)
+            vstd = np.std(vol, axis=1)
+            ii = np.where(np.isfinite(vstd) * ~np.isclose(vstd, 0))[0]
+            if len(ii) == 0:
+                raise ValueError('measurement surf file %s contained no valid rows' % fnm)
+            meas[hidx] = vol
+            idcs[hidx] = ii
+            hems[hidx] = np.full(len(vol), hsgn, dtype=np.int)
         if not np.array_equal(hsz[0][1:], hsz[1][1:]):
-            raise ValueError('(LH,RH) ground-truth dims must be the same: (%d, %d)' % tuple(hsz))
-        gt = np.asarray(gt.tolist(), dtype=np.float)
-    elif modality == 'volume':
-        if ground_truth_filename.endswith('.mgh') or ground_truth_filename.endswith('.mgz'):
-            img = fsmgh.load(ground_truth_filename)
-        else:
-            img = nibabel.load(ground_truth_filename)
-        vol = img.dataobj.get_unscaled()
-        if not np.array_equal(vol.shape[0:3], freesurfer_subject.LH.ribbon.shape[0:3]):
-            raise ValueError('ground-truth volume is not shaped identically to subject ribbon')
-        gt = np.asarray([vol[i,j,k,:] for (i,j,k) in anatomical_ids], dtype=np.float)
+            raise ValueError('(LH,RH) measurements dims must be the same: (%d, %d)' % tuple(hsz))
+        (meas, idcs, hems) = [np.concatenate(x, axis=0) for x in [meas, idcs, hems]]
     else:
-        raise ValueError('modality must be either \'surface\' or \'volume\'')
-    if gt is not None: gt.setflags(write=False)
-    return gt
+        img = import_mri(measurements_filename, 'object')
+        vol = img.dataobj.get_unscaled()
+        if len(vol.shape) != 4: raise ValueError('measurement volume files must have 4 dimensions')
+        h = img.header
+        tx = img.affine if isinstance(img, fsmgh.MGHImage) else h.get_qform()
+        # we need to find the valid voxels; these are the ones that have non-zero variance and
+        # that contain no NaNs or infinite values
+        vstd = np.std(vol, axis=-1)
+        idcs = np.where(np.isfinite(vstd) * ~np.isclose(vstd, 0))
+        meas = vol[idcs]
+        idcs = np.asarray(idcs, dtype=np.int).T
+        crds = apply_affine(tx, np.asarray(idcs, dtype=np.float))
+    for x in [meas, idcs, crds, hems]:
+        if x is not None: x.setflags(write=False)
+    return (meas, idcs, crds, hems)
 
-@pimms.calc('prediction_analysis', 'prediction_analysis_labels')
-def calc_prediction_analysis(prediction, ground_truth, labels, hemispheres, pRFs):
+@pimms.calc('measurement_per_prediction', 'prediction_per_measurement', 'corresponding_indices',
+            cache=True)
+def calc_correspondence_maps(coordinates, cortex_indices, hemispheres, modality,
+                             measurement_coordinates, measurement_indices,
+                             measurement_hemispheres):
+    '''
+    calc_correspondence_maps is a calculator that produces the maps of the indices of the
+    measurement rows that go with each prediction row and vice versa; the efferent values are two
+    immutable dictionary whose keys are prediction indices and whose values are measurement indices
+    (or vice versa); prediction/measurement indices that do not have a matched
+    measurement/prediction index do not appear in the maps.
+
+    Provided efferent values:
+      @ measurement_per_prediction Will be a map whose keys are indices into the rows of the
+        prediction matrix and whose values are the matching rows in the measurement matrix.
+      @ prediction_per_measurement Will be a map whose keys are indices into the rows of the
+        measurement matrix and whose values are the matching rows in the prediction matrix.
+      @ corresponding_indices Will be a 2 x n matrix where n is the number of corresponding voxels
+        or vertices in the measurements and predictions; the first row is the indices into the
+        prediction matrix and the second row is the matching indices in the measurement matrix.
+    '''
+    if measurement_coordinates is None:
+        if modality == 'surface':
+            # This means they're both surfaces; we just get vertex overlaps
+            ((mlmap, mrmap), (plmap, prmap)) = [
+                [{i:k for (k,(i,h)) in enumerate(zip(idcs,hems)) if h == v} for v in [-1,1]]
+                for (idcs,hemis) in [(measurement_indices, measurement_hemispheres),
+                                     (cortex_indices,      hemispheres)]]
+            (lolap, rolap) = [
+                set(np.intersect1d(measurement_indices[np.where(measurement_hemispheres == v)[0]],
+                                   cortex_indices[     np.where(hemispheres             == v)[0]]))
+                for (hi,hv) in [(0,1), (1,-1)]]
+            (mpp, ppm) = [pyr.pmap({kmap[i]:vmap[i]
+                                    for (kmap,vmap,olap) in [kmaps, vmaps]
+                                    for i in olap})
+                          for (kmaps, vmaps) in [((mlmap,plmap,lolap),(mrmap,prmap,rolap)),
+                                                 ((mrmap,prmap,rolap),(mlmap,plmap,lolap))]]
+        else:
+            # This cannot hold: we don't know where the measured surface vertices are and we don't
+            # have voxel-to-surface data for the predictions
+            warnings.warn('predicted volumes and measured surfaces cannot be matched together')
+            return (None, None, None)
+    else:
+        # This means the measurements are voxels and have coordinates; it doesn't matter if the
+        # predictions are volume or surface-based--they have coordinates either way
+        pidcs = nearest_indices(measurement_coordinates, coordinates)
+        midcs = nearest_indices(coordinates, measurement_coordinates)
+        (mpp, ppm) = tuple([pyr.pmap({k:v for (k,v) in enumerate(ii)}) for ii in [pidcs, midcs]])
+    # Okay, we have the basic correspondence, but we want to know if there are voxels outside of the
+    # relevant space; i.e., if the measured voxels fill the whole brain and the prediction is only
+    # for v1-v3, we want to trim out the measurement voxels outside of v1-v3.
+    # To do this, we trim out voxels from each map that don't appear in the other; i.e., if a
+    # measured voxel matches a predicted voxel but that predicted voxel is closer to another
+    # measured voxel, we don't use it. This will result in a single minimal mapping, which we store
+    # in a 2 x n array of [prediction_indices, measurement_indices]
+    cind = np.asarray([(i,j) for (i,j) in mpp.iteritems() if j in ppm and ppm[j] == i],
+                      dtype=np.int).T
+    return (mpp, ppm, cind)
+    
+
+@pimms.calc('prediction_analysis', 'prediction_analysis_labels', memoize=True)
+def calc_prediction_analysis(prediction, measurements, labels, hemispheres, pRFs,
+                             corresponding_indices):
     '''
     calc_prediction_analysis is a calculator that takes predictions from the sco model and a
-    ground-truth dataset and produces an analysis of the prediction accuracy, ready to be plotted or
+    measurement dataset and produces an analysis of the prediction accuracy, ready to be plotted or
     exported.
 
     Required afferent values:
       * prediction (from sco.contrast)
-      * ground_truth (from sco.analysis)
+      * measurements (from sco.analysis)
       * labels, hemispheres (from sco.anatomy)
       * pRFs (from sco.pRF)
+      * corresponding_indices
 
     Provided efferent values:
       * prediction_analysis: a mapping of analysis results, broken down by label and hemisphere
         as well as eccentricity and polar angle. These analyses are in many cases itables that can be
         easily exported as CSV files.
     '''
-    if ground_truth is None: return (None, None)
-    # For starters, we just get the correlations between predictions and ground truth:
+    if measurements is None: return (None, None)
+    if len(prediction_per_measurement) < len(measurement_per_prediction):
+        measurements = measurements[prediction_per_measurement.keys()]
+        (prediction,labels,hemispheres,pRFs) = [x[prediction_per_measurement.values()]
+                                                for x in (prediction,labels,hemispheres,pRFs)]
+    else:
+        measurements = measurements[measurement_per_prediction.values()]
+        (prediction,labels,hemispheres,pRFs) = [x[measurement_per_prediction.keys()]
+                                                for x in (prediction,labels,hemispheres,pRFs)]
+    if not np.array_equal(prediction.shape, measurement.shape):
+        raise ValueError('prediction and measurement sizes are not the same')
+    
+    # For starters, we just get the correlations between predictions and measurements:
     r = np.zeros(prediction.shape[0], dtype=np.float)
-    for (i,p,g) in zip(range(len(r)), prediction, ground_truth):
+    for (i,p,g) in zip(range(len(r)), prediction, measurements):
         try:    r[i] = np.corrcoef(p,g)[0,1]
         except: r[i] = np.nan
     rok = np.where(np.isfinite(r))[0]
@@ -140,7 +229,7 @@ def calc_prediction_analysis(prediction, ground_truth, labels, hemispheres, pRFs
         if len(idcs) == 0: continue
         # first, calculate mean responses across the area
         mu_pred = np.mean(prediction[idcs, :],   axis=0)
-        mu_trth = np.mean(ground_truth[idcs, :], axis=0)
+        mu_trth = np.mean(measurements[idcs, :], axis=0)
         # store the correlation of these arrays
         try:    res[lbl] = np.corrcoef(mu_pred, mu_trth)[0,1]
         except: res[lbl] = np.nan

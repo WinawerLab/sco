@@ -9,7 +9,7 @@ import pyrsistent            as     pyr
 from   scipy                 import ndimage as ndi
 from   skimage.filters       import gabor_kernel
 from   types                 import (IntType, LongType)
-from   ..util                import (lookup_labels, units)
+from   ..util                import (lookup_labels, units, global_lookup)
 
 import pimms
 
@@ -52,6 +52,11 @@ class ImageArrayContrastFilter(object):
         self.pixels_per_degree = d2p
         self.gabor_orientations = gabor_orientations
         self.background = background
+    def __hash__(self):
+        return pimms.qhash((self.image_array,
+                            self.pixels_per_degree,
+                            self.gabor_orientations,
+                            self.background))
     @pimms.param
     def image_array(ims):
         '''
@@ -156,6 +161,9 @@ class ImageArrayContrastView(object):
         self.frequency = freq
         self.parameters = params
         self.divisive_normalization_fn = divnorm_fn
+    def __hash__(self):
+        return hash((self.contrast_filter, self.frequency, self.parameters,
+                     self.divisive_normalization_fn))
     @pimms.param
     def frequency(cpd):
         '''
@@ -240,7 +248,15 @@ class ImageArrayContrastView(object):
         the function should return an array of contrast energy images.
         '''
         # currently no good checks...
-        if not hasattr(divnorm_fn, '__call__'): raise ValueError('divnorm_fn must be callable')
+        if isinstance(divnorm_fn, basestring):
+            # check that we can look it up
+            try:
+                f = global_lookup(divnorm_fn)
+            except:
+                raise ValueError('divnorm_fn string must be the name of a function')
+            else:
+                if not hasattr(f, '__call__'): raise ValueError('divnorm_fn must be callable')
+        elif not hasattr(divnorm_fn, '__call__'): raise ValueError('divnorm_fn must be callable')
         return divnorm_fn
     @pimms.value
     def contrast_energy(contrast_filter, parameters, frequency, divisive_normalization_fn):
@@ -250,6 +266,9 @@ class ImageArrayContrastView(object):
         data are stored in an n x r x c matrix where r x c is the image size and n is the number of
         images in the image array stored by the rsp.contrast_filter object.
         '''
+        # see if we need to lookup the divnorm fn
+        if isinstance(divisive_normalization_fn, basestring):
+            dnfn = global_lookup(divisive_normalization_fn)
         # we'll build this up with unique parameterizations
         res = {}
         # get the images filtered at the appropriate frequency
@@ -257,10 +276,10 @@ class ImageArrayContrastView(object):
         # call the divisive normalization for each parameter... cache results as we go...
         for p in parameters.rows:
             if p not in res:
-                res[p] = divisive_normalization_fn(filt, **p)
+                res[p] = dnfn(filt, **p)
         return pyr.pmap(res)
     
-@pimms.calc('contrast_filter')
+@pimms.calc('contrast_filter', memoize=True)
 def calc_contrast_filter(image_array, normalized_pixels_per_degree, gabor_orientations, background):
     '''
     calc_contrast is a calculator that takes as input a normalized image stack and various parameter
@@ -283,7 +302,7 @@ def calc_contrast_filter(image_array, normalized_pixels_per_degree, gabor_orient
     return ImageArrayContrastFilter(image_array,         normalized_pixels_per_degree,
                                     gabor_orientations,  background)
 
-@pimms.calc('contrast_energies')
+@pimms.calc('contrast_energies', cache=True)
 def calc_contrast_energies(contrast_filter,
                            divisive_normalization_function, divisive_normalization_parameters,
                            cpd_sensitivities):
@@ -323,7 +342,7 @@ def calc_contrast_energies(contrast_filter,
     rsps = pyr.pmap({k:pyr.pmap(v) for (k,v) in flip.iteritems()})
     return {'contrast_energies': rsps}
 
-@pimms.calc('contrast_constants')
+@pimms.calc('contrast_constants', cache=True)
 def calc_contrast_constants(labels, contrast_constants_by_label):
     '''
     calc_contrast_constants is a calculator that translates contrast_constants_by_label into a
@@ -342,7 +361,7 @@ def calc_contrast_constants(labels, contrast_constants_by_label):
     r.setflags(write=False)
     return r
 
-@pimms.calc('pRF_SOC')
+@pimms.calc('pRF_SOC', cache=True)
 def calc_pRF_SOC(pRFs, contrast_energies, cpd_sensitivities,
                  divisive_normalization_parameters, contrast_constants,
                  normalized_pixels_per_degree):
@@ -394,7 +413,7 @@ def calc_pRF_SOC(pRFs, contrast_energies, cpd_sensitivities,
     socs.setflags(write=False)
     return socs
 
-@pimms.calc('compressive_constants')
+@pimms.calc('compressive_constants', cache=True)
 def calc_compressive_constants(labels, compressive_constants_by_label):
     '''
     calc_compressive_constants is a calculator that translates compressive_constants_by_label into a
@@ -413,7 +432,7 @@ def calc_compressive_constants(labels, compressive_constants_by_label):
     r.setflags(write=False)
     return r
 
-@pimms.calc('prediction')
+@pimms.calc('prediction', cache=True)
 def calc_compressive_nonlinearity(pRF_SOC, compressive_constants):
     '''
     calc_compressive_nonlinearity is a calculator that applies a compressive nonlinearity to the
@@ -427,7 +446,7 @@ def calc_compressive_nonlinearity(pRF_SOC, compressive_constants):
     Provided efferent values:
       @ prediction Will be the final predictions of %BOLD-change for each pRF examined, up to gain.
         The data will be stored in an (n x m) matrix where n is the number of pRFs (see labels,
-        hemispheres, anatomical_ids) and m is the number of images.
+        hemispheres, cortex_indices) and m is the number of images.
     '''
     out = np.asarray([s**n for (s, n) in zip(pRF_SOC, compressive_constants)])
     out.setflags(write=False)

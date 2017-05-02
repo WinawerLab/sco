@@ -6,7 +6,7 @@
 import numpy                 as     np
 import scipy.sparse          as     sparse
 import pyrsistent            as     pyr
-from   sco.util              import (units, lookup_labels)
+from   sco.util              import (units, lookup_labels, global_lookup)
 import pimms
 
 @pimms.immutable
@@ -21,6 +21,18 @@ class PRFSpec(object):
         self.sigma = sigma
         self.exponent = expt
         self.n_radii = n_radii
+    def __getstate__(self):
+        d = self.__dict__.copy()
+        d['center'] = tuple(self.center.m)
+        d['sigma'] = self.sigma.m
+        return d
+    def __setstate__(self, d):
+        object.__setattr__(self, '__dict__', d)
+        c = np.asarray(d['center']) * units.deg
+        c.setflags(write=False)
+        object.__setattr__(self, 'center', c)
+        object.__setattr__(self, 'sigma', d['sigma'] * units.deg)
+        return self
     @pimms.param
     def center(pt):
         '''
@@ -34,6 +46,7 @@ class PRFSpec(object):
             # assume degrees
             pt = pt * units.deg
         pt = np.asarray(pt.m) * pt.u
+        pt.setflags(write=False)
         if len(pt.shape) != 1 or  pt.shape[0] != 2:
             raise ValueError('pRF centers must be 2D')
         return pt
@@ -65,11 +78,12 @@ class PRFSpec(object):
            radius = sigma * sqrt(exponent).
         This can be observed directly from the pRF equation:
            (q: sensitivity, x: distance from pRF center, s: sigma, n: exponent, r: radius)
-           q = exp(-(x/s)^2 / 2)^n
-             = exp(-n (x/s)^2 / 2)
-             = exp(-(sqrt(n) x/s)^2 / 2)
-             = exp(-(x / (s/sqrt(n)))^2 / 2)
-             = exp(-(x/r)^2 / 2) with r = s / sqrt(n).
+           q = exp(-(x/r)^2 / 2)^n
+             = exp(-n (x/r)^2 / 2)
+             = exp(-(sqrt(n) x/r)^2 / s)
+             = exp(-(x / (r/sqrt(n)))^2 / 2)
+             = exp(-(x / s)^2 / 2)
+           this tells us s == r / sqrt(n) so r = s * sqrt(n)
         '''
         return sigma.to(units.deg) * np.sqrt(exponent)
     @pimms.param
@@ -187,7 +201,7 @@ class PRFSpec(object):
         else:
             return np.dot(w, (u - c*np.dot(w, u))**2)
 
-@pimms.calc('compressive_constants')
+@pimms.calc('compressive_constants', cache=True)
 def calc_compressive_constants(labels, compressive_constants_by_label):
     '''
     calc_compressive_constants is a calculator that combines the labels with the data in
@@ -205,7 +219,7 @@ def calc_compressive_constants(labels, compressive_constants_by_label):
     n.setflags(write=False)
     return n
 
-@pimms.calc('pRF_sigmas', 'pRF_sigma_slopes')
+@pimms.calc('pRF_sigmas', 'pRF_sigma_slopes', memoize=True, cache=True)
 def calc_pRF_sigmas(labels, eccentricities, pRF_sigma_slopes_by_label):
     '''
     calc_pRF_sigmas is a calculator that combines the labels with the data in
@@ -233,7 +247,7 @@ def calc_pRF_sigmas(labels, eccentricities, pRF_sigma_slopes_by_label):
     ms.setflags(write=False)
     return (sigs, ms)
         
-@pimms.calc('pRF_centers')
+@pimms.calc('pRF_centers', memoize=True, cache=True)
 def calc_pRF_centers(polar_angles, eccentricities):
     '''
     calc_pRF_centers is a calculation that transforms polar_angles and eccentricities into
@@ -259,13 +273,14 @@ def calc_pRF_centers(polar_angles, eccentricities):
         eccentricities = eccentricities * units.degree
     angle_unit = eccentricities.u
     # Get the pRF centers:
-    xs = eccentricities * np.cos(polar_angles)
-    ys = eccentricities * np.sin(polar_angles)
+    ang = np.pi/2 - polar_angles.to('rad').m
+    xs = eccentricities * np.cos(ang)
+    ys = eccentricities * np.sin(ang)
     pRF_centers = np.asarray([xs.to(angle_unit).m, ys.to(angle_unit).m]).T * angle_unit
     # That's it:
-    return pRF_centers.to(units.deg)
+    return pRF_centers.to('deg')
 
-@pimms.calc('pRFs', 'pRF_radii')
+@pimms.calc('pRFs', 'pRF_radii', memoize=True, cache=True)
 def calc_pRFs(pRF_centers, pRF_sigmas, compressive_constants, pRF_n_radii=3.0):
     '''
     calc_pRFs is a calculator that adds to the datapool a set of objects of class PRFSpec;
@@ -293,7 +308,7 @@ def calc_pRFs(pRF_centers, pRF_sigmas, compressive_constants, pRF_n_radii=3.0):
     radii.setflags(write=False)
     return (prfs, radii)
 
-@pimms.calc('cpd_sensitivities')
+@pimms.calc('cpd_sensitivities', cache=True)
 def calc_cpd_sensitivities(labels, eccentricities, pRF_radii, cpd_sensitivity_function):
     '''
     calc_cpd_sensitivities is a calculator that produces the frequency sensitivity maps for each
@@ -311,6 +326,8 @@ def calc_cpd_sensitivities(labels, eccentricities, pRF_radii, cpd_sensitivity_fu
         relevant pRF.
     '''
     ss = np.full(len(labels), None, dtype=np.object)
+    if isinstance(cpd_sensitivity_function, basestring):
+        cpd_sensitivity_function = global_lookup(cpd_sensitivity_function)
     for (i, rad, ecc, lab) in zip(range(len(ss)), pRF_radii, eccentricities, labels):
         ss[i] = pyr.pmap(cpd_sensitivity_function(ecc, rad, lab))
     ss.setflags(write=False)

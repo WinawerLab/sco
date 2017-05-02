@@ -18,11 +18,16 @@ AnatomyBase class.
 import pyrsistent as _pyr
 import pimms as _pimms
 from .core  import (import_freesurfer_subject,
+                    import_freesurfer_affine,
                     import_benson14_from_freesurfer,
+                    import_retinotopy_data_files,
+                    calc_prediction_coordinates,
                     export_predicted_responses)
 
 # Make a function that's ready to be used as a module
 anatomy_plan_data = _pyr.m(import_subject    = import_freesurfer_subject,
-                           import_retinotopy = import_benson14_from_freesurfer)
+                           import_affine_tx  = import_freesurfer_affine,
+                           import_retinotopy = import_benson14_from_freesurfer,
+                           calc_coordinates  = calc_prediction_coordinates)
 
 anatomy_plan = _pimms.plan(anatomy_plan_data)

@@ -45,7 +45,7 @@ def divisively_normalize_Heeger1992(data, divisive_exponent=0.5, saturation_cons
     normalized.setflags(write=False)
     return normalized
 
-@_pimms.calc('divisive_normalization_parameters', 'divisive_normalization_function')
+@_pimms.calc('divisive_normalization_parameters', 'divisive_normalization_function', cache=True)
 def calc_divisive_normalization(labels, saturation_constants_by_label, divisive_exponents_by_label):
     '''
     calc_divisive_normalization is a calculator that prepares the divisive normalization function
@@ -77,7 +77,7 @@ def calc_divisive_normalization(labels, saturation_constants_by_label, divisive_
     sat = sco.util.lookup_labels(labels, saturation_constants_by_label)
     rxp = sco.util.lookup_labels(labels, divisive_exponents_by_label)
     return (_pimms.itable(saturation_constant=sat, divisive_exponent=rxp),
-            divisively_normalize_Heeger1992)
+            __name__ + '.divisively_normalize_Heeger1992')
 
 # Parameters Defined by Labels #####################################################################
 pRF_sigma_slopes_by_label_Kay2013      = _pyr.pmap({1:0.10, 2:0.15, 3:0.27})
@@ -87,9 +87,14 @@ saturation_constants_by_label_Kay2013  = _pyr.pmap({1:0.50, 2:0.50, 3:0.50})
 divisive_exponents_by_label_Kay2013    = _pyr.pmap({1:1.00, 2:1.00, 3:1.00})
 
 # Frequency Sensitivity ############################################################################
-_sensitivity_frequencies_cpd = _pimms.quant(_np.asarray([0.75 * 2.0**(0.5 * k) for k in range(6)]),
+#_sensitivity_frequencies_cpd = _pimms.quant(_np.asarray([0.75 * 2.0**(0.5 * k) for k in range(6)]),
+#                                            'cycles/deg')
+#_sensitivity_frequencies_cpd = _pimms.quant(_np.asarray([5, 3.5355, 2.5000, 1.7678, 1.2500, 0.8839,
+#                                                         0.6250, 0.4419, 0.3125]),
+#                                            'cycles/deg')
+_sensitivity_frequencies_cpd = _pimms.quant(_np.asarray([0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 6.0]),
                                             'cycles/deg')
-_sensitivity_std_cpd         = 0.5
+_cpd_sensitivity_cache = {}
 def cpd_sensitivity(e, s, l):
     '''
     cpd_sensitivity(ecc, prfsz, lbl) yields the predicted spatial frequency sensitivity of a 
@@ -97,34 +102,47 @@ def cpd_sensitivity(e, s, l):
     This is returned as a map whose keys are sampled frequencies (in cycles per degree) and
     whose values sum to 1.
     '''
-    s = _pimms.mag(s, 'deg')
-    if s in cpd_sensitivity._cache: return cpd_sensitivity._cache[s]
-    ss = 1.5 / s
-    weights = _np.asarray([_np.exp(-0.5*((k.m - ss)/_sensitivity_std_cpd)**2)
-                           for k in _sensitivity_frequencies_cpd])
-    wtot = _np.sum(weights)
-    weights /= wtot
-    res = {k:v for (k,v) in zip(_sensitivity_frequencies_cpd, weights) if v > 0.01}
-    if len(res) < len(weights):
+    e = _pimms.mag(e, 'deg')
+    if e in _cpd_sensitivity_cache: return _cpd_sensitivity_cache[e]
+
+    if e < 0.1: e = 0.1
+
+    # For normal distribution
+    #mu  = 0.827 + 1.689/e
+    #std = 0.444 + 0.734/e
+    #weights = {k.m: _np.exp(-0.5*((k.m - mu)/std)**2)
+    #           for k in _sensitivity_frequencies_cpd}
+
+    # For log-normal distribution
+    mu  = 1.435 + _np.power(e, 0.511)
+    std = 0.186 + _np.power(e, 0.333)
+    weights = {k.m: _np.exp(-0.5*((_np.log(k.m) - mu)/std)**2)/k.m
+               for k in _sensitivity_frequencies_cpd}
+
+    wtot = _np.sum(weights.values())
+    weights = {k:v/wtot for (k,v) in weights.iteritems()}
+    res = {k:v for (k,v) in weights.iteritems() if v > 0.01}
+    if len(res) == 0:
+        res = weights
+    elif len(res) < len(weights):
         wtot = _np.sum(res.values())
         res = {k:(v/wtot) for (k,v) in res.iteritems()}
     res = _pyr.pmap(res)
-    cpd_sensitivity._cache[s] = res
+    _cpd_sensitivity_cache[s] = res
     return res
-cpd_sensitivity._cache = {}
 
 # Default Options ##################################################################################
 # The default options are provided here for the SCO
 @_pimms.calc('benson17_default_options_used')
 def provide_default_options(
-        pRF_sigma_slopes_by_label      = pRF_sigma_slopes_by_label_Kay2013,
-        contrast_constants_by_label    = contrast_constants_by_label_Kay2013,
-        compressive_constants_by_label = compressive_constants_by_label_Kay2013,
-        saturation_constants_by_label  = saturation_constants_by_label_Kay2013,
-        divisive_exponents_by_label    = divisive_exponents_by_label_Kay2013,
+        pRF_sigma_slopes_by_label      = 'sco.impl.benson17.pRF_sigma_slopes_by_label_Kay2013',
+        contrast_constants_by_label    = 'sco.impl.benson17.contrast_constants_by_label_Kay2013',
+        compressive_constants_by_label = 'sco.impl.benson17.compressive_constants_by_label_Kay2013',
+        saturation_constants_by_label  = 'sco.impl.benson17.saturation_constants_by_label_Kay2013',
+        divisive_exponents_by_label    = 'sco.impl.benson17.divisive_exponents_by_label_Kay2013',
         max_eccentricity               = 12,
         modality                       = 'volume',
-        cpd_sensitivity_function       = cpd_sensitivity,
+        cpd_sensitivity_function       = 'sco.impl.benson17.cpd_sensitivity',
         gabor_orientations             = 8):
     '''
     provide_default_options is a calculator that optionally accepts values for all parameters for

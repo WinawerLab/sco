@@ -75,7 +75,7 @@ def import_stimulus(stim, gcf):
     if gcf is not None: im = gcf(im)
     return im
 
-@pimms.calc('stimulus_map')
+@pimms.calc('stimulus_map', 'stimulus_ordering', cache=True)
 def import_stimuli(stimulus, gamma_correction_function=None):
     '''
     import_stimuli is a calculation that ensures that the stimulus images to be used in the sco
@@ -92,20 +92,28 @@ def import_stimuli(stimulus, gamma_correction_function=None):
       @ stimulus_map Will be a persistent dict whose keys are the image identifiers and whose
         values are the image matrices of the imported stimuli prior to normalization or any
         processing.
+      @ stimulus_ordering Will be a persistent vector of the keys of stimulus_map in the order
+        provided.
     '''
     # Make this into a map so that we have ids and images/filenames
     if not pimms.is_map(stimulus):
         # first task: turn this into a map
         if isinstance(stimulus, basestring):
             stimulus = {stimulus: stimulus}
+            order = [stimulus]
         elif hasattr(stimulus, '__iter__'):
-            pat = '%%0%dd' % len(stimulus)
+            pat = '%%0%dd' % (int(np.log10(len(stimulus))) + 1)
+            order = [(pat % i) for i in range(len(stimulus))]
             stimulus = {(pat % i):s for (i,s) in enumerate(stimulus)}
         else:
             raise ValueError('stimulus is not iterable nor a filename')
+    else:
+        order = stimulus.keys()
     # we can use the stimulus_importer function no matter what the stimulus arguments are
-    return {'stimulus_map': pyr.pmap({k:import_stimulus(v, gamma_correction_function)
-                                      for (k,v) in stimulus.iteritems()})}
+    stim_map = {k:import_stimulus(v, gamma_correction_function) for (k,v) in stimulus.iteritems()}
+    for u in stim_map.itervalues():
+        u.setflags(write=False)
+    return {'stimulus_map': pyr.pmap(stim_map), 'stimulus_ordering': pyr.pvector(order)}
 
 def image_apply_aperture(im, radius,
                          center=None, fill_value=0.5, edge_width=10, crop=True):
@@ -166,8 +174,8 @@ def image_apply_aperture(im, radius,
     # That's it!
     return final_im
 
-@pimms.calc('image_array', 'image_names', 'pixel_centers')
-def calc_images(pixels_per_degree, stimulus_map,
+@pimms.calc('image_array', 'image_names', 'pixel_centers', cache=True)
+def calc_images(pixels_per_degree, stimulus_map, stimulus_ordering,
                 background=0.5,
                 aperture_radius=None,
                 aperture_edge_width=None,
@@ -179,7 +187,9 @@ def calc_images(pixels_per_degree, stimulus_map,
     Required afferent parameters:
       @ pixels_per_degree Must specify the number of pixels per degree in the input images; note
         that all stimulus images must have the same pixels_per_degree value.
-      @ stimulus_map Must be a map whose values are 2D image matrices.
+      @ stimulus_map Must be a map whose values are 2D image matrices (see import_stimuli).
+      @ stimulus_ordering Must be a list of the stimulus filenames or IDs (used by calc_images to
+        ensure the ordering of the resulting image_array datum is correct; see also import_stimuli).
 
     Optional afferent parameters:
       @ background Specifies the background color of the stimulus; by default this is 0.5 (gray);
@@ -188,7 +198,7 @@ def calc_images(pixels_per_degree, stimulus_map,
         indicating that no aperture should be used; otherwise the aperture is applied after
         normalizing the images.
       @ aperture_edge_width Specifies the width of the aperture edge in degrees; by default this is
-        1; if 0, then no aperture edge is used.
+        None; if 0 or None, then no aperture edge is used.
       @ normalized_pixels_per_degree Specifies the resolution of the images used in the calculation;
         by default this is 15.
 
@@ -230,9 +240,9 @@ def calc_images(pixels_per_degree, stimulus_map,
     imgs = {k:image_apply_aperture(im, rad_px, fill_value=bg, edge_width=aew_px)
             for (k,im) in imgs.iteritems()}
     # Separate out the images and names and
-    imar = np.asarray(imgs.values(), dtype=np.float)
+    imar = np.asarray([imgs[k] for k in stimulus_ordering], dtype=np.float)
     imar.setflags(write=False)
-    imnm = pyr.pvector(imgs.keys())
+    imnm = pyr.pvector(stimulus_ordering)
     # Finally, note the pixel centers
     (rs,cs) = (imar.shape[1], imar.shape[2])
     x0 = (0.5*rs, 0.5*cs)

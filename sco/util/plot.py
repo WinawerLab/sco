@@ -55,7 +55,7 @@ def cortical_image(prediction, labels, pRFs, max_eccentricity, image_number=None
     z       = prediction[:,image_number]
     (x,y,z,sigs) = np.transpose([(xx,yy,zz,ss)
                                  for ((xx,yy),zz,ss,l) in zip(centers,z,sigs,labels)
-                                 if l == visual_area])
+                                 if l == visual_area and not np.isnan(zz)])
     if method == 'triangulation':
         plotter.tripcolor(tri.Triangulation(x,y), z, cmap='jet', shading='gouraud')
         plotter.axis('equal')
@@ -90,16 +90,16 @@ def cortical_image(prediction, labels, pRFs, max_eccentricity, image_number=None
     else:
         raise ValueError('unrecognized method: %s' % method)
     
-def corrcoef_image(pred, gtth, labels, pRFs, max_eccentricity,
+def corrcoef_image(pred, meas, labels, pRFs, max_eccentricity,
                    visual_area=1, image_size=200, n_stds=1,
                    size_gain=1, method='triangulation', subplot=None):
     '''
     corrcoef_image(imap) plots an image (using sco.util.cortical_image) of the correlation
-      coefficients of the prediction versus the ground-truth in the given results map from
+      coefficients of the prediction versus the measurements in the given results map from
       the SCO model plan, imap.
     '''
-    r = np.zeros(gtth.shape[0])
-    for (i,(p,t)) in enumerate(zip(pred,gtth)):
+    r = np.zeros(meas.shape[0])
+    for (i,(p,t)) in enumerate(zip(pred,meas)):
             try:    r[i] = np.corrcoef(p,t)[0,1]
             except: r[0] = 0.0
     r = np.asarray([r]).T

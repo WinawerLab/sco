@@ -71,7 +71,9 @@ def reload_sco():
     '''
     reload_sco() reloads the sco and all of its submodules; it returns the new sco module.
     '''
-    import sys
+    import sys, sco, \
+           sco.util, sco.anatomy, sco.stimulus, sco.contrast, sco.pRF, sco.impl, \
+           sco.impl.benson17, sco.impl.kay13
     reload(sys.modules['sco.util.plot'])
     reload(sys.modules['sco.util.io'])
     reload(sys.modules['sco.util'])

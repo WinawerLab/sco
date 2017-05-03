@@ -266,7 +266,7 @@ def calc_pRF_centers(polar_angles, eccentricities):
         be either in degrees or radians
     '''
     if not pimms.is_quantity(polar_angles):
-        warnings.warn('polar_angle is not a quantity; assuming that it is in degrees')
+        warnings.warn('polar_angles is not a quantity; assuming that it is in degrees')
         polar_angles = polar_angles * units.degree
     if not pimms.is_quantity(eccentricities):
         warnings.warn('polar_angle is not a quantity; assuming that it is in degrees')

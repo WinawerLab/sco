@@ -7,7 +7,7 @@ import numpy                 as     np
 import scipy.sparse          as     sparse
 import pyrsistent            as     pyr
 from   sco.util              import (units, lookup_labels, global_lookup)
-import pimms
+import pimms, warnings
 
 @pimms.immutable
 class PRFSpec(object):

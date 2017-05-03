@@ -39,7 +39,7 @@ def import_measurements(measurements_filename):
         they do not, then this will be None. For surface files, +1 and -1 indicate LH and RH,
         respectively.
     '''
-    if measurements_filename is None: return None
+    if measurements_filename is None: return (None, None, None, None)
     meas = None
     idcs = None
     crds = None

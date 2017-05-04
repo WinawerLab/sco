@@ -26,14 +26,14 @@ def export_anatomical_data(data, sub, anat_ids, hemis, name, output_dir,
                            modality=None, create_dir=False, prefix='', suffix='',
                            null=np.nan, dtype=None):
     '''
-    export_anatomical_data(data, sub, anatomical_ids, hemis, name, output_dir) exports the
+    export_anatomical_data(data, sub, cortex_indices, hemis, name, output_dir) exports the
        prediction data in the given data vector or matrix, out to the given directory in a set of
        files appropriate to the modality; for surfaces, this is an lh.<name>.nii.gz and
        rh.<name>.nii.gz file; for volumes, this is just a <name>.nii.gz file.
 
     Parameters:
       * data must be a vector of data or a matrix of data whose rows match up to the anatomical ids
-      * anatomical_ids must be the voxel indices or vertex ids of the data rows
+      * cortex_indices must be the voxel indices or vertex ids of the data rows
       * hemis must be a list of 1 or -1 values to indicate LH and RH respectively
       * name should be a name for the file, used as a part of the filename such as lh.<name>.nii.gz
       * output_dir must be the name of the output directory
@@ -48,9 +48,9 @@ def export_anatomical_data(data, sub, anat_ids, hemis, name, output_dir,
         performed before the file extension is appended, such as in
         'lh.<prefix><name><suffix>.nii.gz'.
       * modality (default: None) may be specified explicitly as 'surface' or 'volume', but will
-        auto-detect the modality based on the anatomical_ids if None is given
+        auto-detect the modality based on the cortex_indices if None is given
       * null (default: nan) specifies the null value that should be written for values not in the
-        anatomical_ids; if this is nan and the dtype is an integer value, then 0 is used instead
+        cortex_indices; if this is nan and the dtype is an integer value, then 0 is used instead
       * dtype (default: None) specifies explicitly the dtype of the exported array; if None, the
         value np.asarray(data).dtype is used
     '''
@@ -94,7 +94,7 @@ def export_anatomical_data(data, sub, anat_ids, hemis, name, output_dir,
     return file_names
 
 @pimms.calc('exported_predictions_filenames')
-def export_predictions(prediction, anatomical_ids, modality, hemispheres, freesurfer_subject,
+def export_predictions(prediction, cortex_indices, modality, hemispheres, freesurfer_subject,
                        labels, image_names, output_directory,
                        create_directories=False, output_prefix='', output_suffix=''):
     '''
@@ -104,7 +104,7 @@ def export_predictions(prediction, anatomical_ids, modality, hemispheres, freesu
     
     Required afferent values:
       * prediction:         the prediction matrix
-      * anatomical_ids:     the voxel indices or vertex ids
+      * cortex_indices:     the voxel indices or vertex ids
       * image_names:        the list of image names in order
       * modality:           'surface' or 'volume'
       * labels:             the anatomical labels
@@ -127,7 +127,7 @@ def export_predictions(prediction, anatomical_ids, modality, hemispheres, freesu
     (output_prefix, output_suffix) = _sco_init_outputs(output_directory, create_directories,
                                                        output_prefix, output_suffix)
     # output the raw predictions themselves
-    fnms = export_anatomical_data(prediction, freesurfer_subject, anatomical_ids, hemispheres,
+    fnms = export_anatomical_data(prediction, freesurfer_subject, cortex_indices, hemispheres,
                                   'prediction', output_directory,
                                   create_dir=create_directories, modality=modality,
                                   prefix=output_prefix, suffix=output_suffix)

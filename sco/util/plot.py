@@ -8,11 +8,13 @@ import pyrsistent        as pyr
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.tri    as tri
+import matplotlib.cm     as cm
 import pint, pimms, os
 
 def cortical_image(prediction, labels, pRFs, max_eccentricity, image_number=None,
                    visual_area=1, image_size=200, n_stds=1,
-                   size_gain=1, method='triangulation', subplot=None):
+                   size_gain=1, method='triangulation', subplot=None,
+                   cmap=cm.afmhot):
     '''
     cortical_image(pred, labels, pRFs, maxecc) yields an array of figures that reconstruct the
       cortical images for the given sco results datapool. The image is always sized such that the
@@ -35,6 +37,7 @@ def cortical_image(prediction, labels, pRFs, max_eccentricity, image_number=None
         former makes the plot by constructing the triangulation of the pRF centers and filling the
         triangles in while the latter creates an image matrix and projects the pRF predicted
         responses into the relevant pRFs.
+      * cmap (default: matplotlib.cm.afmhot) specifies the colormap to use.
     '''
     # if not given an image number, we want to iterate through all images:
     if image_number is None:
@@ -57,7 +60,7 @@ def cortical_image(prediction, labels, pRFs, max_eccentricity, image_number=None
                                  for ((xx,yy),zz,ss,l) in zip(centers,z,sigs,labels)
                                  if l == visual_area and not np.isnan(zz)])
     if method == 'triangulation':
-        plotter.tripcolor(tri.Triangulation(x,y), z, cmap='jet', shading='gouraud')
+        plotter.tripcolor(tri.Triangulation(x,y), z, cmap=cm.afmhot, shading='gouraud')
         plotter.axis('equal')
         plotter.axis('off')
         return fig
@@ -83,7 +86,7 @@ def cortical_image(prediction, labels, pRFs, max_eccentricity, image_number=None
             img[r0:rr, c0:cc, 1] += gaus
         img = np.flipud(img[:,:,0] / (img[:,:,1] + (1.0 - img[:,:,1].astype(bool))))
         fig = plotter.figure()
-        plotter.imshow(img)
+        plotter.imshow(img, cmap=cmap)
         plotter.axis('equal')
         plotter.axis('off')
         return fig

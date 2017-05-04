@@ -107,7 +107,9 @@ def calc_correspondence_maps(coordinates, cortex_indices, hemispheres, modality,
         prediction matrix and the second row is the matching indices in the measurement matrix.
     '''
     if measurement_coordinates is None:
-        if modality == 'surface':
+        if measurement_indices is None:
+            return (None, None, None)
+        elif modality == 'surface':
             # This means they're both surfaces; we just get vertex overlaps
             ((mlmap, mrmap), (plmap, prmap)) = [
                 [{i:k for (k,(i,h)) in enumerate(zip(idcs,hems)) if h == v} for v in [-1,1]]

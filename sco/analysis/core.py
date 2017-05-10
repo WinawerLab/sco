@@ -168,17 +168,11 @@ def calc_prediction_analysis(prediction, measurements, labels, hemispheres, pRFs
         easily exported as CSV files.
     '''
     if measurements is None: return (None, None)
-    if len(prediction_per_measurement) < len(measurement_per_prediction):
-        measurements = measurements[prediction_per_measurement.keys()]
-        (prediction,labels,hemispheres,pRFs) = [x[prediction_per_measurement.values()]
-                                                for x in (prediction,labels,hemispheres,pRFs)]
-    else:
-        measurements = measurements[measurement_per_prediction.values()]
-        (prediction,labels,hemispheres,pRFs) = [x[measurement_per_prediction.keys()]
-                                                for x in (prediction,labels,hemispheres,pRFs)]
-    if not np.array_equal(prediction.shape, measurement.shape):
+    (pidcs,midcs) = corresponding_indices
+    (prediction,labels,hemispheres,pRFs) = [x[pidcs] for x in (prediction,labels,hemispheres,pRFs)]
+    measurements = measurements[midcs]
+    if not np.array_equal(prediction.shape, measurements.shape):
         raise ValueError('prediction and measurement sizes are not the same')
-    
     # For starters, we just get the correlations between predictions and measurements:
     r = np.zeros(prediction.shape[0], dtype=np.float)
     for (i,p,g) in zip(range(len(r)), prediction, measurements):

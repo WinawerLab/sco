@@ -45,8 +45,18 @@ def divisively_normalize_Heeger1992(data, divisive_exponent=0.5, saturation_cons
     normalized.setflags(write=False)
     return normalized
 
+def divisively_normalize_naive(data, divisive_exponent=0.5, saturation_constant=1.0):
+    '''
+    divisively_normalize_naive(data) yields the 3D image array that is the result of divisively
+    normalizing the 3D orientation-filtered image array values of the map data, whose keys should
+    be the orientations (in radians) of the gabor filters applied to the values. The naive
+    divisive normalization step does nothing, just averages and returns.
+    '''
+    return _np.mean(data.values(), axis=0)
+
 @_pimms.calc('divisive_normalization_parameters', 'divisive_normalization_function', cache=True)
-def calc_divisive_normalization(labels, saturation_constants_by_label, divisive_exponents_by_label):
+def calc_divisive_normalization(labels, saturation_constants_by_label, divisive_exponents_by_label,
+                                divisive_normalization_schema='Heeger1992'):
     '''
     calc_divisive_normalization is a calculator that prepares the divisive normalization function
     to be run in the sco pipeline. It gathers parameters into a pimms itable (such that each row
@@ -66,6 +76,10 @@ def calc_divisive_normalization(labels, saturation_constants_by_label, divisive_
         the divisive normalization exponent for that particular area; all values appearing in the
         pRF labels must be found in this map.
 
+    Optional afferent parameters:
+     @ divisive_normalization_schema specifies the kind of divisive normalization to perform;
+       currently this must be either 'Heeger1992' or 'naive'; the former is the default.
+
     Provided efferent values:
       @ divisive_normalization_parameters Will be an ITable whose columns correspond to the
         divisive normalization formula's saturation constant and exponent; the rows will correspond
@@ -76,8 +90,13 @@ def calc_divisive_normalization(labels, saturation_constants_by_label, divisive_
     '''
     sat = sco.util.lookup_labels(labels, saturation_constants_by_label)
     rxp = sco.util.lookup_labels(labels, divisive_exponents_by_label)
+    if divisive_normalization_schema.lower() == 'heeger1992':
+        fn_name = '.divisively_normalize_Heeger1992'
+    elif divisive_normalization_schema.lower() == 'naive':
+        fn_name = '.divisively_normalize_naive'
+    else: raise ValueError('Unrecognized div-norm schema; must be \'Heeger1992\' or \'naive\'')
     return (_pimms.itable(saturation_constant=sat, divisive_exponent=rxp),
-            __name__ + '.divisively_normalize_Heeger1992')
+            __name__ + fn_name)
 
 # Parameters Defined by Labels #####################################################################
 pRF_sigma_slopes_by_label_Kay2013      = _pyr.pmap({1:0.10, 2:0.15, 3:0.27})
@@ -85,6 +104,9 @@ contrast_constants_by_label_Kay2013    = _pyr.pmap({1:0.93, 2:0.99, 3:0.99})
 compressive_constants_by_label_Kay2013 = _pyr.pmap({1:0.18, 2:0.13, 3:0.12})
 saturation_constants_by_label_Kay2013  = _pyr.pmap({1:0.50, 2:0.50, 3:0.50})
 divisive_exponents_by_label_Kay2013    = _pyr.pmap({1:1.00, 2:1.00, 3:1.00})
+# Some experimental parameters by labels
+ones_by_label  = _pyr.pmap({1:1.0, 2:1.0,3:1.0})
+zeros_by_label = _pyr.pmap({1:0.0, 2:0.0,3:0.0})
 
 # Frequency Sensitivity ############################################################################
 #_sensitivity_frequencies_cpd = _pimms.quant(_np.asarray([0.75 * 2.0**(0.5 * k) for k in range(6)]),

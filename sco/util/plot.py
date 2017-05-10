@@ -4,6 +4,7 @@
 # by Noah C. Benson
 
 import numpy             as np
+import neuropythy        as ny
 import pyrsistent        as pyr
 import matplotlib
 import matplotlib.pyplot as plt
@@ -14,7 +15,7 @@ import pint, pimms, os
 def cortical_image(prediction, labels, pRFs, max_eccentricity, image_number=None,
                    visual_area=1, image_size=200, n_stds=1,
                    size_gain=1, method='triangulation', subplot=None,
-                   cmap=cm.afmhot):
+                   smoothing=None, cmap=cm.afmhot, clipping=None, speckle=None):
     '''
     cortical_image(pred, labels, pRFs, maxecc) yields an array of figures that reconstruct the
       cortical images for the given sco results datapool. The image is always sized such that the
@@ -38,6 +39,15 @@ def cortical_image(prediction, labels, pRFs, max_eccentricity, image_number=None
         triangles in while the latter creates an image matrix and projects the pRF predicted
         responses into the relevant pRFs.
       * cmap (default: matplotlib.cm.afmhot) specifies the colormap to use.
+      * smoothing (default: None) if a number between 0 and 1, smoothes the data using the basic
+        mesh smoothing routine in neurpythy with the given number as the smoothing ratio.
+      * clipping (defaut: None) indicates the z-range of the data that should be plotted; this may
+        be specified as None (don't clip the data) a tuple (minp, maxp) of the minimum and maximum
+        percentile that should be used, or a list [min, max] of the min and max value that should be
+        plotted.
+      * speckle (default: None), if not None, must be an integer that gives the number points to
+        randomly add before smoothing; these points essentially fill in space on the image if the
+        vertices for a triangulation are sparse. This is only used if smoothing is also used.
     '''
     # if not given an image number, we want to iterate through all images:
     if image_number is None:
@@ -59,8 +69,26 @@ def cortical_image(prediction, labels, pRFs, max_eccentricity, image_number=None
     (x,y,z,sigs) = np.transpose([(xx,yy,zz,ss)
                                  for ((xx,yy),zz,ss,l) in zip(centers,z,sigs,labels)
                                  if l == visual_area and not np.isnan(zz)])
+    clipfn = (lambda zz: (None,None))                if clipping is None            else \
+             (lambda zz: np.percentile(z, clipping)) if isinstance(clipping, tuple) else \
+             (lambda zz: clipping)
     if method == 'triangulation':
-        plotter.tripcolor(tri.Triangulation(x,y), z, cmap=cm.afmhot, shading='gouraud')
+        if smoothing is None: t = tri.Triangulation(x,y)
+        else:
+            if speckle is None: t = tri.Triangulation(x,y)
+            else:
+                n0 = len(x)
+                maxrad = np.sqrt(np.max(x**2 + y**2))
+                (rr, rt) = (maxrad * np.random.random(speckle), np.pi*2*np.random.random(speckle))
+                (x,y) = np.concatenate(([x,y], [rr*np.cos(rt), rr*np.sin(rt)]), axis=1)
+                z = np.concatenate((z, np.full(speckle, np.inf)))
+                t = tri.Triangulation(x,y)
+            # make a cortical mesh
+            coords = np.asarray([x,y])
+            msh = ny.cortex.CorticalMesh(coords, t.triangles.T)
+            z = ny.mesh_smooth(msh, z, smoothness=smoothing, )
+        (mn,mx) = clipfn(z)
+        plotter.tripcolor(t, z, cmap=cmap, shading='gouraud', vmin=mn, vmax=mx)
         plotter.axis('equal')
         plotter.axis('off')
         return fig
@@ -86,7 +114,8 @@ def cortical_image(prediction, labels, pRFs, max_eccentricity, image_number=None
             img[r0:rr, c0:cc, 1] += gaus
         img = np.flipud(img[:,:,0] / (img[:,:,1] + (1.0 - img[:,:,1].astype(bool))))
         fig = plotter.figure()
-        plotter.imshow(img, cmap=cmap)
+        (mn,mx) = clipfn(img.flatten())
+        plotter.imshow(img, cmap=cmap, vmin=mn, vmax=mx)
         plotter.axis('equal')
         plotter.axis('off')
         return fig

@@ -9,6 +9,11 @@ The Standard Cortical Observer Python library.
  * [Heiko Mueller](https://github.com/heikomuller)
  * [Jonathan Winawer](https://github.com/jwinawer)
 
+## Usage Note
+
+This README file is slightly out-of-date with the current code; please check back after VSS for
+an updated version.
+
 ## Dependencies ####################################################################################
 
 The neuropythy library depends on several libraries, all freely
@@ -73,7 +78,8 @@ To do this, run the following:
 
 ```
 import sco
-results = sco.calc_sco(subject='...', stimulus_image_filenames=['...'])
+model = sco.build_model('benson17')
+results = model(parameters) # where parameters is a dictionary
 ```
 
 `subject` and `stimulus_image_filenames` are the only parameters that

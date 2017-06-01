@@ -59,9 +59,9 @@ def import_freesurfer_affine(freesurfer_subject, modality='volume'):
         return raff
     elif modality.lower() == 'surface':
         try:
-            tkr = freesurfer_subject.LH.ribbon.get_vox2ras_tkr()
+            tkr = freesurfer_subject.LH.ribbon.header.get_vox2ras_tkr()
         except:
-            tkr = freesurfer_subject.RH.ribbon.get_vox2ras_tkr()
+            tkr = freesurfer_subject.RH.ribbon.header.get_vox2ras_tkr()
         return np.dot(raff, np.linalg.inv(tkr))
     else:
         raise ValueError('Unknown modality: %s' % modality)
@@ -148,12 +148,12 @@ def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
         rx = freesurfer_subject.RH.midgray_surface.coordinates.T
         lx = freesurfer_subject.LH.midgray_surface.coordinates.T
         # make sure there are template volume files that match this subject
-        lang = os.path.join(subject.directory, 'surf', 'lh.angle_benson14.mgz')
-        lecc = os.path.join(subject.directory, 'surf', 'lh.eccen_benson14.mgz')
-        llab = os.path.join(subject.directory, 'surf', 'lh.v123roi_benson14.mgz')
-        rang = os.path.join(subject.directory, 'surf', 'rh.angle_benson14.mgz')
-        recc = os.path.join(subject.directory, 'surf', 'rh.eccen_benson14.mgz')
-        rlab = os.path.join(subject.directory, 'surf', 'rh.v123roi_benson14.mgz')
+        lang = os.path.join(subject.directory, 'surf', 'lh.benson14_angle.mgz')
+        lecc = os.path.join(subject.directory, 'surf', 'lh.benson14_eccen.mgz')
+        llab = os.path.join(subject.directory, 'surf', 'lh.benson14_varea.mgz')
+        rang = os.path.join(subject.directory, 'surf', 'rh.benson14_angle.mgz')
+        recc = os.path.join(subject.directory, 'surf', 'rh.benson14_eccen.mgz')
+        rlab = os.path.join(subject.directory, 'surf', 'rh.benson14_varea.mgz')
         if not os.path.exists(lang) or not os.path.exists(rang) or \
            not os.path.exists(lecc) or not os.path.exists(recc) or \
            not os.path.exists(llab) or not os.path.exists(rlab):
@@ -162,13 +162,15 @@ def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
         if not os.path.exists(lang) or not os.path.exists(rang) or \
            not os.path.exists(lecc) or not os.path.exists(recc) or \
            not os.path.exists(llab) or not os.path.exists(rlab):
-            raise ValueError('No anatomical template found/created for subject: ' + lab)
+            raise ValueError('No anatomical template found/created for subject')
         lang = fs.mghformat.load(lang).dataobj.get_unscaled().flatten()
         lecc = fs.mghformat.load(lecc).dataobj.get_unscaled().flatten()
         llab = fs.mghformat.load(llab).dataobj.get_unscaled().flatten()
         rang = fs.mghformat.load(rang).dataobj.get_unscaled().flatten()
         recc = fs.mghformat.load(recc).dataobj.get_unscaled().flatten()
         rlab = fs.mghformat.load(rlab).dataobj.get_unscaled().flatten()
+        llab = np.round(np.abs(llab))
+        rlab = np.round(np.abs(rlab))
         (angs0, eccs, labs) = [np.concatenate([ldat, rdat], axis=0)
                                for (ldat,rdat) in zip([lang, lecc, llab], [rang, recc, rlab])]
         idcs    = np.concatenate([range(len(lang)), range(len(rang))], axis=0)

@@ -6,7 +6,7 @@
 import numpy as np
 import pyrsistent as pyr
 import os, pimms, sys
-import nibabel
+import nibabel, nibabel.freesurfer.mghformat as fsmgh
 import matplotlib.pyplot as plt
 
 from .plot import (cortical_image, corrcoef_image, report_image)
@@ -76,10 +76,13 @@ def export_anatomical_data(data, sub, anat_ids, hemis, name, output_dir,
             hobj = getattr(sub, hname.upper())
             hidcs = np.where(hemis == hid)[0]
             n = hobj.vertex_count
+            if np.issubdtype(dtype, np.float64): dtype = np.float32
             vol = np.full((1,1,n,data.shape[1]), null, dtype=dtype)
             vol[0,0,anat_ids[hidcs],:] = data[hidcs,:]
-            img = nibabel.Nifti1Image(vol, affine)
-            fnm = make_fname(hname + '.', 'nii.gz')
+            #img = nibabel.Nifti2Image(vol, np.eye(4))
+            #fnm = make_fname(hname + '.', 'nii.gz')
+            img = fsmgh.MGHImage(vol, np.eye(4))
+            fnm = make_fname(hname + '.', 'mgz')
             img.to_filename(fnm)
             file_names.append(fnm)
     elif modality == 'volume':

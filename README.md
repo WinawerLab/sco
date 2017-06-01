@@ -145,12 +145,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ## References
 
-- Kay2013a: Kay, K. N., Winawer, J., Rokem, A., Mezer, A., & Wandell,
-  B. A. (2013). A two-stage cascade model of BOLD responses in human
-  visual cortex. {PLoS} Comput Biol,
-  9(5), 1003079. http://dx.doi.org/10.1371/journal.pcbi.1003079
-
-- Kay2013b: Kay, K. N., Winawer, J., Mezer, A., & Wandell,
-  B. A. (2013). Compressive spatial summation in human visual
-  cortex. Journal of Neurophysiology, 110(2),
-  481–494. http://dx.doi.org/10.1152/jn.00105.2013
+* Kay KN, Winawer J, Rokem A, Mezer A, Wandell BA (**2013**) A two-stage
+  cascade model of BOLD responses in human visual cortex. *PLOS Comput. Biol.*
+  **9**(5):1003079. doi:10.1371/journal.pcbi.1003079
+* Kay KN, Winawer J, Mezer A, Wandell BA (**2013**). Compressive spatial
+  summation in human visual ortex. *J. Neurophysiol.* **110**(2):481–494.
+  doi:10.1152/jn.00105.2013
+* Benson NC, Butt OH, Brainard DH, Aguirre GK (**2014**) Correction of
+  distortion in flattened representations of the cortical surface allows
+  prediction of V1-V3 functional organization from anatomy. *PLOS Comput.
+  Biol* **10**(3):e1003538. doi:10.1371/journal.pcbi.1003538
+* Benson NC, Butt OH, Datta R, Radoeva PD, Brainard DH, Aguirre GK (**2012**)
+  The retinotopic organization of striate cortex is well predicted by surface
+  topology. *Curr. Biol.* **22**(21):2081-5. doi:10.1016/j.cub.2012.09.014.

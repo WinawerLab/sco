@@ -9,7 +9,7 @@ setup(
     keywords='neuroscience vision cortex ',
     author='Noah C. Benson',
     author_email='nben@nyu.edu',
-    url='https://github.com/noahbenson/sco/',
+    url='https://github.com/winawerlab/sco/',
     license='GPLv3',
     packages=['sco',
               'sco.util',

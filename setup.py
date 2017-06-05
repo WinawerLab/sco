@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='sco',
-    version='0.3.1',
+    version='0.3.2',
     description='Library for the prediction of cortical responses to visual stimuli: the Standard Cortical Observer',
     keywords='neuroscience vision cortex ',
     author='Noah C. Benson',
@@ -23,13 +23,12 @@ setup(
               'sco.impl.kay13',
               'sco.model_comparison'],
     package_data={'': ['LICENSE.txt']},
-    install_requires=['numpy>=1.2',
-                      'scipy>=0.7',
-                      #'scikit-image>=0.12',
-                      'nibabel>=2.0',
-                      'pyrsistent>=0.12',
-                      'decorator>=4.0',
-                      'neuropythy>=0.2',
-                      'pimms>=0.1',
-                      'pandas>=0.18.1',
-                      'seaborn>=0.7.1'])
+    install_requires=['numpy      >= 1.2.0',
+                      'scipy      >= 0.7.0',
+                      'nibabel    >= 2.0.0',
+                      'pyrsistent >= 0.12.0',
+                      'neuropythy >= 0.2.11',
+                      'pimms      >= 0.1.9',
+                      'matplotlib >= 1.5.0',
+                      'pandas     >= 0.18.1',
+                      'seaborn    >= 0.7.1'])

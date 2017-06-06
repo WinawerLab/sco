@@ -63,8 +63,10 @@ def cortical_image(prediction, labels, pRFs, max_eccentricity, image_number=None
         fig = subplot
     # Some parameter handling:
     maxecc  = float(pimms.mag(max_eccentricity, 'deg'))
-    centers = np.asarray([pimms.mag(p.center, 'deg') for p in pRFs])
-    sigs    = np.asarray([pimms.mag(p.radius, 'deg') for p in pRFs])
+    centers = np.asarray([pimms.mag(p.center, 'deg') if l == visual_area else (0,0)
+                          for (p,l) in zip(pRFs, labels)])
+    sigs    = np.asarray([pimms.mag(p.radius, 'deg') if l == visual_area else 0
+                          for (p,l) in zip(pRFs, labels)])
     z       = prediction[:,image_number]
     (x,y,z,sigs) = np.transpose([(xx,yy,zz,ss)
                                  for ((xx,yy),zz,ss,l) in zip(centers,z,sigs,labels)

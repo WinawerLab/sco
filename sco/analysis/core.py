@@ -254,3 +254,4 @@ def calc_prediction_analysis(prediction, measurements, labels, hemispheres, pRFs
         except: res[lbl] = np.nan
     # That's it!
     return (pyr.pmap(res), pyr.pmap({k:pyr.pvector(v) for (k,v) in lbls.iteritems()}))
+    

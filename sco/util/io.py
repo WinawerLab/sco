@@ -230,7 +230,8 @@ def export_report_images(labels, pRFs, max_eccentricity, output_directory,
     fnms = [fnm]
     plt.close(f)
     for l in np.unique(labels):
-        fnm = os.path.join(output_directory, output_prefix + ('v%dcorr' % l) + output_suffix + '.png')
+        fnm = os.path.join(output_directory,
+                           output_prefix + ('v%dcorr' % l) + output_suffix + '.png')
         fnms.append(fnm)
         f = corrcoef_image(prediction_analysis, measurements, labels, pRFs, max_eccentricity,
                            visual_area=l)
@@ -238,10 +239,50 @@ def export_report_images(labels, pRFs, max_eccentricity, output_directory,
         plt.close(f)
     return pyr.pvector(fnms)
 
+@pimms.calc('exported_vega')
+def export_vega(output_directory, prediction_analysis, prediction_analysis_labels,
+                prediction, measurements, corresponding_indices,
+                create_directories=False, output_prefix='', output_suffix=''):
+    '''
+    export_vega is a pimms calculation that takes mostly analyzed data and exports a vega-lite file
+    rendering a histogram of the accuracies.
+    '''
+    (output_prefix,output_suffix) = ['' if x is None else x for x in (output_prefix,output_suffix)]
+    if measurements is None: return (None, None)
+    (pidcs,midcs) = corresponding_indices
+    idcs = prediction_analysis_labels[pyr.m(hemi='lh',label=1)]
+    pidcs = pidcs[idcs]
+    midcs = midcs[idcs]
+    prediction   = prediction[pidcs]
+    measurements = measurements[midcs]
+    rs = np.asarray([np.corrcoef(p,m)[0,1] for (p,m) in zip(prediction, measurements)])
+    json_fnm = os.path.join(output_directory,
+                            output_prefix + 'vega-corthist' + output_suffix + '.json')
+    csv_fnm  = os.path.join(output_directory,
+                            output_prefix + 'vega-corthist' + output_suffix + '.csv')
+    vega_spec = '''
+      {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+       "data": {"url": "%s"},
+       "mark": "bar",
+       "encoding": {
+         "x": {
+           "bin": {"maxbins": 10},
+           "field": "correlation",
+           "type": "quantitative"},
+         "y": {
+           "aggregate": "count",
+           "type": "quantitative"}}}
+      '''
+    with open(json_fnm, 'w') as f: f.write(vega_spec % csv_fnm)
+    with open(csv_fnm, 'w') as f:
+        f.write(str([{'pid':p, 'mid':m, 'correlation':r} for (p,m,r) in zip(midcs,pidcs,rs)]))
+    return True
+    
 @pimms.calc('exported_files')
 def calc_exported_files(exported_report_filenames,
                         exported_analysis_filenames,
-                        exported_predictions_filenames):
+                        exported_predictions_filenames,
+                        exported_vega):
     '''
     calc_exported_files is a calculation object that simply accumulates the files exported by
       various other functions in the sco.util package (specifically sco.util.io) and stores the list

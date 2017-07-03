@@ -5,6 +5,7 @@
 
 import numpy as np
 import pyrsistent as pyr
+import json
 import os, pimms, sys
 import nibabel, nibabel.freesurfer.mghformat as fsmgh
 import matplotlib.pyplot as plt
@@ -104,7 +105,7 @@ def export_predictions(prediction, cortex_indices, modality, hemispheres, freesu
     export_predictions is a calc that exports the prediction data in from the sco calculation, which
        must come from sco.sco_plan(...) or similar; at the least it must contain the data documented
        below. The return value is a set of filenames exported.
-    
+
     Required afferent values:
       * prediction:         the prediction matrix
       * cortex_indices:     the voxel indices or vertex ids
@@ -151,7 +152,7 @@ def export_analysis(output_directory,
     export_evaluations is a calculator that exports the evaluation data in the calc plan, which
        must come from sco.sco_plan(...) or similar; at the least it must contain the data documented
        below. The return value is a set of filenames exported.
-    
+
     Required afferent values:
       * prediction_analysis and prediction_analysis_labels: the analysis of the predicted versus
         measurements data (from sco.analysis)
@@ -191,7 +192,7 @@ def export_analysis(output_directory,
             tup = tup + (n, rval)
             f.write(fmt % tup)
     return pyr.v(filename)
-        
+
 @pimms.calc('exported_report_filenames')
 def export_report_images(labels, pRFs, max_eccentricity, output_directory,
                          prediction_analysis, measurements,
@@ -203,7 +204,7 @@ def export_report_images(labels, pRFs, max_eccentricity, output_directory,
 
     Note that this calculator does nothing and simply yields None if the measurements or
     prediction_analysis values are not found; these have default values.
-    
+
     Required afferent values:
       * output_directory, the directory to which to write the results
 
@@ -256,10 +257,10 @@ def export_vega(output_directory, prediction_analysis, prediction_analysis_label
     prediction   = prediction[pidcs]
     measurements = measurements[midcs]
     rs = np.asarray([np.corrcoef(p,m)[0,1] for (p,m) in zip(prediction, measurements)])
-    json_fnm = os.path.join(output_directory,
+    json_spec_fnm = os.path.join(output_directory,
+                            output_prefix + 'vega-corthist-spec' + output_suffix + '.json')
+    json_fnm  = os.path.join(output_directory,
                             output_prefix + 'vega-corthist' + output_suffix + '.json')
-    csv_fnm  = os.path.join(output_directory,
-                            output_prefix + 'vega-corthist' + output_suffix + '.csv')
     vega_spec = '''
       {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
        "data": {"url": "%s"},
@@ -273,11 +274,11 @@ def export_vega(output_directory, prediction_analysis, prediction_analysis_label
            "aggregate": "count",
            "type": "quantitative"}}}
       '''
-    with open(json_fnm, 'w') as f: f.write(vega_spec % csv_fnm)
-    with open(csv_fnm, 'w') as f:
-        f.write(str([{'pid':p, 'mid':m, 'correlation':r} for (p,m,r) in zip(midcs,pidcs,rs)]))
+    with open(json_spec_fnm, 'w') as f: f.write(vega_spec % json_fnm)
+    with open(json_fnm, 'w') as f:
+        json.dump([{'pid':p, 'mid':m, 'correlation':r} for (p,m,r) in zip(midcs,pidcs,rs)], f)
     return True
-    
+
 @pimms.calc('exported_files')
 def calc_exported_files(exported_report_filenames,
                         exported_analysis_filenames,

@@ -10,10 +10,11 @@ defined; this may be included in any SCO plan to ensure that the optional parame
 available to the downstream calculations if not provided by the user or other calculations.
 '''
 
-import pyrsistent              as _pyr
-import pimms                   as _pimms
-import numpy                   as _np
-from   sco.util   import units as _units
+import pyrsistent                                    as _pyr
+import pimms                                         as _pimms
+import numpy                                         as _np
+from   sco.util                     import units     as _units
+from   neuropythy.vision.retinotopy import pRF_data  as _neuropythy_pRF_data
 
 import sco.anatomy
 import sco.stimulus
@@ -99,14 +100,36 @@ def calc_divisive_normalization(labels, saturation_constants_by_label, divisive_
             __name__ + fn_name)
 
 # Parameters Defined by Labels #####################################################################
-pRF_sigma_slopes_by_label_Kay2013      = _pyr.pmap({1:0.10, 2:0.15, 3:0.27})
-contrast_constants_by_label_Kay2013    = _pyr.pmap({1:0.93, 2:0.99, 3:0.99})
-compressive_constants_by_label_Kay2013 = _pyr.pmap({1:0.18, 2:0.13, 3:0.12})
-saturation_constants_by_label_Kay2013  = _pyr.pmap({1:0.50, 2:0.50, 3:0.50})
-divisive_exponents_by_label_Kay2013    = _pyr.pmap({1:1.00, 2:1.00, 3:1.00})
+visual_area_names_by_label = _pyr.pmap({1:'V1', 2:'V2', 3:'V3', 4:'hV4'})
+visual_area_labels_by_name = _pyr.pmap({v:k for (k,v) in visual_area_names_by_label.iteritems()})
+pRF_sigma_slopes_by_label_Kay2013      = _pyr.pmap(
+    {1:_neuropythy_pRF_data['kay2013']['v1' ]['m'],
+     2:_neuropythy_pRF_data['kay2013']['v2' ]['m'],
+     3:_neuropythy_pRF_data['kay2013']['v3' ]['m'],
+     4:_neuropythy_pRF_data['kay2013']['hv4']['m']})
+pRF_sigma_offsets_by_label_Kay2013     = _pyr.pmap(
+    {1:_neuropythy_pRF_data['kay2013']['v1' ]['b'],
+     2:_neuropythy_pRF_data['kay2013']['v2' ]['b'],
+     3:_neuropythy_pRF_data['kay2013']['v3' ]['b'],
+     4:_neuropythy_pRF_data['kay2013']['hv4']['b']})
+pRF_sigma_slopes_by_label_Wandell2015  = _pyr.pmap(
+    {1:_neuropythy_pRF_data['wandell2015']['v1' ]['m'],
+     2:_neuropythy_pRF_data['wandell2015']['v2' ]['m'],
+     3:_neuropythy_pRF_data['wandell2015']['v3' ]['m'],
+     4:_neuropythy_pRF_data['wandell2015']['hv4']['m']})
+pRF_sigma_offsets_by_label_Wandell2015 = _pyr.pmap(
+    {1:_neuropythy_pRF_data['wandell2015']['v1' ]['b'],
+     2:_neuropythy_pRF_data['wandell2015']['v2' ]['b'],
+     3:_neuropythy_pRF_data['wandell2015']['v3' ]['b'],
+     4:_neuropythy_pRF_data['wandell2015']['hv4']['b']})
+contrast_constants_by_label_Kay2013    = _pyr.pmap({1:0.93, 2:0.99, 3:0.99, 4:0.95})
+compressive_constants_by_label_Kay2013 = _pyr.pmap({1:0.18, 2:0.13, 3:0.12, 4:0.115})
+saturation_constants_by_label_Kay2013  = _pyr.pmap({1:0.50, 2:0.50, 3:0.50, 4:0.50})
+divisive_exponents_by_label_Kay2013    = _pyr.pmap({1:1.00, 2:1.00, 3:1.00, 4:1.00})
+gains_by_label_Benson2017              = _pyr.pmap({1:1.00, 2:1.00, 3:1.00, 4:1.00})
 # Some experimental parameters by labels
-ones_by_label  = _pyr.pmap({1:1.0, 2:1.0,3:1.0})
-zeros_by_label = _pyr.pmap({1:0.0, 2:0.0,3:0.0})
+ones_by_label  = _pyr.pmap({1:1.0, 2:1.0, 3:1.0, 4:1.0})
+zeros_by_label = _pyr.pmap({1:0.0, 2:0.0, 3:0.0, 5:1.0})
 
 # Frequency Sensitivity ############################################################################
 #_sensitivity_frequencies_cpd = _pimms.quant(_np.asarray([0.75 * 2.0**(0.5 * k) for k in range(6)]),
@@ -114,8 +137,15 @@ zeros_by_label = _pyr.pmap({1:0.0, 2:0.0,3:0.0})
 #_sensitivity_frequencies_cpd = _pimms.quant(_np.asarray([5, 3.5355, 2.5000, 1.7678, 1.2500, 0.8839,
 #                                                         0.6250, 0.4419, 0.3125]),
 #                                            'cycles/deg')
-_sensitivity_frequencies_cpd = _pimms.quant(_np.asarray([0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 6.0]),
-                                            'cycles/deg')
+#_sensitivity_frequencies_cpd = _pimms.quant(_np.asarray([0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 6.0]),
+#                                            'cycles/deg')
+#_sensitivity_frequencies_cpd = _pimms.quant(
+#    _np.asarray(_np.exp(_np.log(18.0)/6.0 * _np.asarray(range(1,8)) - _np.log(3.0))),
+#    'cycles/deg')
+_sensitivity_frequencies_cpd = _pimms.quant(
+    _np.asarray(_np.exp(0.5 * _np.asarray(range(1,8)) - 1.5)),
+    'cycles/deg')
+
 _cpd_sensitivity_cache = {}
 def cpd_sensitivity(e, s, l):
     '''
@@ -157,11 +187,13 @@ def cpd_sensitivity(e, s, l):
 # The default options are provided here for the SCO
 @_pimms.calc('benson17_default_options_used')
 def provide_default_options(
-        pRF_sigma_slopes_by_label      = 'sco.impl.benson17.pRF_sigma_slopes_by_label_Kay2013',
+        pRF_sigma_slopes_by_label      = 'sco.impl.benson17.pRF_sigma_slopes_by_label_Wandell2015',
+        pRF_sigma_offsets_by_label     = 'sco.impl.benson17.pRF_sigma_offsets_by_label_Wandell2015',
         contrast_constants_by_label    = 'sco.impl.benson17.contrast_constants_by_label_Kay2013',
         compressive_constants_by_label = 'sco.impl.benson17.compressive_constants_by_label_Kay2013',
         saturation_constants_by_label  = 'sco.impl.benson17.saturation_constants_by_label_Kay2013',
         divisive_exponents_by_label    = 'sco.impl.benson17.divisive_exponents_by_label_Kay2013',
+        gains_by_label                 = 'sco.impl.benson17.gains_by_label_Benson2017',
         max_eccentricity               = 12,
         modality                       = 'volume',
         cpd_sensitivity_function       = 'sco.impl.benson17.cpd_sensitivity',
@@ -172,14 +204,16 @@ def provide_default_options(
     these parameter values or the default ones for any not provided.
  
     These options are:
-      * pRF_sigma_slope_by_label (sco.impl.benson17.pRF_sigma_slope_by_label_Kay2013)
-      * compressive_constant_by_label (sco.impl.benson17.compressive_constant_by_label_Kay2013)
-      * contrast_constant_by_label (sco.impl.benson17.contrast_constant_by_label_Kay2013)
+      * pRF_sigma_slopes_by_label (sco.impl.benson17.pRF_sigma_slopes_by_label_Wandell2015)
+      * pRF_sigma_offsets_by_label (sco.impl.benson17.pRF_sigma_offsets_by_label_Wandell2015)
+      * compressive_constants_by_label (sco.impl.benson17.compressive_constants_by_label_Kay2013)
+      * contrast_constants_by_label (sco.impl.benson17.contrast_constants_by_label_Kay2013)
       * modality ('volume')
       * max_eccentricity (12)
       * cpd_sensitivity_function (sco.impl.benson17.cpd_sensitivity)
-      * saturation_constant (sco.impl.benson17.saturation_constant_Kay2013)
-      * divisive_exponent (sco.impl.benson17.divisive_exponent_Kay2013)
+      * saturation_constant_by_label (sco.impl.benson17.saturation_constants_by_label_Kay2013)
+      * divisive_exponent_by_label (sco.impl.benson17.divisive_exponents_by_label_Kay2013)
+      * gains_by_label (sco.impl.benson17.divisive_exponent_Kay2013)
       * gabor_orientations (8)
     '''
     # the defaults are filled-in by virtue of being in the above argument list

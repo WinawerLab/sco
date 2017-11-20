@@ -99,6 +99,8 @@ def calc_divisive_normalization(labels, saturation_constants_by_label, divisive_
             __name__ + fn_name)
 
 # Parameters Defined by Labels #####################################################################
+area_labels_Kay2013                    = _pyr.pmap({1:'V1',  2:'V2',  3:'V3',  4:'hV4',
+                                                    5:'VO1', 6:'LO1', 7:'V3a', 8:'V4b'})
 pRF_sigma_slopes_by_label_Kay2013      = _pyr.pmap({1:0.10, 2:0.15, 3:0.27})
 contrast_constants_by_label_Kay2013    = _pyr.pmap({1:0.93, 2:0.99, 3:0.99})
 compressive_constants_by_label_Kay2013 = _pyr.pmap({1:0.18, 2:0.13, 3:0.12})

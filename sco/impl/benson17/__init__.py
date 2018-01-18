@@ -55,6 +55,28 @@ def divisively_normalize_naive(data, divisive_exponent=0.5, saturation_constant=
     '''
     return _np.mean(data.values(), axis=0)
 
+def divisively_normalize_spatialfreq(data, divisive_exponent=2, saturation_constant=0.1):
+    '''
+    Divisively normalizes data taking into account the previous and following spatial frequency level. 
+    Data is the 4D decomposition of an image into spatial frequencies and orientations, such as the result 
+    of the steerable pyramid transform.
+
+    Author: Chrysa Papadaniil <chrysa@nyu.edu>
+    '''
+    numlevels = data.shape[0]
+    s = saturation_constant
+    r = divisive_exponent
+    normalizers = np.sum(data, axis=1)
+    normalized = np.full(data.shape, 0.0)
+    normalized[0] = data[0]**r / ((normalizers[0]+normalizers[1])**r + s**r)
+    normalized[numlevels-1] = data[numlevels-1]**r/((normalizers[numlevels-1]+normalizers[numlevels-2])**r+s**r)
+    inter_levels=range(1,numlevels-1)
+    for level in (inter_levels):
+        normalizer = normalizers[level] + normalizers[level+1] + normalizers[level-1]
+        normalized[level] = (data[level])**r/(normalizer**r+s**r)
+    normalized.setflags(write=False)
+    return normalized
+
 @_pimms.calc('divisive_normalization_parameters', 'divisive_normalization_function', cache=True)
 def calc_divisive_normalization(labels, saturation_constants_by_label, divisive_exponents_by_label,
                                 divisive_normalization_schema='Heeger1992'):
@@ -91,13 +113,12 @@ def calc_divisive_normalization(labels, saturation_constants_by_label, divisive_
     '''
     sat = sco.util.lookup_labels(labels, saturation_constants_by_label)
     rxp = sco.util.lookup_labels(labels, divisive_exponents_by_label)
-    if divisive_normalization_schema.lower() == 'heeger1992':
-        fn_name = '.divisively_normalize_Heeger1992'
-    elif divisive_normalization_schema.lower() == 'naive':
-        fn_name = '.divisively_normalize_naive'
-    else: raise ValueError('Unrecognized div-norm schema; must be \'Heeger1992\' or \'naive\'')
+    tr = {'heeger1992': '.divisively_normalize_Heeger1992',
+          'naive':      '.divisively_normalize_naive',
+          'sfreq':      '.divisively_normalize_spatialfreq'}
+    dns = divisive_normalization_schema.lower()
     return (_pimms.itable(saturation_constant=sat, divisive_exponent=rxp),
-            __name__ + fn_name)
+            (__name__ + tr[dns]) if dns in tr else dns)
 
 # Parameters Defined by Labels #####################################################################
 visual_area_names_by_label = _pyr.pmap({1:'V1', 2:'V2', 3:'V3', 4:'hV4'})

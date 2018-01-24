@@ -5,14 +5,12 @@
 
 import numpy                 as     np
 import neuropythy            as     neuro
-import neuropythy.freesurfer as     neurofs
 import nibabel               as     nib
 import nibabel.freesurfer    as     fs
 import pyrsistent            as     pyr
 
 import pimms, os, sys, warnings
 
-from   neuropythy.commands   import benson14_retinotopy_command
 from   ..util                import (lookup_labels, units, import_mri, apply_affine)
 
 @pimms.calc('freesurfer_subject', memoize=True)
@@ -27,7 +25,7 @@ def import_freesurfer_subject(subject):
     '''
     if isinstance(subject, basestring):
         subject = neuro.freesurfer_subject(subject)
-    if not isinstance(subject, neurofs.Subject):
+    if not isinstance(subject, neuro.Subject):
         raise ValueError('Value given for subject is neither a string nor a neuropythy subject')
     return subject
 
@@ -115,7 +113,7 @@ def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
         lab = os.path.join(subject.directory, 'mri', 'benson14_varea.mgz')
         if not os.path.exists(ang) or not os.path.exists(ecc) or not os.path.exists(lab):
             # Apply the template first...
-            benson14_retinotopy_command(subject.directory)
+            neuro.command.benson14_retinotopy.main(subject.directory)
         if not os.path.exists(ang) or not os.path.exists(ecc) or not os.path.exists(lab):        
             raise ValueError('No areas template found/created for subject: ' + lab)
         angle_mgz = fs.mghformat.load(ang)
@@ -158,7 +156,7 @@ def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
            not os.path.exists(lecc) or not os.path.exists(recc) or \
            not os.path.exists(llab) or not os.path.exists(rlab):
             # Apply the template first...
-            benson14_retinotopy_command(subject.directory)
+            neuro.command.benson14_retinotopy.main(subject.directory)
         if not os.path.exists(lang) or not os.path.exists(rang) or \
            not os.path.exists(lecc) or not os.path.exists(recc) or \
            not os.path.exists(llab) or not os.path.exists(rlab):

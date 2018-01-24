@@ -27,7 +27,7 @@ setup(
                       'scipy      >= 0.7.0',
                       'nibabel    >= 2.0.0',
                       'pyrsistent >= 0.12.0',
-                      'neuropythy >= 0.3.6',
+                      'neuropythy >= 0.4.1',
                       'pimms      >= 0.1.9',
                       'matplotlib >= 1.5.0',
                       'pandas     >= 0.18.1',

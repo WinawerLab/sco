@@ -108,6 +108,8 @@ class PRFSpec(object):
         rrng = (max([rrng0[0], 0]), min([rrng0[1], imshape[0].m]))
         crng = (max([crng0[0], 0]), min([crng0[1], imshape[1].m]))
         if any(s[1] - s[0] <= 0 for s in [rrng, crng]):
+            print (self.center, self.sigma, self.exponent, self.n_radii)
+            print (imshape, d2p, dst, rrng0, rrng, crng0, crng)
             raise ValueError('Bad image or std given to PRFSpec._params()')
         return (x0, rad, dst, rrng, crng, rrng0, crng0)
     def _weights(self, x0, rad, rrng, crng):

@@ -85,10 +85,10 @@ class ImageArrayContrastFilter(object):
         object f. The image array should always be a 3D numpy array.
         '''
         if not isinstance(ims, np.ndarray):
-            ims = np.array(ims, dtype=np.float)
+            ims = np.array(ims, dtype=np.dtype(float).type)
             ims.setflags(write=False)
-        elif not np.issubdtype(ims.dtype, np.float) or not ims.flags['WRITEABLE']:
-            ims = np.array(ims, dtype=np.float)
+        elif not np.issubdtype(ims.dtype, np.dtype(float).type) or not ims.flags['WRITEABLE']:
+            ims = np.array(ims, dtype=np.dtype(float).type)
             ims.setflags(write=False)
         if len(ims.shape) != 3:
             raise ValueError('image_array must be a stack of 2D images')
@@ -109,11 +109,11 @@ class ImageArrayContrastFilter(object):
         examine contrast; all elements are in radians.
         '''
         if not hasattr(go, '__iter__'):
-            go = np.asarray(range(go), dtype=np.float)
+            go = np.asarray(range(go), dtype=np.dtype(float).type)
             go *= np.pi / float(len(go))
         urad = units.rad
         go = urad * np.asarray([g.to(urad).m if pimms.is_quantity(g) else g for g in go],
-                               dtype=np.float)
+                               dtype=np.dtype(float).type)
         go.setflags(write=False)
         return go
     @pimms.param
@@ -393,7 +393,7 @@ def calc_contrast_constants(labels, contrast_constants_by_label):
     Provided efferent parameters:
       @ contrast_constants Will be an array of values, one per pRF, of the contrast constants.
     '''
-    r = np.asarray(lookup_labels(labels, contrast_constants_by_label), dtype=np.float)
+    r = np.asarray(lookup_labels(labels, contrast_constants_by_label), dtype=np.dtype(float).type)
     r.setflags(write=False)
     return r
 
@@ -464,7 +464,7 @@ def calc_compressive_constants(labels, compressive_constants_by_label):
     Provided efferent parameters:
       @ compressive_constants Will be an array of compressive output exponents, one per pRF.
     '''
-    r = np.asarray(lookup_labels(labels, compressive_constants_by_label), dtype=np.float)
+    r = np.asarray(lookup_labels(labels, compressive_constants_by_label), dtype=np.dtype(float).type)
     r.setflags(write=False)
     return r
 

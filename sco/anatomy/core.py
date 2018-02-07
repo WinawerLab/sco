@@ -108,12 +108,12 @@ def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
     subject = freesurfer_subject
     if modality.lower() == 'volume':
         # make sure there are template volume files that match this subject
-        ang = os.path.join(subject.directory, 'mri', 'benson14_angle.mgz')
-        ecc = os.path.join(subject.directory, 'mri', 'benson14_eccen.mgz')
-        lab = os.path.join(subject.directory, 'mri', 'benson14_varea.mgz')
+        ang = os.path.join(subject.path, 'mri', 'benson14_angle.mgz')
+        ecc = os.path.join(subject.path, 'mri', 'benson14_eccen.mgz')
+        lab = os.path.join(subject.path, 'mri', 'benson14_varea.mgz')
         if not os.path.exists(ang) or not os.path.exists(ecc) or not os.path.exists(lab):
             # Apply the template first...
-            neuro.command.benson14_retinotopy.main(subject.directory)
+            neuro.command.benson14_retinotopy.main(subject.path)
         if not os.path.exists(ang) or not os.path.exists(ecc) or not os.path.exists(lab):        
             raise ValueError('No areas template found/created for subject: ' + lab)
         angle_mgz = fs.mghformat.load(ang)
@@ -146,17 +146,17 @@ def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
         rx = freesurfer_subject.RH.midgray_surface.coordinates.T
         lx = freesurfer_subject.LH.midgray_surface.coordinates.T
         # make sure there are template volume files that match this subject
-        lang = os.path.join(subject.directory, 'surf', 'lh.benson14_angle.mgz')
-        lecc = os.path.join(subject.directory, 'surf', 'lh.benson14_eccen.mgz')
-        llab = os.path.join(subject.directory, 'surf', 'lh.benson14_varea.mgz')
-        rang = os.path.join(subject.directory, 'surf', 'rh.benson14_angle.mgz')
-        recc = os.path.join(subject.directory, 'surf', 'rh.benson14_eccen.mgz')
-        rlab = os.path.join(subject.directory, 'surf', 'rh.benson14_varea.mgz')
+        lang = os.path.join(subject.path, 'surf', 'lh.benson14_angle.mgz')
+        lecc = os.path.join(subject.path, 'surf', 'lh.benson14_eccen.mgz')
+        llab = os.path.join(subject.path, 'surf', 'lh.benson14_varea.mgz')
+        rang = os.path.join(subject.path, 'surf', 'rh.benson14_angle.mgz')
+        recc = os.path.join(subject.path, 'surf', 'rh.benson14_eccen.mgz')
+        rlab = os.path.join(subject.path, 'surf', 'rh.benson14_varea.mgz')
         if not os.path.exists(lang) or not os.path.exists(rang) or \
            not os.path.exists(lecc) or not os.path.exists(recc) or \
            not os.path.exists(llab) or not os.path.exists(rlab):
             # Apply the template first...
-            neuro.command.benson14_retinotopy.main(subject.directory)
+            neuro.command.benson14_retinotopy.main(subject.path)
         if not os.path.exists(lang) or not os.path.exists(rang) or \
            not os.path.exists(lecc) or not os.path.exists(recc) or \
            not os.path.exists(llab) or not os.path.exists(rlab):

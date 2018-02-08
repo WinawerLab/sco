@@ -152,6 +152,9 @@ def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
         rang = os.path.join(subject.path, 'surf', 'rh.benson14_angle.mgz')
         recc = os.path.join(subject.path, 'surf', 'rh.benson14_eccen.mgz')
         rlab = os.path.join(subject.path, 'surf', 'rh.benson14_varea.mgz')
+        (lang,lecc,llab,rang,recc,rlab) = [
+            flnm if os.path.isfile(flnm) else flnm[:-4]
+            for flnm in (lang,lecc,llab,rang,recc,rlab)]
         if not os.path.exists(lang) or not os.path.exists(rang) or \
            not os.path.exists(lecc) or not os.path.exists(recc) or \
            not os.path.exists(llab) or not os.path.exists(rlab):
@@ -177,7 +180,11 @@ def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
         idcs    = idcs[valid]
         coords  = np.concatenate([lx, rx], axis=0)[valid]
         hemis   = np.concatenate([[1 for a in lang], [-1 for a in rang]], axis=0)[valid]
-        angles  = angs0[valid]*hemis
+        # old versions of the template had positive numbers in both hemispheres...
+        if np.mean(angs0[valid[hemis == -1]]) > 0:
+            angles  = angs0[valid]*hemis
+        else:
+            angles = angs0[valid]
         eccens  = eccs[valid]
         labels  = np.asarray(labs[valid], dtype=np.int)
     else:

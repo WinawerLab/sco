@@ -70,7 +70,7 @@ def export_anatomical_data(data, sub, anat_ids, hemis, name, output_dir,
             len(anat_ids), len(data)))
     if dtype is None: dtype = data.dtype
     if np.issubdtype(dtype, np.int) and not np.isfinite(null): null = 0
-    affine = sub.LH.ribbon.affine
+    affine = sub.mgh_images['lh.ribbon'].affine
     file_names = []
     if modality == 'surface':
         for (hname, hid) in [('lh', 1), ('rh', -1)]:
@@ -87,7 +87,7 @@ def export_anatomical_data(data, sub, anat_ids, hemis, name, output_dir,
             img.to_filename(fnm)
             file_names.append(fnm)
     elif modality == 'volume':
-        vol = np.full(sub.LH.ribbon.shape + (data.shape[1],), null, dtype=dtype)
+        vol = np.full(sub.mgh_images['lh.ribbon'].shape + (data.shape[1],), null, dtype=dtype)
         for ((i,j,k),row) in zip(anat_ids, data): vol[i,j,k,:] = row
         img = nibabel.Nifti1Image(vol, affine)
         fnm = make_fname('', 'nii.gz')

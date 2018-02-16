@@ -50,16 +50,16 @@ def import_freesurfer_affine(freesurfer_subject, modality='volume'):
     '''
     raff = None
     try:
-        raff = freesurfer_subject.LH.ribbon.affine
+        raff = freesurfer_subject.mgh_images['lh.ribbon'].affine
     except:
-        raff = freesurfer_subject.RH.ribbon.affine
+        raff = freesurfer_subject.mgh_images['rh.ribbon'].affine
     if modality.lower() == 'volume':
         return raff
     elif modality.lower() == 'surface':
         try:
-            tkr = freesurfer_subject.LH.ribbon.header.get_vox2ras_tkr()
+            tkr = freesurfer_subject.mgh_images['lh.ribbon'].header.get_vox2ras_tkr()
         except:
-            tkr = freesurfer_subject.RH.ribbon.header.get_vox2ras_tkr()
+            tkr = freesurfer_subject.mgh_images['rh.ribbon'].header.get_vox2ras_tkr()
         return np.dot(raff, np.linalg.inv(tkr))
     else:
         raise ValueError('Unknown modality: %s' % modality)
@@ -119,7 +119,7 @@ def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
         angle_mgz = fs.mghformat.load(ang)
         eccen_mgz = fs.mghformat.load(ecc)
         label_mgz = fs.mghformat.load(lab)
-        ribbon_mgzs = (subject.LH.ribbon, subject.RH.ribbon)
+        ribbon_mgzs = (subject.mgh_images['lh.ribbon'], subject.mgh_images['rh.ribbon'])
         # The variables are all mgz volumes, so we need to extract the values:
         labels = np.round(np.abs(label_mgz.dataobj.get_unscaled()))
         angles = angle_mgz.dataobj.get_unscaled()
@@ -404,7 +404,7 @@ def export_predicted_responses(predicted_responses,
     fill = float(export_fill_value)
     imorder = predicted_responses.keys()
     if modality.lower() == 'volume':
-        vol0 = freesurfer_subject.LH.ribbon
+        vol0 = freesurfer_subject.mgh_images['lh.ribbon']
         vol0dims = vol0.get_data().shape
         preds = np.full(vol0dims + (len(predicted_responses),), fill, dtype=np.float32)
         for (n,imk) in enumerate(imorder):

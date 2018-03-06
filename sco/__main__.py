@@ -10,23 +10,43 @@ from neuropythy.util import CommandLineParser
 from sco import (build_model)
 
 main_parser = CommandLineParser(
-    [('h', 'help',      'help',              False),
-     ('p', 'deg2px',    'pixels_per_degree', '24'),
-     ('e', 'max-eccen', 'max_eccentricity',  '20'),
-     ('o', 'output',    'output_dir',        '.')])
+    [('h', 'help',                           'help',                           False),
+     ('C', 'create-directories',             'create_directories',             False),
+     ('u', 'use-spatial-gabors',             'use_spatial_gabors',             False),
+     
+     ('w', 'aperture-edge-width',            'aperture_edge_width',            None),
+     ('r', 'aperture-radius',                'aperture_radius',                None),
+     ('b', 'background',                     'background',                     '0.5'),
+     ('n', 'compressive-constants-by-label', 'compressive_constants_by_label', 'sco.impl.benson17.compressive_constants_by_label_Kay2013'),
+     ('c', 'contrast-constants-by-label',    'contrast_constants_by_label',    'sco.impl.benson17.contrast_constants_by_label_Kay2013'),
+     ('f', 'cpd-sensitivity-function',       'cpd_sensitivity_function',       'sco.impl.benson17.cpd_sensitivity'),
+     ('R', 'divisive-exponents-by-label',    'divisive_exponents_by_label',    'sco.impl.benson17.divisive_exponents_by_label_Kay2013'),
+     ('d', 'divisive-normalization-schema',  'divisive_normalization_schema',  'Heeger1992'),
+     ('g', 'gabor-orientations',             'gabor_orientations',             '8'),
+     ('k', 'gains-by-label',                 'gains_by_label',                 'sco.impl.benson17.gains_by_label_Benson2017'),
+     ('g', 'gamma',                          'gamma',                          None),
+     ('i', 'import-filter',                  'import_filter',                  None),
+     ('e', 'max-eccentricity',               'max_eccentricity',               '12'),
+     ('M', 'measurements-filename',          'measurements_filename',          None),
+     ('m', 'modality',                       'modality',                       'surface'),
+     ('X', 'normalized-pixels-per-degree',   'normalized_pixels_per_degree',   '6.4'),
+     ('o', 'output-directory',               'output_directory',               '.'),
+     ('P', 'output-prefix',                  'output_prefix',                  ''),
+     ('S', 'output-suffix',                  'output_suffix',                  ''),
+     ('N', 'pRF-n-radii',                    'pRF_n_radii',                    '3'),
+     ('Q', 'pRF-sigma-offsets-by-label',     'pRF_sigma_offsets_by_label',     'sco.impl.benson17.pRF_sigma_offsets_by_label_Wandell2015'),
+     ('q', 'pRF-sigma-slopes-by-label',      'pRF_sigma_slopes_by_label',      'sco.impl.benson17.pRF_sigma_slopes_by_label_Wandell2015'),
+     ('s', 'saturation-constants-by-label',  'saturation_constants_by_label',  'sco.impl.benson17.saturation_constants_by_label_Kay2013')])
 
 sco_help = \
 '''
-Usage: sco <subject> <image0000> <image0001>...
-Runs the Standard Cortical Observer prediction routine and exports a series of
-MGZ files: prediction_0000.mgz, prediction_0001.mgz, etc.
+Usage: sco <subject> <pixels-per-degree> <image0000> <image0001>...
+Runs the Standard Cortical Observer prediction routine and exports a prediction
+file, predictions.mgz.
+
 The following options may be given:
   * -h|--help prints this message.
-  * -p|--deg2px=<value> sets the pixels per degree in the input images
-    (default: 24).
-  * -e|--max-eccen=<value> sets the maximum eccentricity modeled in the output
-    (default: 20).
-  * -o|--output=<directory> sets the output directory (default: .).
+  ...
 '''
 
 def _check_extract(arg, subq=False):
@@ -60,19 +80,70 @@ def _check_extract(arg, subq=False):
         else:
             return [arg] if len(arg) > 4 and arg[-4:].lower() in img_formats else []
 
+def _parse_label_arg(arg):
+    s = ''.join(arg.split()) # eliminate whitespace
+    if s[0] == '{' and s.endswith('}'):
+        els = s[1:-1].split(',')
+        return {int(k):float(v) for el in els for (k,v) in [el.split(':')]}
+    elif s[0] == '[' and s.endswith(']'):
+        els = s[1:-1].split(',')
+        return {(k + 1):float(v) for (k,v) in enumerate(els)}
+    else:
+        return arg # probably is a variable name...
+def _parse_gamma_arg(g):
+    s = ''.join(arg.split()) # eliminate whitespace
+    if s[0] != '[' or s[-1] != ']':
+        raise ValueError('gamma argument must be specified as a matrix or vector (in []s)')
+    s = s[1:-1]
+    rows = s.split(';')
+    if len(rows) == 1:
+        # we have a vector...
+        return np.asarray([float(k) for k in s.split(',')])
+    else:
+        return np.asarray([[float(c) for c in row.split(',')] for row in rows])
+        
 def main(argv):
     (args, opts) = main_parser(argv)
     if opts['help']:
         print sco_help
         return 1
-    if len(args) < 2: raise ValueError('Syntax: sco <subject> <images...>')
-    opts['pixels_per_degree'] = float(opts['pixels_per_degree'])
-    opts['max_eccentricity']  = float(opts['max_eccentricity'])
-    # Arg 0 is a subject; arg 1 is a directory of images
+    if len(args) < 3: raise ValueError('Syntax: sco <subject> <pixels-per-degree> <images...>')
+    # Arg 0 is a subject; arg 1 is a pixels-per-degree value, rest are images
     sub = _check_extract(args[0], True)
-    imfiles = [a for arg in args[1:] for a in _check_extract(arg)]
+    d2p = float(args[1])
+    imfiles = [a for arg in args[2:] for a in _check_extract(arg)]
+
+    # simple processing for arguments
+    opts['aperture_edge_width'] = None if opts['aperture_edge_width'] is None else \
+                                  float(opts['aperture_edge_width'])
+    opts['aperture_radius'] = None if opts['aperture_radius'] is None else \
+                              float(opts['aperture_radius'])
+    opts['background'] = float(opts['background'])
+    opts['gabor_orientations'] = int(opts['gabor_orientations'])
+    opts['max_eccentricity'] = float(opts['max_eccentricity'])
+    opts['normalized_pixels_per_degree'] = float(opts['normalized_pixels_per_degree'])
+    opts['pRF_n_radii'] = float(opts['pRF_n_radii'])
+
+    # These take more than a little processing
+    opts['gamma']                          = _parse_gamma_arg(opts['gamma'])
+    opts['pRF_sigma_offsets_by_label']     = _parse_label_arg(opts['pRF_sigma_offsets_by_label'])
+    opts['pRF_sigma_slopes_by_label']      = _parse_label_arg(opts['pRF_sigma_slopes_by_label'])
+    opts['divisive_exponents_by_label']    = _parse_label_arg(opts['divisive_exponents_by_label'])
+    opts['compressive_constants_by_label'] = _parse_label_arg(opts['compressive_constants_by_label'])
+    opts['contrast_constants_by_label']    = _parse_label_arg(opts['contrast_constants_by_label'])
+    opts['saturation_constants_by_label']  = _parse_label_arg(opts['saturation_constants_by_label'])
+    opts['gains_by_label']                 = _parse_label_arg(opts['gains_by_label'])
+
+    # Might be two measurements files...
+    mmfl = opts['measurements_filename']
+    if mmfl is not None and opts['modality'].lower() == 'surface':
+        mmfl = mmfl.split(':')
+        if len(mmfl) != 2:
+            raise ValueError('surface modality requires 2 :-separated measurement filenames')
+        opts['measurements_filename'] = tuple(mmfl)
+
     mdl = build_model('benson17')
-    r = mdl(opts, subject=sub, stimulus_image_filenames=imfiles)
+    r = mdl(opts, subject=sub, stimulus_image_filenames=imfiles, pixels_per_degree=d2p)
     r['exported_files']
     return 0
 

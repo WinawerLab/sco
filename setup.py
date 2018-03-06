@@ -28,7 +28,7 @@ setup(
                       'nibabel    >= 2.0.0',
                       'pyrsistent >= 0.12.0',
                       'neuropythy >= 0.4.11',
-                      'pimms      >= 0.1.9',
-                      'matplotlib >= 1.5.0',
-                      'pandas     >= 0.18.1',
-                      'seaborn    >= 0.7.1'])
+                      'pimms      >= 0.2.5'])
+                      #'matplotlib >= 1.5.0',
+                      #'pandas     >= 0.18.1',
+                      #'seaborn    >= 0.7.1'])

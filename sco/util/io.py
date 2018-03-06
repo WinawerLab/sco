@@ -8,7 +8,6 @@ import pyrsistent as pyr
 import json
 import os, pimms, sys
 import nibabel, nibabel.freesurfer.mghformat as fsmgh
-import matplotlib.pyplot as plt
 
 from .plot import (cortical_image, corrcoef_image, report_image)
 
@@ -222,6 +221,12 @@ def export_report_images(labels, pRFs, max_eccentricity, output_directory,
     Provided efferent values:
       @ exported_report_filenames Will be a list of filenames of analysis images exported.
     '''
+    try:
+        import matplotlib.pyplot as plt
+    except:
+        raise RuntimeError('Could not import matplotlib.pyplot; matplotlib may not be installed')
+
+    
     if prediction_analysis is None or measurements is None: return None
     (output_prefix, output_suffix) = _sco_init_outputs(output_directory, create_directories,
                                                        output_prefix, output_suffix)

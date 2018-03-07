@@ -68,7 +68,7 @@ def export_anatomical_data(data, sub, anat_ids, hemis, name, output_dir,
         raise ValueError('anatomical id (%d) and data (%d) sizesmust match' % (
             len(anat_ids), len(data)))
     if dtype is None: dtype = data.dtype
-    if np.issubdtype(dtype, np.int) and not np.isfinite(null): null = 0
+    if np.issubdtype(dtype, np.dtype(int).type) and not np.isfinite(null): null = 0
     affine = sub.mgh_images['lh.ribbon'].affine
     file_names = []
     if modality == 'surface':

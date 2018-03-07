@@ -91,7 +91,8 @@ def _parse_label_arg(arg):
     else:
         return arg # probably is a variable name...
 def _parse_gamma_arg(g):
-    s = ''.join(arg.split()) # eliminate whitespace
+    if g is None: return None
+    s = ''.join(g.split()) # eliminate whitespace
     if s[0] != '[' or s[-1] != ']':
         raise ValueError('gamma argument must be specified as a matrix or vector (in []s)')
     s = s[1:-1]
@@ -143,7 +144,7 @@ def main(argv):
         opts['measurements_filename'] = tuple(mmfl)
 
     mdl = build_model('benson17')
-    r = mdl(opts, subject=sub, stimulus_image_filenames=imfiles, pixels_per_degree=d2p)
+    r = mdl(opts, subject=sub, stimulus=imfiles, pixels_per_degree=d2p)
     r['exported_files']
     return 0
 

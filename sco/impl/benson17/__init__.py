@@ -216,7 +216,7 @@ def provide_default_options(
         divisive_exponents_by_label    = 'sco.impl.benson17.divisive_exponents_by_label_Kay2013',
         gains_by_label                 = 'sco.impl.benson17.gains_by_label_Benson2017',
         max_eccentricity               = 12,
-        modality                       = 'volume',
+        modality                       = 'surface',
         cpd_sensitivity_function       = 'sco.impl.benson17.cpd_sensitivity',
         gabor_orientations             = 8):
     '''
@@ -229,7 +229,7 @@ def provide_default_options(
       * pRF_sigma_offsets_by_label (sco.impl.benson17.pRF_sigma_offsets_by_label_Wandell2015)
       * compressive_constants_by_label (sco.impl.benson17.compressive_constants_by_label_Kay2013)
       * contrast_constants_by_label (sco.impl.benson17.contrast_constants_by_label_Kay2013)
-      * modality ('volume')
+      * modality ('surface')
       * max_eccentricity (12)
       * cpd_sensitivity_function (sco.impl.benson17.cpd_sensitivity)
       * saturation_constant_by_label (sco.impl.benson17.saturation_constants_by_label_Kay2013)

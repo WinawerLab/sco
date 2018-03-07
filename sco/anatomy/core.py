@@ -30,7 +30,7 @@ def import_freesurfer_subject(subject):
     return subject
 
 @pimms.calc('cortex_affine')
-def import_freesurfer_affine(freesurfer_subject, modality='volume'):
+def import_freesurfer_affine(freesurfer_subject, modality='surface'):
     '''
     import_freesurfer_affine is a calculation that imports the affine transform associated with a
     freesurfer subject's volumes.
@@ -67,7 +67,7 @@ def import_freesurfer_affine(freesurfer_subject, modality='volume'):
 @pimms.calc('polar_angles', 'eccentricities', 'labels', 'hemispheres',
             'cortex_indices', 'cortex_coordinates')
 def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
-                                    modality='volume', import_filter=None):
+                                    modality='surface', import_filter=None):
     '''
     import_benson14_from_freesurfer is a calculation that imports (or creates then imports) the
     Benson et al. (2014) template of retinotopy for the subject, whose neuropythy.freesurfer

@@ -306,7 +306,8 @@ class ImageArrayContrastView(object):
         return pyr.pmap(res)
     
 @pimms.calc('contrast_filter', memoize=True)
-def calc_contrast_filter(image_array, normalized_pixels_per_degree, gabor_orientations, background,
+def calc_contrast_filter(image_array, pixels_per_degree, normalized_pixels_per_degree,
+                         gabor_orientations, background,
                          cpd_sensitivities, use_spatial_gabors=False):
     '''
     calc_contrast is a calculator that takes as input a normalized image stack and various parameter
@@ -327,6 +328,7 @@ def calc_contrast_filter(image_array, normalized_pixels_per_degree, gabor_orient
       @ contrast_filter Will be an object of type ImageArrayContrastFilter that can filter the image
         array at arbitrary frequencies and divisive normalization parameters.
     '''
+    if normalized_pixels_per_degree is None: normalized_pixels_per_degree = pixels_per_degree
     all_cpds = np.unique([k.to(units.cycle/units.deg).m if pimms.is_quantity(k) else k
                           for s in cpd_sensitivities for k in s.iterkeys()])
     # find this difference...
@@ -400,7 +402,7 @@ def calc_contrast_constants(labels, contrast_constants_by_label):
 @pimms.calc('pRF_SOC', cache=True)
 def calc_pRF_SOC(pRFs, contrast_energies, cpd_sensitivities,
                  divisive_normalization_parameters, contrast_constants,
-                 normalized_pixels_per_degree):
+                 pixels_per_degree, normalized_pixels_per_degree):
     '''
     calc_pRF_SOC is a calculator that is responsible for calculating the individual SOC responses
     of the pRFs by extracting their pRFs from the contrast_energies and weighting them according
@@ -417,6 +419,7 @@ def calc_pRF_SOC(pRFs, contrast_energies, cpd_sensitivities,
         these will be stored in an (n x m) matrix where n is the number of pRFs and m is the
         number of images.
     '''
+    if normalized_pixels_per_degree is None: normalized_pixels_per_degree = pixels_per_degree
     d2p = normalized_pixels_per_degree
     d2p = d2p.to(units.px/units.deg) if pimms.is_quantity(d2p) else d2p*(units.px/units.deg)
     params = divisive_normalization_parameters

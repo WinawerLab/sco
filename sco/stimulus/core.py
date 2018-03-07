@@ -179,7 +179,7 @@ def calc_images(pixels_per_degree, stimulus_map, stimulus_ordering,
                 background=0.5,
                 aperture_radius=None,
                 aperture_edge_width=None,
-                normalized_pixels_per_degree=12):
+                normalized_pixels_per_degree=None):
     '''
     calc_images() is a the calculation that converts the imported_stimuli value into the normalized
     images value.
@@ -200,7 +200,7 @@ def calc_images(pixels_per_degree, stimulus_map, stimulus_ordering,
       @ aperture_edge_width Specifies the width of the aperture edge in degrees; by default this is
         None; if 0 or None, then no aperture edge is used.
       @ normalized_pixels_per_degree Specifies the resolution of the images used in the calculation;
-        by default this is 15.
+        by default this is the same as pixels_per_degree.
 
     Output efferent values:
       @ image_array Will be the 3D numpy array image stack; image_array[i,j,k] is the pixel in image
@@ -212,7 +212,10 @@ def calc_images(pixels_per_degree, stimulus_map, stimulus_ordering,
     '''
     # first, let's interpret our arguments
     deg2px = float(pimms.mag(pixels_per_degree, 'px/deg'))
-    normdeg2px = float(pimms.mag(normalized_pixels_per_degree, 'px/deg'))
+    if normalized_pixels_per_degree is None:
+        normdeg2px = deg2px
+    else:
+        normdeg2px = float(pimms.mag(normalized_pixels_per_degree, 'px/deg'))
     # we can get the zoom ratio from these
     zoom_ratio = normdeg2px / deg2px
     # Zoom each image so that the pixels per degree is right:

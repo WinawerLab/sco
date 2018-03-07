@@ -98,7 +98,7 @@ def export_anatomical_data(data, sub, anat_ids, hemis, name, output_dir,
 
 @pimms.calc('exported_predictions_filenames')
 def export_predictions(prediction, cortex_indices, modality, hemispheres, freesurfer_subject,
-                       labels, image_names, output_directory,
+                       labels, image_names, output_directory='.',
                        create_directories=False, output_prefix='', output_suffix=''):
     '''
     export_predictions is a calc that exports the prediction data in from the sco calculation, which
@@ -112,7 +112,8 @@ def export_predictions(prediction, cortex_indices, modality, hemispheres, freesu
       * modality:           'surface' or 'volume'
       * labels:             the anatomical labels
       * freesurfer_subject: the freesurfer subject object
-      * output_directory:   the directory to which to write the results
+      @ output_directory (default: '.') the directory to which to write the results; if None, then
+        uses the current directory (.).
 
     Options:
       * create_directories (default: False) if True, will create the directory if it does not exist;
@@ -144,8 +145,7 @@ def export_predictions(prediction, cortex_indices, modality, hemispheres, freesu
     return pyr.pvector(fnms)
 
 @pimms.calc('exported_analysis_filenames')
-def export_analysis(output_directory,
-                    prediction_analysis, prediction_analysis_labels,
+def export_analysis(prediction_analysis, prediction_analysis_labels, output_directory='.',
                     create_directories=False, output_prefix='', output_suffix=''):
     '''
     export_evaluations is a calculator that exports the evaluation data in the calc plan, which
@@ -193,8 +193,8 @@ def export_analysis(output_directory,
     return pyr.v(filename)
 
 @pimms.calc('exported_report_filenames')
-def export_report_images(labels, pRFs, max_eccentricity, output_directory,
-                         prediction_analysis, measurements,
+def export_report_images(labels, pRFs, max_eccentricity,
+                         prediction_analysis, measurements, output_directory='.',
                          create_directories=False, output_prefix='', output_suffix=''):
     '''
     export_report_images is a calculator that takes a prediction analysis
@@ -246,8 +246,8 @@ def export_report_images(labels, pRFs, max_eccentricity, output_directory,
     return pyr.pvector(fnms)
 
 @pimms.calc('exported_vega')
-def export_vega(output_directory, prediction_analysis, prediction_analysis_labels,
-                prediction, measurements, corresponding_indices,
+def export_vega(prediction_analysis, prediction_analysis_labels,
+                prediction, measurements, corresponding_indices, output_directory='.',
                 create_directories=False, output_prefix='', output_suffix=''):
     '''
     export_vega is a pimms calculation that takes mostly analyzed data and exports a vega-lite file

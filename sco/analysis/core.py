@@ -13,7 +13,7 @@ from sco.util import units, import_mri, nearest_indices, apply_affine
 @pimms.calc('measurements', 'measurement_indices',
             'measurement_coordinates', 'measurement_hemispheres',
             cache=True)
-def import_measurements(measurements_filename):
+def import_measurements(measurements_filename=None):
     '''
     import_measurements is a calculator that imports measured data from a given filename or pair
     of filenames (in the case of surface modalities), and converts them into a matrix of

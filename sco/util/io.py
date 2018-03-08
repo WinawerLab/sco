@@ -77,8 +77,12 @@ def export_anatomical_data(data, sub, anat_ids, hemis, name, output_dir,
             hidcs = np.where(hemis == hid)[0]
             n = hobj.vertex_count
             if np.issubdtype(dtype, np.float64): dtype = np.float32
-            vol = np.full((1,1,n,data.shape[1]), null, dtype=dtype)
-            vol[0,0,anat_ids[hidcs],:] = data[hidcs,:]
+            if data.shape[1] == 1:
+                vol = np.full((1,1,n), null, dtype=dtype)
+                vol[0,0,anat_ids[hidcs]] = data[hidcs,0]
+            else:
+                vol = np.full((1,1,n,data.shape[1]), null, dtype=dtype)
+                vol[0,0,anat_ids[hidcs],:] = data[hidcs,:]
             #img = nibabel.Nifti2Image(vol, np.eye(4))
             #fnm = make_fname(hname + '.', 'nii.gz')
             img = fsmgh.MGHImage(vol, np.eye(4))

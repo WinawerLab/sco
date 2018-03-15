@@ -165,7 +165,7 @@ def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
            not os.path.exists(lecc) or not os.path.exists(recc) or \
            not os.path.exists(llab) or not os.path.exists(rlab):
             raise ValueError('No anatomical template found/created for subject')
-        (lang,lecc,llab,rang,recc,rlab) = [ny.load(fl) for fl in (lang,lecc,llab,rang,recc,rlab)]
+        (lang,lecc,llab,rang,recc,rlab) = [neuro.load(fl) for fl in (lang,lecc,llab,rang,recc,rlab)]
         llab = np.round(np.abs(llab))
         rlab = np.round(np.abs(rlab))
         (angs0, eccs, labs) = [np.concatenate([ldat, rdat], axis=0)

@@ -5,6 +5,7 @@
 
 import numpy                 as     np
 import neuropythy            as     neuro
+import neuropythy.commands   as     neurocmd
 import nibabel               as     nib
 import nibabel.freesurfer    as     fs
 import pyrsistent            as     pyr
@@ -113,7 +114,7 @@ def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
         lab = os.path.join(subject.path, 'mri', 'benson14_varea.mgz')
         if not os.path.exists(ang) or not os.path.exists(ecc) or not os.path.exists(lab):
             # Apply the template first...
-            neuro.command.benson14_retinotopy.main(subject.path)
+            neurocmd.benson14_retinotopy.main(subject.path)
         if not os.path.exists(ang) or not os.path.exists(ecc) or not os.path.exists(lab):        
             raise ValueError('No areas template found/created for subject: ' + lab)
         angle_mgz = fs.mghformat.load(ang)
@@ -159,17 +160,12 @@ def import_benson14_from_freesurfer(freesurfer_subject, max_eccentricity,
            not os.path.exists(lecc) or not os.path.exists(recc) or \
            not os.path.exists(llab) or not os.path.exists(rlab):
             # Apply the template first...
-            neuro.command.benson14_retinotopy.main(subject.path)
+            neurocmd.benson14_retinotopy.main(subject.path)
         if not os.path.exists(lang) or not os.path.exists(rang) or \
            not os.path.exists(lecc) or not os.path.exists(recc) or \
            not os.path.exists(llab) or not os.path.exists(rlab):
             raise ValueError('No anatomical template found/created for subject')
-        lang = fs.mghformat.load(lang).dataobj.get_unscaled().flatten()
-        lecc = fs.mghformat.load(lecc).dataobj.get_unscaled().flatten()
-        llab = fs.mghformat.load(llab).dataobj.get_unscaled().flatten()
-        rang = fs.mghformat.load(rang).dataobj.get_unscaled().flatten()
-        recc = fs.mghformat.load(recc).dataobj.get_unscaled().flatten()
-        rlab = fs.mghformat.load(rlab).dataobj.get_unscaled().flatten()
+        (lang,lecc,llab,rang,recc,rlab) = [ny.load(fl) for fl in (lang,lecc,llab,rang,recc,rlab)]
         llab = np.round(np.abs(llab))
         rlab = np.round(np.abs(rlab))
         (angs0, eccs, labs) = [np.concatenate([ldat, rdat], axis=0)
@@ -218,8 +214,10 @@ def import_retinotopy_data_files(polar_angle_filename, eccentricity_filename, la
                                  hemisphere_filename=None, import_filter=None,
                                  max_eccentricity=None):
     '''
+
     import_retinotopy_data_files is a calculation that imports retinotopic map data from a set of
-    filenames. The filenames must be MGH (*.mgh, *.mgz) or NifTI (*.nii, *.nii.gz) files, and must
+    filenames. The filenames must be MGH (*.mgh, *.mgz) or NifTI (*.nii, *.nii.gz) files, or
+    optionally FreeSurfer morph-data files for surface modality, and must
     correspond to the appropriate data file. Each filename may optionally be given as a tuple 
     (lh_filename, rh_filename), in which case the hemisphere is deduced from the file; if a single
     filename is given for each, then either the polar angle data must be negative for the left
@@ -234,9 +232,6 @@ def import_retinotopy_data_files(polar_angle_filename, eccentricity_filename, la
     surface volume. The predictions volume that results always has the same dimensionality as the
     input volume, but the 4th dimension is the number of predictions.
     
-    The polar angle and eccentricity data 
-    
-
     Required afferent parameters:
       @ polar_angle_filename Must give the filename (or an (lh_filename, rh_filename) tuple) of the
         polar angle volume for the model to use; this volume's values must be in units of degrees,

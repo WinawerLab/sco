@@ -312,7 +312,7 @@ def import_retinotopy_data_files(polar_angle_filename, eccentricity_filename, la
         # there are negative labels or if a hemispheres file is given
         if -1 in np.unique(np.sign(angs)):
             hemis = np.sign(angs)
-        elif -1 in np.unique(lbl_sngs):
+        elif -1 in np.unique(lbl_sgns):
             hemis = lbl_sgns[aids]
         elif hemisphere_filename is not None:
             hemis = import_mri(hemisphere_filename)[aids]

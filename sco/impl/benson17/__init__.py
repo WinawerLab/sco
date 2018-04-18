@@ -46,6 +46,23 @@ def divisively_normalize_Heeger1992(data, divisive_exponent=0.5, saturation_cons
     normalized.setflags(write=False)
     return normalized
 
+def divisively_normalize_Heeger1992_square(data, divisive_exponent=1, saturation_constant=1.0):
+    '''
+    Same as "divisively_normalize_Heeger1992", but squares data before divisive normalization and
+    sums across orientations for the surround term.
+    '''
+    data = {key: pow(value,2) for key, value in data.items()}
+    surround = _np.sum(data.values(), axis=0)
+    s = saturation_constant
+    r = divisive_exponent
+    den = (s**r + surround**r)
+    num = _np.zeros(surround.shape)
+    for v in data.itervalues(): num += v**r
+    num /= len(data)
+    normalized = num / den
+    normalized.setflags(write=False)
+    return normalized
+
 def divisively_normalize_naive(data, divisive_exponent=0.5, saturation_constant=1.0):
     '''
     divisively_normalize_naive(data) yields the 3D image array that is the result of divisively
@@ -113,9 +130,11 @@ def calc_divisive_normalization(labels, saturation_constants_by_label, divisive_
     '''
     sat = sco.util.lookup_labels(labels, saturation_constants_by_label)
     rxp = sco.util.lookup_labels(labels, divisive_exponents_by_label)
-    tr = {'heeger1992': '.divisively_normalize_Heeger1992',
-          'naive':      '.divisively_normalize_naive',
-          'sfreq':      '.divisively_normalize_spatialfreq'}
+    tr = {'heeger1992':        '.divisively_normalize_Heeger1992',
+          'naive':             '.divisively_normalize_naive',
+          'sfreq':             '.divisively_normalize_spatialfreq',
+          'square':            '.divisively_normalize_Heeger1992_square',
+          'heeger1992_square': '.divisively_normalize_Heeger1992_square'}
     dns = divisive_normalization_schema.lower()
     return (_pimms.itable(saturation_constant=sat, divisive_exponent=rxp),
             (__name__ + tr[dns]) if dns in tr else dns)

@@ -83,7 +83,7 @@ def cortical_image(prediction, labels, pRFs, max_eccentricity, image_number=None
                 t = tri.Triangulation(x,y)
             # make a cortical mesh
             coords = np.asarray([x,y])
-            msh = ny.cortex.CorticalMesh(coords, t.triangles.T)
+            msh = ny.Mesh(coords, t.triangles.T)
             z = ny.mesh_smooth(msh, z, smoothness=smoothing, )
         (mn,mx) = clipfn(z)
         axes.tripcolor(t, z, cmap=cmap, shading='gouraud', vmin=mn, vmax=mx)

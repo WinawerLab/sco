@@ -220,7 +220,7 @@ def cpd_sensitivity(e, s, l):
         wtot = _np.sum(res.values())
         res = {k:(v/wtot) for (k,v) in res.iteritems()}
     res = _pyr.pmap(res)
-    _cpd_sensitivity_cache[s] = res
+    _cpd_sensitivity_cache[e] = res
     return res
 
 # Default Options ##################################################################################
